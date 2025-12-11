@@ -3,7 +3,7 @@ module github.com/metaspartan/mactop/v2
 go 1.25.5
 
 require (
-	github.com/metaspartan/gotui/v4 v4.1.4
+	github.com/metaspartan/gotui/v4 v4.1.6
 	github.com/prometheus/client_golang v1.20.5
 	github.com/shirou/gopsutil/v4 v4.25.10
 	golang.org/x/term v0.37.0
