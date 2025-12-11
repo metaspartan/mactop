@@ -262,7 +262,8 @@ This tool is not officially supported by Apple. It is provided as is, and may no
 
 ## Acknowledgements
 
-- [termui](https://github.com/gizak/termui) for the terminal UI framework.
+- [gotui](https://github.com/metaspartan/gotui) for the modern terminal UI framework.
+- [termui](https://github.com/gizak/termui) for the original terminal UI framework.
 - [gopsutil](https://github.com/shirou/gopsutil) for system memory, network, and disk monitoring.
 - [asitop](https://github.com/tlkh/asitop) for the original inspiration!
 - [htop](https://github.com/htop-dev/htop) for the process list and CPU cores inspiration!
