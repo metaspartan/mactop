@@ -5,7 +5,7 @@ import (
 	"image"
 	"time"
 
-	ui "github.com/gizak/termui/v3"
+	ui "github.com/metaspartan/gotui/v4"
 )
 
 type CPUUsage struct {
@@ -180,11 +180,11 @@ func (w *CPUCoreWidget) Draw(buf *ui.Buffer) {
 		currentX += w
 	}
 
-	fullCols := totalCores - (rows - 1) * cols
+	fullCols := totalCores - (rows-1)*cols
 	for i := 0; i < totalCores; i++ {
 		col := i % cols
 		row := i / cols
-		actualIndex := col*rows + row - max(0, col - fullCols)
+		actualIndex := col*rows + row - max(0, col-fullCols)
 
 		if actualIndex >= totalCores || row >= rows {
 			continue
@@ -237,7 +237,7 @@ func (w *CPUCoreWidget) Draw(buf *ui.Buffer) {
 				case usage >= 40:
 					color = ui.ColorYellow
 				case usage >= 30:
-					color = ui.ColorCyan
+					color = ui.ColorSkyBlue
 				default:
 					color = themeColor
 				}

@@ -26,7 +26,7 @@
 - Easy-to-read terminal UI
 - **7 Layouts**: Default, Alternative, Alternative Full, Vertical, Compact, Dashboard, and Gauges Only (`L` to cycle layouts)
 - **Persistent Settings**: Remembers your Layout and Theme choice across restarts
-- Customizable UI color (green, red, blue, cyan, magenta, yellow, and white) (`C` to cycle colors)
+- Customizable UI color (green, red, blue, skyblue, magenta, yellow, gold, silver, and white) (`C` to cycle colors)
 - Customizable update interval (default is 1000ms) (`-` or `=` to speed up, `+` to slow down)
 - Process list matching htop format (VIRT in GB, CPU normalized by core count)
 - **Process Management**: Kill processes directly from the UI (F9). List pauses while selecting.
@@ -99,7 +99,7 @@ mactop --interval 1000 --color green
 - `--count`: Number of samples to collect in headless mode (0 = infinite).
 - `--interval` or `-i`: Set the update interval in milliseconds. Default is 1000.
 - `--color` or `-c`: Set the UI color. Default is white. 
-Options are 'green', 'red', 'blue', 'cyan', 'magenta', 'yellow', and 'white'. (-c green)
+Options are 'green', 'red', 'blue', 'skyblue', 'magenta', 'yellow', 'gold', 'silver', and 'white'. (-c green)
 - `--prometheus` or `-p`: Set and enable the local Prometheus metrics server on the given port. Default is disabled. (e.g. -p 2112 to enable Prometheus metrics on port 2112)
 - `--unit-network`: Network unit: auto, byte, kb, mb, gb (default: auto)
 - `--unit-disk`: Disk unit: auto, byte, kb, mb, gb (default: auto)

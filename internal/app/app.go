@@ -23,8 +23,8 @@ import (
 
 	"sync"
 
-	ui "github.com/gizak/termui/v3"
-	w "github.com/gizak/termui/v3/widgets"
+	ui "github.com/metaspartan/gotui/v4"
+	w "github.com/metaspartan/gotui/v4/widgets"
 	"github.com/shirou/gopsutil/v4/disk"
 	"github.com/shirou/gopsutil/v4/mem"
 	"github.com/shirou/gopsutil/v4/net"
@@ -114,7 +114,7 @@ func setupUI() {
 	processList.Title = "Process List"
 	processList.TextStyle = ui.NewStyle(ui.ColorGreen)
 	processList.WrapText = false
-	processList.SelectedRowStyle = ui.NewStyle(ui.ColorBlack, ui.ColorGreen)
+	processList.SelectedStyle = ui.NewStyle(ui.ColorBlack, ui.ColorGreen)
 	processList.Rows = []string{}
 	processList.SelectedRow = 0
 
@@ -132,6 +132,16 @@ func setupUI() {
 
 	PowerChart, NetworkInfo = w.NewParagraph(), w.NewParagraph()
 	PowerChart.Title, NetworkInfo.Title = "Power Usage", "Network & Disk"
+
+	mainBlock = ui.NewBlock()
+	mainBlock.BorderRounded = true
+	mainBlock.Title = " mactop "
+	mainBlock.TitleRight = " " + version + " "
+	mainBlock.TitleAlignment = ui.AlignLeft
+	mainBlock.TitleBottomLeft = fmt.Sprintf("%d/%d layout (%s)", currentLayoutNum, totalLayouts, currentColorName)
+	mainBlock.TitleBottom = " Help: h | Layout: l | Color: c | Party: p | Exit: q "
+	mainBlock.TitleBottomAlignment = ui.AlignCenter
+	mainBlock.TitleBottomRight = fmt.Sprintf(" -/+ %dms ", updateInterval)
 
 	termWidth, _ := ui.TerminalDimensions()
 	numPoints := termWidth / 2
@@ -156,12 +166,12 @@ func setupUI() {
 	cpuCoreWidget = NewCPUCoreWidget(appleSiliconModel)
 	eCoreCount = appleSiliconModel.ECoreCount
 	pCoreCount = appleSiliconModel.PCoreCount
-	cpuCoreWidget.Title = fmt.Sprintf("mactop - %d Cores (%dE/%dP)",
+	cpuCoreWidget.Title = fmt.Sprintf("%d Cores (%dE/%dP)",
 		eCoreCount+pCoreCount,
 		eCoreCount,
 		pCoreCount,
 	)
-	cpuGauge.Title = fmt.Sprintf("mactop - %d Cores (%dE/%dP)",
+	cpuGauge.Title = fmt.Sprintf("%d Cores (%dE/%dP)",
 		eCoreCount+pCoreCount,
 		eCoreCount,
 		pCoreCount,
@@ -192,6 +202,10 @@ func updateModelText() {
 	)
 }
 
+func updateIntervalText() {
+	mainBlock.TitleBottomRight = fmt.Sprintf(" -/+ %dms ", updateInterval)
+}
+
 func updateHelpText() {
 	prometheusStatus := "Disabled"
 	if prometheusPort != "" {
@@ -220,7 +234,7 @@ func updateHelpText() {
 			"--unit-network: Network unit: auto, byte, kb, mb, gb (default: auto)\n"+
 			"--unit-disk: Disk unit: auto, byte, kb, mb, gb (default: auto)\n"+
 			"--unit-temp: Temperature unit: celsius, fahrenheit (default: celsius)\n"+
-			"--color, -c: Set the UI color. Default is none. Options are 'green', 'red', 'blue', 'cyan', 'magenta', 'yellow', and 'white'.\n\n"+
+			"--color, -c: Set the UI color. Default is none. Options are 'green', 'red', 'blue', 'skyblue', 'magenta', 'yellow', 'gold', 'silver', and 'white'.\n\n"+
 			"Version: %s\n\n"+
 			"Current Settings:\n"+
 			"Layout: %s\n"+
@@ -256,7 +270,7 @@ func toggleHelpMenu() {
 	}
 	renderMutex.Lock()
 	ui.Clear()
-	ui.Render(grid)
+	ui.Render(mainBlock, grid)
 	renderMutex.Unlock()
 }
 
@@ -273,7 +287,7 @@ func togglePartyMode() {
 				cycleTheme()
 				renderMutex.Lock()
 				ui.Clear()
-				ui.Render(grid)
+				ui.Render(mainBlock, grid)
 				renderMutex.Unlock()
 			}
 		}()
@@ -360,7 +374,10 @@ func updateProcessList() {
 		return
 	}
 	themeColor := processList.TextStyle.Fg
-	themeColorStr := "white" // Default color in case theme color isn't recognized
+	themeColorStr := "white"
+	if IsLightMode {
+		themeColorStr = "black"
+	}
 	switch themeColor {
 	case ui.ColorRed:
 		themeColorStr = "red"
@@ -372,8 +389,12 @@ func updateProcessList() {
 		themeColorStr = "blue"
 	case ui.ColorMagenta:
 		themeColorStr = "magenta"
-	case ui.ColorCyan:
-		themeColorStr = "cyan"
+	case ui.ColorSkyBlue:
+		themeColorStr = "skyblue"
+	case ui.ColorGold:
+		themeColorStr = "gold"
+	case ui.ColorSilver:
+		themeColorStr = "silver"
 	case ui.ColorWhite:
 		themeColorStr = "white"
 	}
@@ -557,17 +578,13 @@ func handleProcessListEvents(e ui.Event) {
 				updateProcessList()
 			}
 		}
-	case "c": // Cycle colors
-		cycleTheme()
-		saveConfig()
-		updateProcessList()
 	}
 }
 
 func renderUI() {
 	renderMutex.Lock()
 	defer renderMutex.Unlock()
-	ui.Render(grid)
+	ui.Render(mainBlock, grid)
 }
 
 func Run() {
@@ -586,7 +603,7 @@ Options:
   -h, --help            Show this help message
   -v, --version         Show the version of mactop
   -i, --interval <ms>   Set the update interval in milliseconds (default: 1000)
-  -c, --color <color>   Set the UI color (green, red, blue, cyan, magenta, yellow, white)
+  -c, --color <color>   Set the UI color (green, red, blue, skyblue, magenta, yellow, gold, silver, white)
   -p, --prometheus <port> Run Prometheus metrics server on specified port (e.g. :9090)
       --headless        Run in headless mode (no TUI, output JSON to stdout)
       --count <n>       Number of samples to collect in headless mode (0 = infinite)
@@ -666,7 +683,7 @@ For more information, see https://github.com/metaspartan/mactop written by Carse
 	flag.BoolVar(&headless, "headless", false, "Run in headless mode (no TUI, output JSON to stdout)")
 	flag.IntVar(&headlessCount, "count", 0, "Number of samples to collect in headless mode (0 = infinite)")
 	flag.IntVar(&updateInterval, "interval", 1000, "Update interval in milliseconds")
-	flag.StringVar(&colorName, "color", "", "Set the UI color. Options are 'green', 'red', 'blue', 'cyan', 'magenta', 'yellow', and 'white'.")
+	flag.StringVar(&colorName, "color", "", "Set the UI color. Options are 'green', 'red', 'blue', 'skyblue', 'magenta', 'yellow', 'gold', 'silver', and 'white'.")
 	flag.StringVar(&networkUnit, "unit-network", "auto", "Network unit: auto, byte, kb, mb, gb")
 	flag.StringVar(&diskUnit, "unit-disk", "auto", "Disk unit: auto, byte, kb, mb, gb")
 	flag.StringVar(&tempUnit, "unit-temp", "celsius", "Temperature unit: celsius, fahrenheit")
@@ -713,9 +730,11 @@ For more information, see https://github.com/metaspartan/mactop written by Carse
 	if setInterval {
 		updateInterval = interval
 	}
+	currentColorName = currentConfig.Theme
 	setupGrid()
 	termWidth, termHeight := ui.TerminalDimensions()
-	grid.SetRect(0, 0, termWidth, termHeight)
+	mainBlock.SetRect(0, 0, termWidth, termHeight)
+	grid.SetRect(1, 1, termWidth-1, termHeight-1)
 	renderUI()
 
 	cpuMetricsChan := make(chan CPUMetrics, 1)
@@ -828,9 +847,10 @@ For more information, see https://github.com/metaspartan/mactop written by Carse
 			payload := e.Payload.(ui.Resize)
 			termWidth, termHeight := payload.Width, payload.Height
 			renderMutex.Lock()
-			grid.SetRect(0, 0, termWidth, termHeight)
+			mainBlock.SetRect(0, 0, termWidth, termHeight)
+			grid.SetRect(1, 1, termWidth-1, termHeight-1)
 			ui.Clear()
-			ui.Render(grid)
+			ui.Render(mainBlock, grid)
 			renderMutex.Unlock()
 
 		case ui.KeyboardEvent:
@@ -838,7 +858,7 @@ For more information, see https://github.com/metaspartan/mactop written by Carse
 			fakeEvent := ui.Event{Type: ui.KeyboardEvent, ID: key}
 			renderMutex.Lock()
 			handleProcessListEvents(fakeEvent)
-			ui.Render(grid)
+			ui.Render(mainBlock, grid)
 			renderMutex.Unlock()
 
 			switch key {
@@ -850,29 +870,31 @@ For more information, see https://github.com/metaspartan/mactop written by Carse
 			case "r":
 				termWidth, termHeight := ui.TerminalDimensions()
 				renderMutex.Lock()
-				grid.SetRect(0, 0, termWidth, termHeight)
+				mainBlock.SetRect(0, 0, termWidth, termHeight)
+				grid.SetRect(1, 1, termWidth-1, termHeight-1)
 				ui.Clear()
-				ui.Render(grid)
+				ui.Render(mainBlock, grid)
 				renderMutex.Unlock()
 			case "p":
 				togglePartyMode()
 			case "c":
 				renderMutex.Lock()
 				termWidth, termHeight := ui.TerminalDimensions()
-				grid.SetRect(0, 0, termWidth, termHeight)
+				mainBlock.SetRect(0, 0, termWidth, termHeight)
+				grid.SetRect(1, 1, termWidth-1, termHeight-1)
 				renderMutex.Unlock()
 				cycleTheme()
 				saveConfig()
 				renderMutex.Lock()
 				ui.Clear()
-				ui.Render(grid)
+				ui.Render(mainBlock, grid)
 				renderMutex.Unlock()
 			case "l":
 				cycleLayout()
 				saveConfig()
 				renderMutex.Lock()
 				ui.Clear()
-				ui.Render(grid)
+				ui.Render(mainBlock, grid)
 				renderMutex.Unlock()
 			case "h", "?":
 				toggleHelpMenu()
@@ -883,6 +905,7 @@ For more information, see https://github.com/metaspartan/mactop written by Carse
 				}
 				updateHelpText()
 				updateModelText()
+				updateIntervalText()
 			case "+", "=":
 				updateInterval += 100
 				if updateInterval > 5000 {
@@ -890,12 +913,13 @@ For more information, see https://github.com/metaspartan/mactop written by Carse
 				}
 				updateHelpText()
 				updateModelText()
+				updateIntervalText()
 			}
 
 		case ui.MouseEvent:
 			renderMutex.Lock()
 			handleProcessListEvents(e)
-			ui.Render(grid)
+			ui.Render(mainBlock, grid)
 			renderMutex.Unlock()
 		}
 	}
@@ -1148,14 +1172,14 @@ func updateCPUUI(cpuMetrics CPUMetrics) {
 	}
 	totalUsage /= float64(len(coreUsages))
 	cpuGauge.Percent = int(totalUsage)
-	cpuGauge.Title = fmt.Sprintf("mactop - %d Cores (%dE/%dP) %.2f%% (%s)",
+	cpuGauge.Title = fmt.Sprintf("%d Cores (%dE/%dP) %.2f%% (%s)",
 		cpuCoreWidget.eCoreCount+cpuCoreWidget.pCoreCount,
 		cpuCoreWidget.eCoreCount,
 		cpuCoreWidget.pCoreCount,
 		totalUsage,
 		formatTemp(cpuMetrics.CPUTemp),
 	)
-	cpuCoreWidget.Title = fmt.Sprintf("mactop - %d Cores (%dE/%dP) %.2f%% (%s)",
+	cpuCoreWidget.Title = fmt.Sprintf("%d Cores (%dE/%dP) %.2f%% (%s)",
 		cpuCoreWidget.eCoreCount+cpuCoreWidget.pCoreCount,
 		cpuCoreWidget.eCoreCount,
 		cpuCoreWidget.pCoreCount,

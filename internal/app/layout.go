@@ -1,7 +1,9 @@
 package app
 
 import (
-	ui "github.com/gizak/termui/v3"
+	"fmt"
+
+	ui "github.com/metaspartan/gotui/v4"
 )
 
 const (
@@ -17,6 +19,13 @@ const (
 var layoutOrder = []string{LayoutDefault, LayoutAlternative, LayoutAlternativeFull, LayoutVertical, LayoutCompact, LayoutDashboard, LayoutGaugesOnly}
 
 func setupGrid() {
+	totalLayouts = len(layoutOrder)
+	for i, layout := range layoutOrder {
+		if layout == currentConfig.DefaultLayout {
+			currentLayoutNum = i
+			break
+		}
+	}
 	applyLayout(currentConfig.DefaultLayout)
 }
 
@@ -30,12 +39,18 @@ func cycleLayout() {
 	}
 	nextIndex := (currentIndex + 1) % len(layoutOrder)
 	currentConfig.DefaultLayout = layoutOrder[nextIndex]
+	currentLayoutNum = nextIndex
+	totalLayouts = len(layoutOrder)
 	applyLayout(currentConfig.DefaultLayout)
 	updateHelpText()
 }
 
 func applyLayout(layoutName string) {
 	termWidth, termHeight := ui.TerminalDimensions()
+	if mainBlock != nil {
+		mainBlock.SetRect(0, 0, termWidth, termHeight)
+		mainBlock.TitleBottomLeft = fmt.Sprintf(" %d/%d layout (%s) ", currentLayoutNum+1, totalLayouts, currentColorName)
+	}
 	grid = ui.NewGrid()
 
 	switch layoutName {
@@ -172,5 +187,5 @@ func applyLayout(layoutName string) {
 			),
 		)
 	}
-	grid.SetRect(0, 0, termWidth, termHeight)
+	grid.SetRect(1, 1, termWidth-1, termHeight-1)
 }
