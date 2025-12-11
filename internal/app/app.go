@@ -1,5 +1,5 @@
 // Copyright (c) 2024-2026 Carsen Klock under MIT License
-// mactop is a simple terminal based Apple Silicon power monitor written in Go Lang! github.com/context-labs/mactop
+// mactop is a simple terminal based Apple Silicon power monitor written in Go Lang! github.com/metaspartan/mactop
 package app
 
 import (
@@ -199,7 +199,7 @@ func updateHelpText() {
 	}
 	helpText.Text = fmt.Sprintf(
 		"mactop is open source monitoring tool for Apple Silicon authored by Carsen Klock in Go Lang!\n\n"+
-			"Repo: github.com/context-labs/mactop\n\n"+
+			"Repo: github.com/metaspartan/mactop\n\n"+
 			"Prometheus Metrics: %s\n\n"+
 			"Controls:\n"+
 			"- r: Refresh the UI data manually\n"+
@@ -595,7 +595,7 @@ Options:
       --unit-temp <unit>    Temperature unit: celsius, fahrenheit (default: celsius)
 
 
-For more information, see https://github.com/context-labs/mactop written by Carsen Klock.
+For more information, see https://github.com/metaspartan/mactop written by Carsen Klock.
 `)
 			os.Exit(0)
 		case "--version", "-v":

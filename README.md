@@ -1,6 +1,6 @@
 # mactop
 
-![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/context-labs/mactop/total) ![GitHub Release](https://img.shields.io/github/v/release/context-labs/mactop)
+![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/metaspartan/mactop/total) ![GitHub Release](https://img.shields.io/github/v/release/metaspartan/mactop)
 
 `mactop` is a terminal-based monitoring tool "top" designed to display real-time metrics for Apple Silicon chips written by Carsen Klock. It provides a simple and efficient way to monitor CPU and GPU usage, E-Cores and P-Cores, power consumption, GPU frequency, temperatures, and other system metrics directly from your terminal
 
@@ -39,7 +39,7 @@
 
 ## Install via Homebrew
 
-You can install [mactop](https://github.com/context-labs/mactop) via Homebrew! https://brew.sh
+You can install [mactop](https://github.com/metaspartan/mactop) via Homebrew! https://brew.sh
 
 ```bash
 brew install mactop
@@ -67,7 +67,7 @@ To install `mactop`, follow these steps:
 
 2. Clone the repository:
    ```bash
-   git clone https://github.com/context-labs/mactop.git
+   git clone https://github.com/metaspartan/mactop.git
    cd mactop
    ```
 
@@ -252,7 +252,7 @@ Distributed under the MIT License. See `LICENSE` for more information.
 
 Carsen Klock - [@carsenklock](https://x.com/carsenklock)
 
-Project Link: [https://github.com/context-labs/mactop](https://github.com/context-labs/mactop)
+Project Link: [https://github.com/metaspartan/mactop](https://github.com/metaspartan/mactop)
 
 ## Disclaimer
 

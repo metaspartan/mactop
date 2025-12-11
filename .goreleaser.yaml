@@ -35,12 +35,12 @@ changelog:
 
 brews:
   - name: "{{ .ProjectName }}"
-    homepage: "https://github.com/context-labs/mactop"
+    homepage: "https://github.com/metaspartan/mactop"
     description: "Apple Silicon Monitor Top written in Go Lang"
-    url_template: "https://github.com/context-labs/mactop/releases/download/{{ .Tag }}/{{ .ArtifactName }}"
+    url_template: "https://github.com/metaspartan/mactop/releases/download/{{ .Tag }}/{{ .ArtifactName }}"
     caveats: "mactop requires macOS 12+, and runs only on Apple Silicon."
     install: |
       bin.install "{{ .ProjectName }}"
     repository:
-      owner: "context-labs"
+      owner: "metaspartan"
       name: "mactop"
