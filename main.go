@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/context-labs/mactop/v2/internal/app"
+	"github.com/metaspartan/mactop/v2/internal/app"
 )
 
 func main() {

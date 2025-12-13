@@ -1,6 +1,8 @@
 # mactop
 
-![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/context-labs/mactop/total) ![GitHub Release](https://img.shields.io/github/v/release/context-labs/mactop)
+[![Go Report Card](https://goreportcard.com/badge/github.com/metaspartan/mactop)](https://goreportcard.com/report/github.com/metaspartan/mactop/v2)
+[![GoDoc](https://godoc.org/github.com/metaspartan/mactop?status.svg)](https://godoc.org/github.com/metaspartan/mactop/v2)
+![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/metaspartan/mactop/total) ![GitHub Release](https://img.shields.io/github/v/release/metaspartan/mactop)
 
 `mactop` is a terminal-based monitoring tool "top" designed to display real-time metrics for Apple Silicon chips written by Carsen Klock. It provides a simple and efficient way to monitor CPU and GPU usage, E-Cores and P-Cores, power consumption, GPU frequency, temperatures, and other system metrics directly from your terminal
 
@@ -26,7 +28,7 @@
 - Easy-to-read terminal UI
 - **7 Layouts**: Default, Alternative, Alternative Full, Vertical, Compact, Dashboard, and Gauges Only (`L` to cycle layouts)
 - **Persistent Settings**: Remembers your Layout and Theme choice across restarts
-- Customizable UI color (green, red, blue, cyan, magenta, yellow, and white) (`C` to cycle colors)
+- Customizable UI color (green, red, blue, skyblue, magenta, yellow, gold, silver, and white) (`C` to cycle colors)
 - Customizable update interval (default is 1000ms) (`-` or `=` to speed up, `+` to slow down)
 - Process list matching htop format (VIRT in GB, CPU normalized by core count)
 - **Process Management**: Kill processes directly from the UI (F9). List pauses while selecting.
@@ -39,7 +41,7 @@
 
 ## Install via Homebrew
 
-You can install [mactop](https://github.com/context-labs/mactop) via Homebrew! https://brew.sh
+You can install [mactop](https://github.com/metaspartan/mactop) via Homebrew! https://brew.sh
 
 ```bash
 brew install mactop
@@ -67,7 +69,7 @@ To install `mactop`, follow these steps:
 
 2. Clone the repository:
    ```bash
-   git clone https://github.com/context-labs/mactop.git
+   git clone https://github.com/metaspartan/mactop.git
    cd mactop
    ```
 
@@ -99,7 +101,7 @@ mactop --interval 1000 --color green
 - `--count`: Number of samples to collect in headless mode (0 = infinite).
 - `--interval` or `-i`: Set the update interval in milliseconds. Default is 1000.
 - `--color` or `-c`: Set the UI color. Default is white. 
-Options are 'green', 'red', 'blue', 'cyan', 'magenta', 'yellow', and 'white'. (-c green)
+Options are 'green', 'red', 'blue', 'skyblue', 'magenta', 'yellow', 'gold', 'silver', and 'white'. (-c green)
 - `--prometheus` or `-p`: Set and enable the local Prometheus metrics server on the given port. Default is disabled. (e.g. -p 2112 to enable Prometheus metrics on port 2112)
 - `--unit-network`: Network unit: auto, byte, kb, mb, gb (default: auto)
 - `--unit-disk`: Disk unit: auto, byte, kb, mb, gb (default: auto)
@@ -252,7 +254,7 @@ Distributed under the MIT License. See `LICENSE` for more information.
 
 Carsen Klock - [@carsenklock](https://x.com/carsenklock)
 
-Project Link: [https://github.com/context-labs/mactop](https://github.com/context-labs/mactop)
+Project Link: [https://github.com/metaspartan/mactop](https://github.com/metaspartan/mactop)
 
 ## Disclaimer
 
@@ -260,7 +262,8 @@ This tool is not officially supported by Apple. It is provided as is, and may no
 
 ## Acknowledgements
 
-- [termui](https://github.com/gizak/termui) for the terminal UI framework.
+- [gotui](https://github.com/metaspartan/gotui) for the modern terminal UI framework.
+- [termui](https://github.com/gizak/termui) for the original terminal UI framework.
 - [gopsutil](https://github.com/shirou/gopsutil) for system memory, network, and disk monitoring.
 - [asitop](https://github.com/tlkh/asitop) for the original inspiration!
 - [htop](https://github.com/htop-dev/htop) for the process list and CPU cores inspiration!

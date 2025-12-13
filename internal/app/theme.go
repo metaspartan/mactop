@@ -1,20 +1,24 @@
 package app
 
 import (
-	ui "github.com/gizak/termui/v3"
+	"fmt"
+
+	ui "github.com/metaspartan/gotui/v4"
 )
 
 var colorMap = map[string]ui.Color{
 	"green":   ui.ColorGreen,
 	"red":     ui.ColorRed,
 	"blue":    ui.ColorBlue,
-	"cyan":    ui.ColorCyan,
+	"skyblue": ui.ColorSkyBlue,
 	"magenta": ui.ColorMagenta,
 	"yellow":  ui.ColorYellow,
+	"gold":    ui.ColorGold,
+	"silver":  ui.ColorSilver,
 	"white":   ui.ColorWhite,
 }
 
-var colorNames = []string{"green", "red", "blue", "cyan", "magenta", "yellow", "white"}
+var colorNames = []string{"green", "red", "blue", "skyblue", "magenta", "yellow", "gold", "silver", "white"}
 
 var (
 	BracketColor       ui.Color = ui.ColorWhite
@@ -84,7 +88,7 @@ func applyTheme(colorName string, lightMode bool) {
 			selectedFg = ui.ColorWhite
 		}
 
-		processList.SelectedRowStyle = ui.NewStyle(selectedFg, color)
+		processList.SelectedStyle = ui.NewStyle(selectedFg, color)
 		processList.BorderStyle.Fg = color
 		processList.TitleStyle.Fg = color
 	}
@@ -137,6 +141,12 @@ func applyTheme(colorName string, lightMode bool) {
 		helpText.TitleStyle.Fg = color
 		helpText.TextStyle = ui.NewStyle(color)
 	}
+
+	if mainBlock != nil {
+		mainBlock.BorderStyle.Fg = color
+		mainBlock.TitleStyle.Fg = color
+		mainBlock.TitleBottomStyle.Fg = color
+	}
 }
 
 func GetThemeColor(colorName string) ui.Color {
@@ -182,5 +192,10 @@ func cycleTheme() {
 		}
 	}
 	nextIndex := (currentIndex + 1) % len(colorNames)
+	currentColorName = colorNames[nextIndex]
 	applyTheme(colorNames[nextIndex], IsLightMode)
+	// Update layout title to reflect new color name
+	if mainBlock != nil {
+		mainBlock.TitleBottomLeft = fmt.Sprintf(" %d/%d layout (%s) ", currentLayoutNum+1, totalLayouts, currentColorName)
+	}
 }
