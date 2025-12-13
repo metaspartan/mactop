@@ -860,6 +860,9 @@ For more information, see https://github.com/metaspartan/mactop written by Carse
 				mainBlock.TitleBottom = " Help: h | Layout: l | Color: c | Party: p | Exit: q "
 			}
 			grid.SetRect(1, 1, termWidth-1, termHeight-1)
+			if showHelp {
+				grid.SetRect(0, 0, termWidth, termHeight)
+			}
 			ui.Clear()
 			ui.Render(mainBlock, grid)
 			renderMutex.Unlock()
