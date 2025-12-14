@@ -730,6 +730,7 @@ For more information, see https://github.com/metaspartan/mactop written by Carse
 	}
 	if setInterval {
 		updateInterval = interval
+		updateIntervalText()
 	}
 	currentColorName = currentConfig.Theme
 	setupGrid()
