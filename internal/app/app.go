@@ -429,6 +429,11 @@ func updateProcessList() {
 	}
 	maxWidths["CMD"] = availableWidth - usedWidth
 
+	selectedHeaderFg := "black"
+	if themeColorStr == "black" {
+		selectedHeaderFg = "white"
+	}
+
 	header := ""
 	for i, col := range columns {
 		width := maxWidths[col]
@@ -451,9 +456,9 @@ func updateProcessList() {
 		colText := fmt.Sprintf(format, col)
 		if i == selectedColumn {
 			if sortReverse {
-				header += fmt.Sprintf("[%s↑](fg:black,bg:%s)", colText, themeColorStr)
+				header += fmt.Sprintf("[%s↑](fg:%s,bg:%s)", colText, selectedHeaderFg, themeColorStr)
 			} else {
-				header += fmt.Sprintf("[%s↓](fg:black,bg:%s)", colText, themeColorStr)
+				header += fmt.Sprintf("[%s↓](fg:%s,bg:%s)", colText, selectedHeaderFg, themeColorStr)
 			}
 		} else {
 			header += fmt.Sprintf("[%s](fg:%s)", colText, themeColorStr)
