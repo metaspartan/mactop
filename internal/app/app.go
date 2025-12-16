@@ -293,6 +293,7 @@ func togglePartyMode() {
 				renderMutex.Lock()
 				updateProcessList()
 				width, height := ui.TerminalDimensions()
+				ui.Clear()
 				if width > 2 && height > 2 {
 					ui.Render(mainBlock, grid)
 				} else {
@@ -409,25 +410,33 @@ func updateProcessList() {
 		themeColorStr = "white"
 	}
 	termWidth, _ := ui.TerminalDimensions()
-	minWidth := 40 // Set a minimum width to prevent crashes
-	availableWidth := max(termWidth-2, minWidth)
+	availableWidth := termWidth - 2
+	if availableWidth < 1 {
+		availableWidth = 1
+	}
+
 	maxWidths := map[string]int{
-		"PID":  5,  // Minimum for PID
-		"USER": 8,  // Fixed maximum width for USER
-		"VIRT": 6,  // For memory format
-		"RES":  6,  // For memory format
-		"CPU":  6,  // For "XX.X%"
-		"MEM":  5,  // For "X.X%"
-		"TIME": 8,  // For time format
-		"CMD":  15, // Minimum for command
+		"PID":  5,
+		"USER": 8,
+		"VIRT": 6,
+		"RES":  6,
+		"CPU":  6,
+		"MEM":  5,
+		"TIME": 8,
+		"CMD":  15,
 	}
 	usedWidth := 0
 	for col, width := range maxWidths {
 		if col != "CMD" {
-			usedWidth += width + 1 // +1 for separator
+			usedWidth += width + 1
 		}
 	}
-	maxWidths["CMD"] = availableWidth - usedWidth
+
+	cmdWidth := availableWidth - usedWidth
+	if cmdWidth < 5 {
+		cmdWidth = 5
+	}
+	maxWidths["CMD"] = cmdWidth
 
 	selectedHeaderFg := "black"
 	if themeColorStr == "black" {
