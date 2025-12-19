@@ -22,7 +22,7 @@ func buildInfoLines(themeColor string) []string {
 
 	thermalStr, _ := getThermalStateString()
 	if lastCPUMetrics.CPUTemp > 0 {
-		thermalStr = fmt.Sprintf("%s (%.1f°C)", thermalStr, lastCPUMetrics.CPUTemp)
+		thermalStr = fmt.Sprintf("%s (%s)", thermalStr, formatTemp(lastCPUMetrics.CPUTemp))
 	}
 
 	formatLine := func(label, value string) string {
@@ -62,17 +62,17 @@ func buildInfoLines(themeColor string) []string {
 		formatLine("ANE Usage", fmt.Sprintf("%d%%", int(lastCPUMetrics.ANEW/8.0*100))),
 		formatLine("Power", fmt.Sprintf("%.2f W (Avg %.0f W)", lastCPUMetrics.PackageW, avgWatts)),
 		formatLine("Thermals", thermalStr),
-		formatLine("Network", fmt.Sprintf("↑ %s/s ↓ %s/s", formatBytes(lastNetDiskMetrics.OutBytesPerSec, "auto"), formatBytes(lastNetDiskMetrics.InBytesPerSec, "auto"))),
-		formatLine("Disk", fmt.Sprintf("R %s/s W %s/s", formatBytes(lastNetDiskMetrics.ReadKBytesPerSec*1024, "auto"), formatBytes(lastNetDiskMetrics.WriteKBytesPerSec*1024, "auto"))),
+		formatLine("Network", fmt.Sprintf("↑ %s/s ↓ %s/s", formatBytes(lastNetDiskMetrics.OutBytesPerSec, networkUnit), formatBytes(lastNetDiskMetrics.InBytesPerSec, networkUnit))),
+		formatLine("Disk", fmt.Sprintf("R %s/s W %s/s", formatBytes(lastNetDiskMetrics.ReadKBytesPerSec*1024, diskUnit), formatBytes(lastNetDiskMetrics.WriteKBytesPerSec*1024, diskUnit))),
 	}
 
 	volumes := getVolumes()
 	if len(volumes) > 0 {
 		infoLines = append(infoLines, "-------------------------")
 		for _, v := range volumes {
-			used := formatBytes(v.Used*1e9, "auto")
-			total := formatBytes(v.Total*1e9, "auto")
-			avail := formatBytes(v.Available*1e9, "auto")
+			used := formatBytes(v.Used*1e9, diskUnit)
+			total := formatBytes(v.Total*1e9, diskUnit)
+			avail := formatBytes(v.Available*1e9, diskUnit)
 			infoLines = append(infoLines, formatLine(v.Name, fmt.Sprintf("%s / %s (%s free)", used, total, avail)))
 		}
 	}

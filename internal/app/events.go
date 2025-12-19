@@ -136,6 +136,12 @@ func handleModeKeys(key string, done chan struct{}) {
 			currentLayoutNum = 0
 		} else {
 			currentConfig.DefaultLayout = LayoutInfo
+			for i, layout := range layoutOrder {
+				if layout == LayoutInfo {
+					currentLayoutNum = i
+					break
+				}
+			}
 		}
 		applyLayout(currentConfig.DefaultLayout)
 		renderMutex.Lock()
