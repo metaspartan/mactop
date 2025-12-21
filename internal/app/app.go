@@ -629,10 +629,4 @@ func updateNetDiskUI(netdiskMetrics NetDiskMetrics) {
 	}
 	NetworkInfo.Text = strings.TrimSuffix(sb.String(), "\n")
 
-	networkSpeed.With(prometheus.Labels{"direction": "upload"}).Set(netdiskMetrics.OutBytesPerSec)
-	networkSpeed.With(prometheus.Labels{"direction": "download"}).Set(netdiskMetrics.InBytesPerSec)
-	diskIOSpeed.With(prometheus.Labels{"operation": "read"}).Set(netdiskMetrics.ReadKBytesPerSec)
-	diskIOSpeed.With(prometheus.Labels{"operation": "write"}).Set(netdiskMetrics.WriteKBytesPerSec)
-	diskIOPS.With(prometheus.Labels{"operation": "read"}).Set(netdiskMetrics.ReadOpsPerSec)
-	diskIOPS.With(prometheus.Labels{"operation": "write"}).Set(netdiskMetrics.WriteOpsPerSec)
 }
