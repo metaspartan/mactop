@@ -213,14 +213,14 @@ func setLayoutGrid(layoutName string) {
 	case LayoutNetworkIO:
 		grid.Set(
 			ui.NewRow(1.0/4,
-				ui.NewCol(1.0/3, gpuGauge),
-				ui.NewCol(1.0/3, memoryGauge),
+				ui.NewCol(1.0/3, gpuSparklineGroup),
+				ui.NewCol(1.0/3, sparklineGroup),
 				ui.NewCol(1.0/3, NetworkInfo),
 			),
 			ui.NewRow(2.0/4,
 				ui.NewCol(1.0/2,
-					ui.NewRow(1.0/2, sparklineGroup),
-					ui.NewRow(1.0/2, gpuSparklineGroup),
+					ui.NewRow(1.0/2, memoryGauge),
+					ui.NewRow(1.0/2, gpuGauge),
 				),
 				ui.NewCol(1.0/2,
 					ui.NewRow(1.0/2, tbInfoParagraph),

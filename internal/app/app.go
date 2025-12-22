@@ -687,47 +687,14 @@ func updateTBNetUI(tbStats []ThunderboltNetStats) {
 	// Set simple title
 	tbInfoParagraph.Title = "Thunderbolt / RDMA"
 
-	// Use cached device info and apply scrolling
+	// Use cached device info
 	tbDeviceInfo := cachedTBDeviceInfo
 	if tbDeviceInfo == "" {
 		tbDeviceInfo = "Loading..."
 	}
 
-	// Split into lines and apply scroll offset
-	lines := strings.Split(tbDeviceInfo, "\n")
-	visibleLines := 3 // Number of device lines to show
-	totalLines := len(lines)
-
-	// Clamp scroll offset
-	maxScroll := totalLines - visibleLines
-	if maxScroll < 0 {
-		maxScroll = 0
-	}
-	if tbScrollOffset > maxScroll {
-		tbScrollOffset = maxScroll
-	}
-	if tbScrollOffset < 0 {
-		tbScrollOffset = 0
-	}
-
-	// Get visible portion
-	endLine := tbScrollOffset + visibleLines
-	if endLine > totalLines {
-		endLine = totalLines
-	}
-	visibleDeviceInfo := strings.Join(lines[tbScrollOffset:endLine], "\n")
-
-	// Add scroll indicators
-	scrollHint := ""
-	if tbScrollOffset > 0 {
-		scrollHint = "↑ "
-	}
-	if endLine < totalLines {
-		scrollHint += fmt.Sprintf("↓ (%d more)", totalLines-endLine)
-	}
-
 	// Show RDMA status and bandwidth in text, above device list
-	tbInfoParagraph.Text = fmt.Sprintf("%s | TB Net: ↓%s/s ↑%s/s\n%s\n%s", rdmaLabel, inStr, outStr, visibleDeviceInfo, scrollHint)
+	tbInfoParagraph.Text = fmt.Sprintf("%s | TB Net: ↓%s/s ↑%s/s\n%s", rdmaLabel, inStr, outStr, tbDeviceInfo)
 
 	// Update TB Net sparklines with separate download/upload
 	// Shift values left and add new values

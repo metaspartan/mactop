@@ -509,6 +509,10 @@ func handleNavigation(e ui.Event) {
 }
 
 func handleProcessListEvents(e ui.Event) {
+	// Don't handle process list navigation when in Info layout (allow Info scrolling)
+	if currentConfig.DefaultLayout == LayoutInfo {
+		return
+	}
 	if killPending {
 		handleKillPending(e)
 		return

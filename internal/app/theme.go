@@ -80,11 +80,11 @@ func applyThemeToSparklines(color ui.Color) {
 		ioSparklineGroup.TitleStyle.Fg = color
 	}
 	if tbNetSparklineIn != nil {
-		tbNetSparklineIn.LineColor = ui.ColorGreen
+		tbNetSparklineIn.LineColor = color
 		tbNetSparklineIn.TitleStyle = ui.NewStyle(color)
 	}
 	if tbNetSparklineOut != nil {
-		tbNetSparklineOut.LineColor = ui.ColorMagenta
+		tbNetSparklineOut.LineColor = color
 		tbNetSparklineOut.TitleStyle = ui.NewStyle(color)
 	}
 	if tbNetSparklineGroup != nil {
