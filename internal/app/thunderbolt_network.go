@@ -22,12 +22,6 @@ type ThunderboltNetStats struct {
 	PacketsOut     uint64  `json:"packets_out"`
 }
 
-// RDMAStatus holds RDMA availability information
-type RDMAStatus struct {
-	Available bool   `json:"available"`
-	Status    string `json:"status"`
-}
-
 var (
 	tbNetMutex          sync.Mutex
 	lastTBNetStats      map[string]net.IOCountersStat
@@ -90,22 +84,4 @@ func GetThunderboltNetStats() []ThunderboltNetStats {
 	lastTBNetUpdateTime = now
 
 	return result
-}
-
-// CheckRDMAAvailable checks if RDMA over Thunderbolt is available on this system
-func CheckRDMAAvailable() RDMAStatus {
-	// Check for RDMA-related interfaces or kexts
-	stats, err := net.IOCounters(true)
-	if err != nil {
-		return RDMAStatus{Available: false, Status: "Unable to query interfaces"}
-	}
-
-	// Look for tb* interfaces which indicate RDMA is enabled
-	for _, stat := range stats {
-		if strings.HasPrefix(stat.Name, "tb") {
-			return RDMAStatus{Available: true, Status: "RDMA interface detected: " + stat.Name}
-		}
-	}
-
-	return RDMAStatus{Available: false, Status: "No RDMA interfaces found (requires macOS 26.2+ and Thunderbolt 5)"}
 }
