@@ -29,9 +29,9 @@
 - Disk I/O activity (read/write speeds)
 - Multiple volume display (shows Mac HD + mounted external volumes)
 - Easy-to-read terminal UI
-- **10 Layouts**: (`L` to cycle layouts)
+- **11 Layouts**: (`L` to cycle layouts)
 - **Persistent Settings**: Remembers your Layout and Theme choice across restarts
-- Customizable UI color (green, red, blue, skyblue, magenta, yellow, gold, silver, white, lime, orange, violet, and pink) (`C` to cycle colors)
+- Customizable UI color (green, red, blue, skyblue, magenta, yellow, gold, silver, white, lime, orange, violet, pink, and more) (`C` to cycle colors)
 - Customizable update interval (default is 1000ms) (`-` or `=` to speed up, `+` to slow down)
 - Process list matching htop format (VIRT in GB, CPU normalized by core count)
 - **Process Management**: Kill processes directly from the UI (F9). List pauses while selecting.
