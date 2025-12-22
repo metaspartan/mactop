@@ -250,6 +250,8 @@ func GetCPUUsage() ([]CPUUsage, error) {
 
 func getThemeColorName(themeColor ui.Color) string {
 	switch themeColor {
+	case ui.ColorBlack:
+		return "black"
 	case ui.ColorRed:
 		return "red"
 	case ui.ColorGreen:
@@ -419,11 +421,7 @@ func updateProcessList() {
 	}
 	themeColor := processList.TextStyle.Fg
 	var themeColorStr string
-	if IsLightMode {
-		themeColorStr = "black"
-	} else {
-		themeColorStr = getThemeColorName(themeColor)
-	}
+	themeColorStr = getThemeColorName(themeColor)
 
 	termWidth, _ := ui.TerminalDimensions()
 	availableWidth := termWidth - 2

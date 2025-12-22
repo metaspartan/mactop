@@ -232,6 +232,9 @@ func GetProcessTextColor(isCurrentUser bool) string {
 			if color == ui.ColorBlack {
 				return "black"
 			}
+			if currentConfig.Theme == "1977" {
+				return "green"
+			}
 			return currentConfig.Theme
 		}
 		return "240"
@@ -269,6 +272,10 @@ func cycleTheme() {
 	currentColorName = colorNames[nextIndex]
 	applyTheme(colorNames[nextIndex], IsLightMode)
 	if mainBlock != nil {
-		mainBlock.TitleBottomLeft = fmt.Sprintf(" %d/%d layout (%s) ", currentLayoutNum+1, totalLayouts, currentColorName)
+		displayColorName := currentColorName
+		if IsLightMode && currentColorName == "white" {
+			displayColorName = "black"
+		}
+		mainBlock.TitleBottomLeft = fmt.Sprintf(" %d/%d layout (%s) ", currentLayoutNum+1, totalLayouts, displayColorName)
 	}
 }
