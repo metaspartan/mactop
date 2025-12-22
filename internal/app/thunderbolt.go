@@ -1,7 +1,6 @@
 package app
 
 import (
-	"encoding/json"
 	"fmt"
 	"os/exec"
 	"strings"
@@ -9,6 +8,17 @@ import (
 
 type ThunderboltInfo struct {
 	Items []ThunderboltBus `json:"SPThunderboltDataType"`
+}
+
+type StorageItem struct {
+	Name          string `json:"_name"`
+	MountPoint    string `json:"mount_point"`
+	PhysicalDrive struct {
+		DeviceName string `json:"device_name"`
+		IsInternal string `json:"is_internal_disk"`
+		Protocol   string `json:"protocol"`
+		MediumType string `json:"medium_type"`
+	} `json:"physical_drive"`
 }
 
 type ThunderboltBus struct {
@@ -30,28 +40,6 @@ type ThunderboltDevice struct {
 	Vendor     string `json:"vendor_name_key"`
 	Mode       string `json:"mode_key"`
 	DeviceName string `json:"device_name_key"`
-}
-
-var cachedThunderboltInfo *ThunderboltInfo
-
-func GetThunderboltInfo() (*ThunderboltInfo, error) {
-	if cachedThunderboltInfo != nil {
-		return cachedThunderboltInfo, nil
-	}
-
-	cmd := exec.Command("system_profiler", "-json", "SPThunderboltDataType")
-	out, err := cmd.Output()
-	if err != nil {
-		return nil, err
-	}
-
-	var tbInfo ThunderboltInfo
-	if err := json.Unmarshal(out, &tbInfo); err != nil {
-		return nil, err
-	}
-
-	cachedThunderboltInfo = &tbInfo
-	return &tbInfo, nil
 }
 
 // USB device types for SPUSBDataType
@@ -76,67 +64,20 @@ type USBDevice struct {
 	LocationID   string `json:"location_id"`
 }
 
-var cachedUSBInfo *USBInfo
-
-func GetUSBInfo() (*USBInfo, error) {
-	if cachedUSBInfo != nil {
-		return cachedUSBInfo, nil
-	}
-
-	cmd := exec.Command("system_profiler", "-json", "SPUSBDataType")
-	out, err := cmd.Output()
-	if err != nil {
-		return nil, err
-	}
-
-	var usbInfo USBInfo
-	if err := json.Unmarshal(out, &usbInfo); err != nil {
-		return nil, err
-	}
-
-	cachedUSBInfo = &usbInfo
-	return &usbInfo, nil
-}
-
 // USBDeviceWithPort represents a USB device with its USB-C port number
 type USBDeviceWithPort struct {
 	Device     ThunderboltDeviceOutput
 	PortNumber string // USB-C port number (maps to TB receptacle_id)
 }
 
-// GetUSBDevicesWithPorts returns external USB storage devices with their USB-C port numbers
-func GetUSBDevicesWithPorts() []USBDeviceWithPort {
+func GetUSBDevicesFromItems(items []StorageItem) []USBDeviceWithPort {
 	// First, get USB device port mappings from ioreg
 	portMap := getUSBDevicePortMap()
-
-	// Get storage devices
-	cmd := exec.Command("system_profiler", "-json", "SPStorageDataType")
-	out, err := cmd.Output()
-	if err != nil {
-		return nil
-	}
-
-	var storageInfo struct {
-		Items []struct {
-			Name          string `json:"_name"`
-			MountPoint    string `json:"mount_point"`
-			PhysicalDrive struct {
-				DeviceName string `json:"device_name"`
-				IsInternal string `json:"is_internal_disk"`
-				Protocol   string `json:"protocol"`
-				MediumType string `json:"medium_type"`
-			} `json:"physical_drive"`
-		} `json:"SPStorageDataType"`
-	}
-
-	if err := json.Unmarshal(out, &storageInfo); err != nil {
-		return nil
-	}
 
 	var devices []USBDeviceWithPort
 	seen := make(map[string]bool)
 
-	for _, vol := range storageInfo.Items {
+	for _, vol := range items {
 		if vol.PhysicalDrive.IsInternal != "no" {
 			continue
 		}
@@ -223,16 +164,6 @@ func parseIOUSBHostDeviceGrep() map[string]string {
 	return portMap
 }
 
-// GetUSBDevicesForDisplay returns external storage devices (legacy function for compatibility)
-func GetUSBDevicesForDisplay() []ThunderboltDeviceOutput {
-	devicesWithPorts := GetUSBDevicesWithPorts()
-	var devices []ThunderboltDeviceOutput
-	for _, d := range devicesWithPorts {
-		devices = append(devices, d.Device)
-	}
-	return devices
-}
-
 type ThunderboltOutput struct {
 	Buses []ThunderboltBusOutput `json:"buses"`
 }
@@ -253,20 +184,24 @@ type ThunderboltDeviceOutput struct {
 	Info   string `json:"info_string,omitempty"`
 }
 
-// GetFormattedThunderboltInfo returns a structured representation for JSON output
 func GetFormattedThunderboltInfo() (*ThunderboltOutput, error) {
-	info, err := GetThunderboltInfo()
+	// Use combined fetch to get all data in one process execution
+	combinedData, err := GetGlobalProfilerData()
 	if err != nil {
 		return nil, err
 	}
 
-	maxPortCapability := getMaxPortCapability(info.Items)
+	tbInfo := &ThunderboltInfo{Items: combinedData.ThunderboltItems}
+	usbDevices := GetUSBDevicesFromItems(combinedData.StorageItems)
+
+	maxPortCapability := getMaxPortCapability(tbInfo.Items)
 	output := &ThunderboltOutput{}
-	for _, bus := range info.Items {
+	for _, bus := range tbInfo.Items {
 		output.Buses = append(output.Buses, processThunderboltBus(bus, maxPortCapability))
 	}
 
-	assignUSBDevicesToBuses(output, info.Items)
+	// assignUSBDevicesToBuses calls GetUSBDevicesWithPorts internaly. We should refactor it to accept the list.
+	assignUSBDevicesToBuses(output, tbInfo.Items, usbDevices)
 
 	return output, nil
 }
@@ -403,8 +338,7 @@ func processThunderboltBus(bus ThunderboltBus, maxPortCapability string) Thunder
 	return busOut
 }
 
-func assignUSBDevicesToBuses(output *ThunderboltOutput, infoItems []ThunderboltBus) {
-	usbDevicesWithPorts := GetUSBDevicesWithPorts()
+func assignUSBDevicesToBuses(output *ThunderboltOutput, infoItems []ThunderboltBus, usbDevicesWithPorts []USBDeviceWithPort) {
 	for _, usbDev := range usbDevicesWithPorts {
 		matched := false
 		if usbDev.PortNumber != "" {
@@ -441,7 +375,7 @@ func assignUSBDevicesToBuses(output *ThunderboltOutput, infoItems []ThunderboltB
 	}
 }
 
-func (t *ThunderboltInfo) Description() string {
+func GetThunderboltDescription() string {
 	formatted, err := GetFormattedThunderboltInfo()
 	if err != nil {
 		return "Error loading Thunderbolt info."

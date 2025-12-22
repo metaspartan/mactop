@@ -59,20 +59,39 @@ func runHeadless(count int) {
 	getNetDiskMetrics()
 	GetThunderboltNetStats()
 
+	startInit := time.Now()
+
+	tbInfo, _ := GetFormattedThunderboltInfo()
+	initDuration := time.Since(startInit)
+
 	if count > 0 {
 		fmt.Print("[")
 	}
 
-	// Fetch formatted info
-	tbInfo, _ := GetFormattedThunderboltInfo()
+	initialDelay := time.Duration(updateInterval)*time.Millisecond - initDuration
+	if initialDelay > 0 {
+		time.Sleep(initialDelay)
+	}
 
 	samplesCollected := 0
-	for range ticker.C {
-		output := collectHeadlessData(tbInfo)
 
+	// First manual collection after initial delay
+	output := collectHeadlessData(tbInfo)
+	if err := encoder.Encode(output); err != nil {
+		fmt.Fprintf(os.Stderr, "Error encoding JSON: %v\n", err)
+	}
+	samplesCollected++
+	if count > 0 && samplesCollected >= count {
+		fmt.Println("]")
+		return
+	}
+
+	// Continue with regular ticker for subsequent samples
+	for range ticker.C {
 		if samplesCollected > 0 && count > 0 {
 			fmt.Print(",")
 		}
+		output := collectHeadlessData(tbInfo)
 
 		if err := encoder.Encode(output); err != nil {
 			fmt.Fprintf(os.Stderr, "Error encoding JSON: %v\n", err)

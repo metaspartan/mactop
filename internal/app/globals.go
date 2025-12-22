@@ -81,12 +81,11 @@ var (
 	cachedKernelVersion string
 	cachedOSVersion     string
 
-	cachedModelName    string
-	cachedSystemInfo   SystemInfo
-	cachedTBDeviceInfo string
-	tbInfoMutex        sync.Mutex
-	infoScrollOffset   int
-	tbScrollOffset     int
+	cachedModelName  string
+	cachedSystemInfo SystemInfo
+	tbDeviceInfo     string
+	tbInfoMutex      sync.Mutex
+	infoScrollOffset int
 )
 
 var (

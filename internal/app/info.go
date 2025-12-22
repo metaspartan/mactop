@@ -94,7 +94,7 @@ func buildInfoLines(themeColor string) []string {
 	infoLines = append(infoLines, formatLine("RDMA", rdmaLabel))
 
 	tbInfoMutex.Lock()
-	tbInfo := cachedTBDeviceInfo
+	tbInfo := tbDeviceInfo
 	tbInfoMutex.Unlock()
 
 	if tbInfo != "" {

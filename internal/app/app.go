@@ -79,15 +79,9 @@ func setupUI() {
 	tbInfoParagraph.Title = "Thunderbolt / RDMA"
 	tbInfoParagraph.Text = "Loading Thunderbolt Info..."
 	go func() {
-		info, err := GetThunderboltInfo()
-		if err != nil {
-			tbInfoMutex.Lock()
-			cachedTBDeviceInfo = "Failed to load Thunderbolt info: " + err.Error()
-			tbInfoMutex.Unlock()
-			return
-		}
+		description := GetThunderboltDescription()
 		tbInfoMutex.Lock()
-		cachedTBDeviceInfo = info.Description()
+		tbDeviceInfo = description
 		tbInfoMutex.Unlock()
 	}()
 
@@ -697,7 +691,7 @@ func updateTBNetUI(tbStats []ThunderboltNetStats) {
 	tbInfoParagraph.Title = "Thunderbolt / RDMA"
 
 	// Use cached device info
-	tbDeviceInfo := cachedTBDeviceInfo
+	tbDeviceInfo := tbDeviceInfo
 	if tbDeviceInfo == "" {
 		tbDeviceInfo = "Loading..."
 	}
