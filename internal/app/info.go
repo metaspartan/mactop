@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	ui "github.com/metaspartan/gotui/v4"
@@ -199,6 +200,12 @@ func buildInfoText() string {
 		combinedText.WriteString(fmt.Sprintf("%s[↑ Scroll up (k/↑)](fg:%s)\n", paddingStr, themeColor))
 	}
 
+	// Helper for stripping tags to calculate visible length
+	stripTags := func(s string) string {
+		re := regexp.MustCompile(`\[(.*?)\]\(.*?\)`)
+		return re.ReplaceAllString(s, "$1")
+	}
+
 	for i := startLine; i < endLine; i++ {
 		asciiLine := ""
 		if showAscii {
@@ -216,7 +223,15 @@ func buildInfoText() string {
 		}
 
 		if showAscii {
-			combinedText.WriteString(fmt.Sprintf("%s%s   %s\n", paddingStr, asciiLine, infoLine))
+			visibleLen := len(stripTags(infoLine))
+
+			textColWidth := 48
+			paddingSpaces := textColWidth - visibleLen
+			if paddingSpaces < 2 {
+				paddingSpaces = 2
+			}
+
+			combinedText.WriteString(fmt.Sprintf("%s%s%s%s\n", paddingStr, infoLine, strings.Repeat(" ", paddingSpaces), asciiLine))
 		} else {
 			combinedText.WriteString(fmt.Sprintf("%s%s\n", paddingStr, infoLine))
 		}
