@@ -80,14 +80,30 @@ func GetFormattedThunderboltInfo() (*ThunderboltOutput, error) {
 
 	output := &ThunderboltOutput{}
 	for _, bus := range info.Items {
-		busLabel := bus.Name
-		if strings.Contains(bus.Name, "thunderboltusb5") {
-			busLabel = strings.Replace(bus.Name, "thunderboltusb5_bus_", "TB5 Bus ", 1)
-		} else if strings.Contains(bus.Name, "thunderboltusb4") {
-			busLabel = strings.Replace(bus.Name, "thunderboltusb4_bus_", "TB4 Bus ", 1)
-		} else if strings.Contains(bus.Name, "thunderbolt_bus") {
-			busLabel = strings.Replace(bus.Name, "thunderbolt_bus_", "TB3 Bus ", 1)
+		// Extract bus number from name
+		busNum := ""
+		if strings.Contains(bus.Name, "_bus_") {
+			parts := strings.Split(bus.Name, "_bus_")
+			if len(parts) > 1 {
+				busNum = parts[1]
+			}
 		}
+
+		// Check speed to determine TB version
+		// TB5 reports "Up to 120 Gb/s" when no device or with TB5 device
+		// TB4/3 reports "Up to 40 Gb/s" or lower
+		tbVersion := "TB4" // Default to TB4 for USB4-based naming
+		speedStr := ""
+
+		if bus.Receptacle != nil {
+			speedStr = bus.Receptacle.CurrentSpeed
+			// Check for TB5 capability based on max speed
+			if strings.Contains(speedStr, "120") || strings.Contains(speedStr, "80") {
+				tbVersion = "TB5"
+			}
+		}
+
+		busLabel := fmt.Sprintf("%s Bus %s", tbVersion, busNum)
 
 		isActive := false
 		speed := ""
@@ -96,7 +112,7 @@ func GetFormattedThunderboltInfo() (*ThunderboltOutput, error) {
 			if bus.Receptacle.Status == "receptacle_connected" {
 				isActive = true
 			}
-			if isActive && bus.Receptacle.CurrentSpeed != "" {
+			if bus.Receptacle.CurrentSpeed != "" {
 				speed = bus.Receptacle.CurrentSpeed
 			}
 		} else if len(bus.ConnectedDevs) > 0 {

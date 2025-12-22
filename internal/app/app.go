@@ -658,9 +658,6 @@ func updateTBNetUI(tbStats []ThunderboltNetStats) {
 		totalBytesIn += stat.BytesInPerSec
 		totalBytesOut += stat.BytesOutPerSec
 	}
-
-	totalBW := totalBytesIn + totalBytesOut // bytes/sec
-
 	rdmaStatus := CheckRDMAAvailable()
 	rdmaLabel := "RDMA: No"
 	if rdmaStatus.Available {
@@ -670,31 +667,16 @@ func updateTBNetUI(tbStats []ThunderboltNetStats) {
 	// Use formatBytes for consistent unit display
 	inStr := formatBytes(totalBytesIn, networkUnit)
 	outStr := formatBytes(totalBytesOut, networkUnit)
-	tbInfoParagraph.Title = fmt.Sprintf("Thunderbolt Network (%s | ↓%s/s ↑%s/s)", rdmaLabel, inStr, outStr)
 
-	// Update Sparkline (work in KB/s for display)
-	totalKBps := totalBW / 1024
-	for i := 0; i < len(ioValues)-1; i++ {
-		ioValues[i] = ioValues[i+1]
-	}
-	ioValues[len(ioValues)-1] = totalKBps
+	// Set simple title
+	tbInfoParagraph.Title = "Thunderbolt / RDMA"
 
-	// Determine Max scale dynamically
-	maxVal := 0.0
-	for _, v := range ioValues {
-		if v > maxVal {
-			maxVal = v
-		}
-	}
-	// Set a reasonable minimum scale based on actual values
-	if maxVal < 1 {
-		maxVal = 1 // Minimum 1 KB/s when idle
+	// Get Thunderbolt device list
+	tbDeviceInfo := ""
+	if info, err := GetThunderboltInfo(); err == nil {
+		tbDeviceInfo = info.Description()
 	}
 
-	ioSparkline.Data = ioValues
-	ioSparkline.MaxVal = maxVal
-
-	// Format max value for display
-	maxStr := formatBytes(maxVal*1024, networkUnit) // Convert KB back to bytes for formatting
-	ioSparklineGroup.Title = fmt.Sprintf("TB Net History (Max: %s/s)", maxStr)
+	// Show RDMA status and bandwidth in text, above device list
+	tbInfoParagraph.Text = fmt.Sprintf("%s | ↓%s/s ↑%s/s\n%s", rdmaLabel, inStr, outStr, tbDeviceInfo)
 }
