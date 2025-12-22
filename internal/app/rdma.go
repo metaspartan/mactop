@@ -60,7 +60,8 @@ func CheckRDMAAvailable() RDMAStatus {
 		status.Available = false
 		status.Status = "RDMA Disabled (use rdma_ctl enable in Recovery Mode)"
 	} else {
-		status.Status = "RDMA Status: " + strings.TrimSpace(string(output))
+		status.Available = strings.Contains(result, "enabled")
+		status.Status = "RDMA: " + strings.TrimSpace(string(output))
 	}
 
 	lastRDMAStatus = status
