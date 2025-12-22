@@ -128,12 +128,11 @@ func setupUI() {
 	tbNetPlot = w.NewPlot()
 	tbNetPlot.Title = "TB Net ↓0/s ↑0/s"
 	tbNetPlot.Data = [][]float64{tbNetInValues, tbNetOutValues}
-	tbNetPlot.DataLabels = []string{"↓ Download", "↑ Upload"}
 	tbNetPlot.LineColors = []ui.Color{ui.ColorGreen, ui.ColorMagenta}
 	tbNetPlot.PlotType = w.LineChart
-	tbNetPlot.Marker = w.MarkerBraille
-	tbNetPlot.HorizontalScale = 0 // Auto-scale
-	tbNetPlot.ShowAxes = false    // Hide axes - rates shown in title
+	tbNetPlot.Marker = w.MarkerDot
+	// tbNetPlot.HorizontalScale = 0 // Remove explicit scale to see if default works
+	tbNetPlot.ShowAxes = false // Clean look
 
 	updateProcessList()
 
@@ -693,22 +692,36 @@ func updateTBNetUI(tbStats []ThunderboltNetStats) {
 
 	// Update TB Net sparklines with separate download/upload
 	// Shift values left and add new values
+	// Scale bytes to KB for sparkline
 	for i := 0; i < len(tbNetInValues)-1; i++ {
 		tbNetInValues[i] = tbNetInValues[i+1]
 		tbNetOutValues[i] = tbNetOutValues[i+1]
 	}
-	// Scale bytes to KB for sparkline
 	tbNetInValues[len(tbNetInValues)-1] = totalBytesIn / 1024
 	tbNetOutValues[len(tbNetOutValues)-1] = totalBytesOut / 1024
 
-	// Find max value for scaling (use same scale for both)
+	// Determine visible data based on plot width
+	w, _ := ui.TerminalDimensions()
+	plotWidth := (w / 2) - 4 // Half screen width approx minus padding
+	if plotWidth < 10 {
+		plotWidth = 10
+	}
+	if plotWidth > len(tbNetInValues) {
+		plotWidth = len(tbNetInValues)
+	}
+
+	// Slice to show only the newest data fitting in the plot
+	visibleIn := tbNetInValues[len(tbNetInValues)-plotWidth:]
+	visibleOut := tbNetOutValues[len(tbNetOutValues)-plotWidth:]
+
+	// Find max value for scaling based on VISIBLE data
 	maxVal := 1.0 // Minimum to avoid division by zero
-	for _, v := range tbNetInValues {
+	for _, v := range visibleIn {
 		if v > maxVal {
 			maxVal = v
 		}
 	}
-	for _, v := range tbNetOutValues {
+	for _, v := range visibleOut {
 		if v > maxVal {
 			maxVal = v
 		}
@@ -716,7 +729,8 @@ func updateTBNetUI(tbStats []ThunderboltNetStats) {
 
 	// Update plot data and title
 	if tbNetPlot != nil {
-		tbNetPlot.Data = [][]float64{tbNetInValues, tbNetOutValues}
+		tbNetPlot.Data = [][]float64{visibleIn, visibleOut}
+		tbNetPlot.MaxVal = maxVal * 1.1 // Auto-scale with 10% headroom
 		tbNetPlot.Title = fmt.Sprintf("TB Net: ↓%s/s ↑%s/s", inStr, outStr)
 	}
 }

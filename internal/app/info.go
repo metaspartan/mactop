@@ -174,14 +174,8 @@ func buildInfoText() string {
 	// Determine padding based on whether content needs scrolling
 	paddingTop := 0
 	if totalLines <= availableHeight {
-		// Content fits, center it
-		paddingTop = (termHeight - totalLines) / 2
-		if paddingTop > 5 {
-			paddingTop = paddingTop - 5
-		}
-		if paddingTop < 0 {
-			paddingTop = 0
-		}
+		// Content fits, minimal padding
+		paddingTop = 1 // Just a little spacing
 	}
 
 	paddingLeft := (termWidth - contentWidth) / 2
