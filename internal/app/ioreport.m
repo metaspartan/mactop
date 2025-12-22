@@ -699,3 +699,7 @@ int getThermalState() {
   NSProcessInfo *info = [NSProcessInfo processInfo];
   return (int)[info thermalState];
 }
+
+void debugMonitorChannels(int durationMs) {
+  (void)durationMs; // Stub for CGO compatibility
+}

@@ -71,6 +71,14 @@ func applyThemeToSparklines(color ui.Color) {
 		gpuSparklineGroup.BorderStyle.Fg = color
 		gpuSparklineGroup.TitleStyle.Fg = color
 	}
+	if ioSparkline != nil {
+		ioSparkline.LineColor = color
+		ioSparkline.TitleStyle = ui.NewStyle(color)
+	}
+	if ioSparklineGroup != nil {
+		ioSparklineGroup.BorderStyle.Fg = color
+		ioSparklineGroup.TitleStyle.Fg = color
+	}
 }
 
 func applyThemeToWidgets(color ui.Color, lightMode bool) {
@@ -112,6 +120,11 @@ func applyThemeToWidgets(color ui.Color, lightMode bool) {
 		mainBlock.BorderStyle.Fg = color
 		mainBlock.TitleStyle.Fg = color
 		mainBlock.TitleBottomStyle.Fg = color
+	}
+	if tbInfoParagraph != nil {
+		tbInfoParagraph.BorderStyle.Fg = color
+		tbInfoParagraph.TitleStyle.Fg = color
+		tbInfoParagraph.TextStyle = ui.NewStyle(color)
 	}
 }
 

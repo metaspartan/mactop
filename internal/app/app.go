@@ -75,6 +75,18 @@ func setupUI() {
 	PowerChart, NetworkInfo = w.NewParagraph(), w.NewParagraph()
 	PowerChart.Title, NetworkInfo.Title = "Power Usage", "Network & Disk"
 
+	tbInfoParagraph = w.NewParagraph()
+	tbInfoParagraph.Title = "Thunderbolt / RDMA"
+	tbInfoParagraph.Text = "Loading Thunderbolt Info..."
+	go func() {
+		info, err := GetThunderboltInfo()
+		if err != nil {
+			tbInfoParagraph.Text = "Failed to load Thunderbolt info: " + err.Error()
+			return
+		}
+		tbInfoParagraph.Text = info.Description()
+	}()
+
 	mainBlock = ui.NewBlock()
 	mainBlock.BorderRounded = true
 	mainBlock.Title = " mactop "
@@ -88,8 +100,10 @@ func setupUI() {
 	termWidth, _ := ui.TerminalDimensions()
 	numPoints := termWidth / 2
 	numPointsGPU := termWidth / 2
+	numPointsIO := termWidth / 2
 	powerValues = make([]float64, numPoints)
 	gpuValues = make([]float64, numPointsGPU)
+	ioValues = make([]float64, numPointsIO)
 
 	sparkline = w.NewSparkline()
 	sparkline.MaxHeight = 100
@@ -102,6 +116,13 @@ func setupUI() {
 	gpuSparkline.Data = gpuValues
 	gpuSparklineGroup = w.NewSparklineGroup(gpuSparkline)
 	gpuSparklineGroup.Title = "GPU Usage History"
+
+	ioSparkline = w.NewSparkline()
+	ioSparkline.MaxHeight = 100
+	ioSparkline.Data = ioValues
+	ioSparkline.LineColor = ui.ColorCyan
+	ioSparklineGroup = w.NewSparklineGroup(ioSparkline)
+	ioSparklineGroup.Title = "IO / Bandwidth History"
 
 	updateProcessList()
 
@@ -400,7 +421,7 @@ func Run() {
 
 	netdiskMetricsChan <- getNetDiskMetrics()
 
-	go collectMetrics(done, cpuMetricsChan, gpuMetricsChan)
+	go collectMetrics(done, cpuMetricsChan, gpuMetricsChan, tbNetStatsChan)
 	go collectProcessMetrics(done, processMetricsChan)
 	go collectNetDiskMetrics(done, netdiskMetricsChan)
 
@@ -628,4 +649,52 @@ func updateNetDiskUI(netdiskMetrics NetDiskMetrics) {
 	}
 	NetworkInfo.Text = strings.TrimSuffix(sb.String(), "\n")
 
+}
+
+func updateTBNetUI(tbStats []ThunderboltNetStats) {
+	// Calculate total bandwidth from all Thunderbolt interfaces (in bytes/sec)
+	var totalBytesIn, totalBytesOut float64
+	for _, stat := range tbStats {
+		totalBytesIn += stat.BytesInPerSec
+		totalBytesOut += stat.BytesOutPerSec
+	}
+
+	totalBW := totalBytesIn + totalBytesOut // bytes/sec
+
+	rdmaStatus := CheckRDMAAvailable()
+	rdmaLabel := "RDMA: No"
+	if rdmaStatus.Available {
+		rdmaLabel = "RDMA: Yes"
+	}
+
+	// Use formatBytes for consistent unit display
+	inStr := formatBytes(totalBytesIn, networkUnit)
+	outStr := formatBytes(totalBytesOut, networkUnit)
+	tbInfoParagraph.Title = fmt.Sprintf("Thunderbolt Network (%s | ↓%s/s ↑%s/s)", rdmaLabel, inStr, outStr)
+
+	// Update Sparkline (work in KB/s for display)
+	totalKBps := totalBW / 1024
+	for i := 0; i < len(ioValues)-1; i++ {
+		ioValues[i] = ioValues[i+1]
+	}
+	ioValues[len(ioValues)-1] = totalKBps
+
+	// Determine Max scale dynamically
+	maxVal := 0.0
+	for _, v := range ioValues {
+		if v > maxVal {
+			maxVal = v
+		}
+	}
+	// Set a reasonable minimum scale based on actual values
+	if maxVal < 1 {
+		maxVal = 1 // Minimum 1 KB/s when idle
+	}
+
+	ioSparkline.Data = ioValues
+	ioSparkline.MaxVal = maxVal
+
+	// Format max value for display
+	maxStr := formatBytes(maxVal*1024, networkUnit) // Convert KB back to bytes for formatting
+	ioSparklineGroup.Title = fmt.Sprintf("TB Net History (Max: %s/s)", maxStr)
 }

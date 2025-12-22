@@ -18,10 +18,11 @@ var (
 	cpuGauge, gpuGauge, memoryGauge, aneGauge                   *w.Gauge
 	mainBlock                                                   *ui.Block
 	modelText, PowerChart, NetworkInfo, helpText, infoParagraph *w.Paragraph
+	tbInfoParagraph                                             *w.Paragraph
 	grid                                                        *ui.Grid
 	processList                                                 *w.List
-	sparkline, gpuSparkline                                     *w.Sparkline
-	sparklineGroup, gpuSparklineGroup                           *w.SparklineGroup
+	sparkline, gpuSparkline, ioSparkline                        *w.Sparkline
+	sparklineGroup, gpuSparklineGroup, ioSparklineGroup         *w.SparklineGroup
 	cpuCoreWidget                                               *CPUCoreWidget
 	powerValues                                                 = make([]float64, 35)
 	lastUpdateTime                                              time.Time
@@ -37,6 +38,7 @@ var (
 	selectedColumn                                              = 4
 	maxPowerSeen                                                = 0.1
 	gpuValues                                                   = make([]float64, 100)
+	ioValues                                                    = make([]float64, 100)
 	prometheusPort                                              string
 	headless                                                    bool
 	headlessCount                                               int
@@ -62,6 +64,7 @@ var (
 	cpuMetricsChan                                                     = make(chan CPUMetrics, 1)
 	gpuMetricsChan                                                     = make(chan GPUMetrics, 1)
 	netdiskMetricsChan                                                 = make(chan NetDiskMetrics, 1)
+	tbNetStatsChan                                                     = make(chan []ThunderboltNetStats, 1)
 	processMetricsChan                                                 = make(chan []ProcessMetrics, 1)
 	ticker                                                      *time.Ticker
 

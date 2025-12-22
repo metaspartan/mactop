@@ -17,10 +17,11 @@ const (
 	LayoutGPUFocus        = "gpu_focus"
 	LayoutCPUFocus        = "cpu_focus"
 	LayoutSmall           = "small"
+	LayoutNetworkIO       = "network_io"
 	LayoutInfo            = "info"
 )
 
-var layoutOrder = []string{LayoutDefault, LayoutAlternative, LayoutAlternativeFull, LayoutVertical, LayoutCompact, LayoutDashboard, LayoutGaugesOnly, LayoutGPUFocus, LayoutCPUFocus, LayoutSmall}
+var layoutOrder = []string{LayoutDefault, LayoutAlternative, LayoutAlternativeFull, LayoutVertical, LayoutCompact, LayoutDashboard, LayoutGaugesOnly, LayoutGPUFocus, LayoutCPUFocus, LayoutNetworkIO, LayoutSmall}
 
 func setupGrid() {
 	totalLayouts = len(layoutOrder)
@@ -62,6 +63,14 @@ func applyLayout(layoutName string) {
 	}
 	grid = ui.NewGrid()
 
+	setLayoutGrid(layoutName)
+
+	if termWidth > 2 && termHeight > 2 {
+		grid.SetRect(1, 1, termWidth-1, termHeight-1)
+	}
+}
+
+func setLayoutGrid(layoutName string) {
 	switch layoutName {
 	case LayoutAlternative:
 		grid.Set(
@@ -201,6 +210,24 @@ func applyLayout(layoutName string) {
 				ui.NewCol(1.0, processList),
 			),
 		)
+	case LayoutNetworkIO:
+		grid.Set(
+			ui.NewRow(1.0/4,
+				ui.NewCol(1.0/3, gpuGauge),
+				ui.NewCol(1.0/3, memoryGauge),
+				ui.NewCol(1.0/3, NetworkInfo),
+			),
+			ui.NewRow(2.0/4,
+				ui.NewCol(1.0/2,
+					ui.NewRow(1.0/2, sparklineGroup),
+					ui.NewRow(1.0/2, gpuSparklineGroup),
+				),
+				ui.NewCol(1.0/2, tbInfoParagraph),
+			),
+			ui.NewRow(1.0/4,
+				ui.NewCol(1.0, processList),
+			),
+		)
 	case LayoutSmall:
 		grid.Set(
 			ui.NewRow(1.0,
@@ -218,7 +245,7 @@ func applyLayout(layoutName string) {
 				ui.NewCol(1.0, infoParagraph),
 			),
 		)
-	default:
+	default: // LayoutDefault
 		grid.Set(
 			ui.NewRow(1.0/4,
 				ui.NewCol(1.0/2, cpuGauge),
@@ -244,8 +271,5 @@ func applyLayout(layoutName string) {
 				ui.NewCol(1.0, processList),
 			),
 		)
-	}
-	if termWidth > 2 && termHeight > 2 {
-		grid.SetRect(1, 1, termWidth-1, termHeight-1)
 	}
 }

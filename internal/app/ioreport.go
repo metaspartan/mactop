@@ -59,7 +59,9 @@ int initIOReport();
 PowerMetrics samplePowerMetrics(int durationMs);
 void cleanupIOReport();
 int getThermalState();
-void debugIOReport();
+extern void debugIOReport(void);
+extern void printAllChannels(void);
+extern void debugMonitorChannels(int durationMs);
 */
 import "C"
 
@@ -111,6 +113,12 @@ func getSocThermalState() int {
 	return int(C.getThermalState())
 }
 
+// DebugIOReport prints all available IOReport channels and groups to stdout
 func DebugIOReport() {
 	C.debugIOReport()
+}
+
+// MonitorIOReport monitors channels for changes over a duration
+func MonitorIOReport() {
+	C.debugMonitorChannels(C.int(5000)) // Monitor for 5 seconds
 }

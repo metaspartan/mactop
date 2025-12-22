@@ -155,7 +155,7 @@ func collectNetDiskMetrics(done chan struct{}, netdiskMetricsChan chan NetDiskMe
 	}
 }
 
-func collectMetrics(done chan struct{}, cpumetricsChan chan CPUMetrics, gpumetricsChan chan GPUMetrics) {
+func collectMetrics(done chan struct{}, cpumetricsChan chan CPUMetrics, gpumetricsChan chan GPUMetrics, tbNetStatsChan chan []ThunderboltNetStats) {
 	for {
 		start := time.Now()
 
@@ -197,6 +197,8 @@ func collectMetrics(done chan struct{}, cpumetricsChan chan CPUMetrics, gpumetri
 			Temp:          m.GPUTemp,
 		}
 
+		tbNetStats := GetThunderboltNetStats()
+
 		select {
 		case <-done:
 			return
@@ -205,6 +207,10 @@ func collectMetrics(done chan struct{}, cpumetricsChan chan CPUMetrics, gpumetri
 		}
 		select {
 		case gpumetricsChan <- gpuMetrics:
+		default:
+		}
+		select {
+		case tbNetStatsChan <- tbNetStats:
 		default:
 		}
 

@@ -34,6 +34,14 @@ func startBackgroundUpdates(done chan struct{}) {
 				default:
 				}
 				select {
+				case tbNetStats := <-tbNetStatsChan:
+					renderMutex.Lock()
+					updateTBNetUI(tbNetStats)
+					updateInfoUI()
+					renderMutex.Unlock()
+				default:
+				}
+				select {
 				case netdiskMetrics := <-netdiskMetricsChan:
 					renderMutex.Lock()
 					lastNetDiskMetrics = netdiskMetrics

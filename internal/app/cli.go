@@ -73,6 +73,10 @@ For more information, see https://github.com/metaspartan/mactop written by Carse
 		fmt.Println("Dumping IOReport channels...")
 		DebugIOReport()
 		os.Exit(0)
+	case "--monitor-ioreport", "-m":
+		fmt.Println("Monitoring IOReport channels for changes (5s sample)...")
+		MonitorIOReport()
+		os.Exit(0)
 	}
 	return idx, "", 0, false, false, nil
 }

@@ -30,17 +30,20 @@ func runHeadless(count int) {
 	defer ticker.Stop()
 
 	type HeadlessOutput struct {
-		Timestamp    string         `json:"timestamp"`
-		SocMetrics   SocMetrics     `json:"soc_metrics"`
-		Memory       MemoryMetrics  `json:"memory"`
-		NetDisk      NetDiskMetrics `json:"net_disk"`
-		CPUUsage     float64        `json:"cpu_usage"`
-		GPUUsage     float64        `json:"gpu_usage"`
-		CoreUsages   []float64      `json:"core_usages"`
-		SystemInfo   SystemInfo     `json:"system_info"`
-		ThermalState string         `json:"thermal_state"`
-		CPUTemp      float32        `json:"cpu_temp"`
-		GPUTemp      float32        `json:"gpu_temp"`
+		Timestamp           string                `json:"timestamp"`
+		SocMetrics          SocMetrics            `json:"soc_metrics"`
+		Memory              MemoryMetrics         `json:"memory"`
+		NetDisk             NetDiskMetrics        `json:"net_disk"`
+		CPUUsage            float64               `json:"cpu_usage"`
+		GPUUsage            float64               `json:"gpu_usage"`
+		CoreUsages          []float64             `json:"core_usages"`
+		SystemInfo          SystemInfo            `json:"system_info"`
+		ThermalState        string                `json:"thermal_state"`
+		ThunderboltInfo     *ThunderboltOutput    `json:"thunderbolt_info"`
+		ThunderboltNetStats []ThunderboltNetStats `json:"thunderbolt_net_stats,omitempty"`
+		RDMAStatus          RDMAStatus            `json:"rdma_status"`
+		CPUTemp             float32               `json:"cpu_temp"`
+		GPUTemp             float32               `json:"gpu_temp"`
 	}
 
 	encoder := json.NewEncoder(os.Stdout)
@@ -50,6 +53,9 @@ func runHeadless(count int) {
 	if count > 0 {
 		fmt.Print("[")
 	}
+
+	// Fetch formatted info
+	tbInfo, _ := GetFormattedThunderboltInfo()
 
 	samplesCollected := 0
 	for range ticker.C {
@@ -81,18 +87,24 @@ func runHeadless(count int) {
 		m.SystemPower = residualSystem
 		m.TotalPower = totalPower
 
+		// Refresh TB info if needed, but for now we use the cached one
+		// tbInfo, _ = GetThunderboltInfo()
+
 		output := HeadlessOutput{
-			Timestamp:    time.Now().Format(time.RFC3339),
-			SocMetrics:   m,
-			Memory:       mem,
-			NetDisk:      netDisk,
-			CPUUsage:     cpuUsage,
-			GPUUsage:     m.GPUActive,
-			CoreUsages:   percentages,
-			SystemInfo:   getSOCInfo(),
-			ThermalState: thermalStr,
-			CPUTemp:      m.CPUTemp,
-			GPUTemp:      m.GPUTemp,
+			Timestamp:           time.Now().Format(time.RFC3339),
+			SocMetrics:          m,
+			Memory:              mem,
+			NetDisk:             netDisk,
+			CPUUsage:            cpuUsage,
+			GPUUsage:            m.GPUActive,
+			CoreUsages:          percentages,
+			SystemInfo:          getSOCInfo(),
+			ThunderboltInfo:     tbInfo,
+			ThunderboltNetStats: GetThunderboltNetStats(),
+			RDMAStatus:          CheckRDMAAvailable(),
+			ThermalState:        thermalStr,
+			CPUTemp:             m.CPUTemp,
+			GPUTemp:             m.GPUTemp,
 		}
 
 		if samplesCollected > 0 && count > 0 {
