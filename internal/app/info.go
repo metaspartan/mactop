@@ -54,21 +54,6 @@ func buildInfoLines(themeColor string) []string {
 	infoLines := []string{
 		fmt.Sprintf("[%s@%s](fg:%s,mod:bold)", cachedCurrentUser, cachedHostname, themeColor),
 		"-------------------------",
-		formatLine("RDMA", rdmaLabel),
-	}
-
-	// Add Thunderbolt device info (use cached version)
-	if cachedTBDeviceInfo != "" {
-		tbLines := strings.Split(cachedTBDeviceInfo, "\n")
-		for _, line := range tbLines {
-			if line != "" {
-				infoLines = append(infoLines, fmt.Sprintf("[%s](fg:%s)", line, themeColor))
-			}
-		}
-	}
-
-	infoLines = append(infoLines,
-		"-------------------------",
 		formatLine("OS", fmt.Sprintf("macOS %s", cachedOSVersion)),
 		formatLine("Host", cachedModelName),
 		formatLine("Kernel", cachedKernelVersion),
@@ -86,7 +71,7 @@ func buildInfoLines(themeColor string) []string {
 		formatLine("Thermals", thermalStr),
 		formatLine("Network", fmt.Sprintf("↑ %s/s ↓ %s/s", formatBytes(lastNetDiskMetrics.OutBytesPerSec, networkUnit), formatBytes(lastNetDiskMetrics.InBytesPerSec, networkUnit))),
 		formatLine("Disk", fmt.Sprintf("R %s/s W %s/s", formatBytes(lastNetDiskMetrics.ReadKBytesPerSec*1024, diskUnit), formatBytes(lastNetDiskMetrics.WriteKBytesPerSec*1024, diskUnit))),
-	)
+	}
 
 	volumes := getVolumes()
 	if len(volumes) > 0 {
@@ -98,6 +83,18 @@ func buildInfoLines(themeColor string) []string {
 			infoLines = append(infoLines, formatLine(v.Name, fmt.Sprintf("%s / %s (%s free)", used, total, avail)))
 		}
 	}
+
+	infoLines = append(infoLines, "-------------------------")
+	infoLines = append(infoLines, formatLine("RDMA", rdmaLabel))
+	if cachedTBDeviceInfo != "" {
+		tbLines := strings.Split(cachedTBDeviceInfo, "\n")
+		for _, line := range tbLines {
+			if line != "" {
+				infoLines = append(infoLines, fmt.Sprintf("[%s](fg:%s)", line, themeColor))
+			}
+		}
+	}
+
 	return infoLines
 }
 

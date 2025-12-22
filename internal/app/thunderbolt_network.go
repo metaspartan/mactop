@@ -47,7 +47,6 @@ func getTBBridgeMembers() map[string]bool {
 		for _, line := range lines {
 			line = strings.TrimSpace(line)
 			if strings.HasPrefix(line, "member:") {
-				// Format: "member: en2 flags=..."
 				parts := strings.Fields(line)
 				if len(parts) >= 2 {
 					tbBridgeMembers[parts[1]] = true
