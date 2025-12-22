@@ -224,7 +224,7 @@ func setLayoutGrid(layoutName string) {
 				),
 				ui.NewCol(1.0/2,
 					ui.NewRow(1.0/2, tbInfoParagraph),
-					ui.NewRow(1.0/2, tbNetSparklineGroup),
+					ui.NewRow(1.0/2, tbNetPlot),
 				),
 			),
 			ui.NewRow(1.0/4,

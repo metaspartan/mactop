@@ -124,21 +124,16 @@ func setupUI() {
 	ioSparklineGroup = w.NewSparklineGroup(ioSparkline)
 	ioSparklineGroup.Title = "IO / Bandwidth History"
 
-	// TB Net sparklines for download/upload
-	tbNetSparklineIn = w.NewSparkline()
-	tbNetSparklineIn.MaxHeight = 100
-	tbNetSparklineIn.Data = tbNetInValues
-	tbNetSparklineIn.LineColor = ui.ColorGreen
-	tbNetSparklineIn.Title = "↓ Download"
-
-	tbNetSparklineOut = w.NewSparkline()
-	tbNetSparklineOut.MaxHeight = 100
-	tbNetSparklineOut.Data = tbNetOutValues
-	tbNetSparklineOut.LineColor = ui.ColorMagenta
-	tbNetSparklineOut.Title = "↑ Upload"
-
-	tbNetSparklineGroup = w.NewSparklineGroup(tbNetSparklineIn, tbNetSparklineOut)
-	tbNetSparklineGroup.Title = "TB Net ↓0/s ↑0/s"
+	// TB Net plot using braille for download/upload
+	tbNetPlot = w.NewPlot()
+	tbNetPlot.Title = "TB Net ↓0/s ↑0/s"
+	tbNetPlot.Data = [][]float64{tbNetInValues, tbNetOutValues}
+	tbNetPlot.DataLabels = []string{"↓ Download", "↑ Upload"}
+	tbNetPlot.LineColors = []ui.Color{ui.ColorGreen, ui.ColorMagenta}
+	tbNetPlot.PlotType = w.LineChart
+	tbNetPlot.Marker = w.MarkerBraille
+	tbNetPlot.HorizontalScale = 0 // Auto-scale
+	tbNetPlot.ShowAxes = false    // Hide axes - rates shown in title
 
 	updateProcessList()
 
@@ -719,18 +714,9 @@ func updateTBNetUI(tbStats []ThunderboltNetStats) {
 		}
 	}
 
-	// Update sparkline data and titles
-	if tbNetSparklineIn != nil {
-		tbNetSparklineIn.Data = tbNetInValues
-		tbNetSparklineIn.MaxVal = maxVal * 1.1
-		tbNetSparklineIn.Title = fmt.Sprintf("↓ %s/s", inStr)
-	}
-	if tbNetSparklineOut != nil {
-		tbNetSparklineOut.Data = tbNetOutValues
-		tbNetSparklineOut.MaxVal = maxVal * 1.1
-		tbNetSparklineOut.Title = fmt.Sprintf("↑ %s/s", outStr)
-	}
-	if tbNetSparklineGroup != nil {
-		tbNetSparklineGroup.Title = fmt.Sprintf("TB Net: ↓%s/s ↑%s/s", inStr, outStr)
+	// Update plot data and title
+	if tbNetPlot != nil {
+		tbNetPlot.Data = [][]float64{tbNetInValues, tbNetOutValues}
+		tbNetPlot.Title = fmt.Sprintf("TB Net: ↓%s/s ↑%s/s", inStr, outStr)
 	}
 }

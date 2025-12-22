@@ -23,8 +23,7 @@ var (
 	processList                                                 *w.List
 	sparkline, gpuSparkline, ioSparkline                        *w.Sparkline
 	sparklineGroup, gpuSparklineGroup, ioSparklineGroup         *w.SparklineGroup
-	tbNetSparklineIn, tbNetSparklineOut                         *w.Sparkline
-	tbNetSparklineGroup                                         *w.SparklineGroup
+	tbNetPlot                                                   *w.Plot
 	cpuCoreWidget                                               *CPUCoreWidget
 	powerValues                                                 = make([]float64, 35)
 	tbNetInValues                                               = make([]float64, 100)
