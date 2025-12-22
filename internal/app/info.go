@@ -132,6 +132,16 @@ func getASCIIArt() []string {
 }
 
 func buildInfoText() string {
+	themeColor := getThemeColor()
+	infoLines := buildInfoLines(themeColor)
+	asciiArt := getASCIIArt()
+
+	layout := calculateInfoLayout(len(infoLines), len(asciiArt))
+
+	return renderInfoText(infoLines, asciiArt, layout, themeColor)
+}
+
+func getThemeColor() string {
 	themeColor := "green"
 	if currentConfig.Theme != "" {
 		themeColor = currentConfig.Theme
@@ -139,10 +149,20 @@ func buildInfoText() string {
 	if IsLightMode && themeColor == "white" {
 		themeColor = "black"
 	}
+	return themeColor
+}
 
-	infoLines := buildInfoLines(themeColor)
-	asciiArt := getASCIIArt()
+type infoLayout struct {
+	startLine    int
+	endLine      int
+	paddingLeft  int
+	paddingTop   int
+	showAscii    bool
+	totalLines   int
+	contentWidth int
+}
 
+func calculateInfoLayout(infoLinesCount, asciiLinesCount int) infoLayout {
 	termWidth, termHeight := ui.TerminalDimensions()
 	showAscii := termWidth >= 82
 
@@ -159,9 +179,9 @@ func buildInfoText() string {
 	}
 
 	// Determine total content height
-	totalLines := len(infoLines)
-	if showAscii && len(asciiArt) > totalLines {
-		totalLines = len(asciiArt)
+	totalLines := infoLinesCount
+	if showAscii && asciiLinesCount > totalLines {
+		totalLines = asciiLinesCount
 	}
 
 	// Clamp scroll offset
@@ -194,10 +214,23 @@ func buildInfoText() string {
 	if paddingLeft < 0 {
 		paddingLeft = 0
 	}
-	paddingStr := strings.Repeat(" ", paddingLeft)
+
+	return infoLayout{
+		startLine:    startLine,
+		endLine:      endLine,
+		paddingLeft:  paddingLeft,
+		paddingTop:   paddingTop,
+		showAscii:    showAscii,
+		totalLines:   totalLines,
+		contentWidth: contentWidth,
+	}
+}
+
+func renderInfoText(infoLines, asciiArt []string, layout infoLayout, themeColor string) string {
+	paddingStr := strings.Repeat(" ", layout.paddingLeft)
 
 	var combinedText strings.Builder
-	combinedText.WriteString(strings.Repeat("\n", paddingTop))
+	combinedText.WriteString(strings.Repeat("\n", layout.paddingTop))
 
 	rainbowColors := []string{"red", "magenta", "blue", "skyblue", "green", "yellow"}
 
@@ -212,9 +245,9 @@ func buildInfoText() string {
 		return re.ReplaceAllString(s, "$1")
 	}
 
-	for i := startLine; i < endLine; i++ {
+	for i := layout.startLine; i < layout.endLine; i++ {
 		asciiLine := ""
-		if showAscii {
+		if layout.showAscii {
 			if i < len(asciiArt) {
 				color := rainbowColors[i%len(rainbowColors)]
 				asciiLine = fmt.Sprintf("[%s](fg:%s)", asciiArt[i], color)
@@ -228,7 +261,7 @@ func buildInfoText() string {
 			infoLine = infoLines[i]
 		}
 
-		if showAscii {
+		if layout.showAscii {
 			visibleLen := len(stripTags(infoLine))
 
 			textColWidth := 48
@@ -244,7 +277,7 @@ func buildInfoText() string {
 	}
 
 	// Show scroll indicator if there's more below
-	if endLine < totalLines {
+	if layout.endLine < layout.totalLines {
 		combinedText.WriteString(fmt.Sprintf("%s[↓ Scroll down (j/↓)](fg:%s)\n", paddingStr, themeColor))
 	}
 

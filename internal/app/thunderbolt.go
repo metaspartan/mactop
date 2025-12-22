@@ -184,38 +184,13 @@ func GetUSBDevicesWithPorts() []USBDeviceWithPort {
 
 // getUSBDevicePortMap returns a map of USB device names to their USB-C port numbers
 func getUSBDevicePortMap() map[string]string {
+	return parseIOUSBHostDeviceGrep()
+}
+
+func parseIOUSBHostDeviceGrep() map[string]string {
 	portMap := make(map[string]string)
 
-	// Use ioreg to get USB device port mappings
-	cmd := exec.Command("ioreg", "-r", "-c", "IOUSBHostDevice", "-a")
-	out, err := cmd.Output()
-	if err != nil {
-		return portMap
-	}
-
-	// Parse the plist output to extract device names and port numbers
-	// We look for "USB Product Name" and "UsbCPortNumber" in parent port
-	outStr := string(out)
-
-	// Simple regex-like parsing for USB Product Name and UsbCPortNumber
-	lines := strings.Split(outStr, "\n")
-	var currentDevice string
-	for _, line := range lines {
-		if strings.Contains(line, "<key>USB Product Name</key>") {
-			// Next line should have the value
-			continue
-		}
-		if strings.Contains(line, "<string>") && currentDevice == "" {
-			// Extract product name
-			start := strings.Index(line, "<string>")
-			end := strings.Index(line, "</string>")
-			if start >= 0 && end > start {
-				currentDevice = line[start+8 : end]
-			}
-		}
-	}
-
-	// Alternative: use grep-like extraction
+	// Use grep-like extraction
 	cmd2 := exec.Command("bash", "-c", `ioreg -r -c IOUSBHostDevice 2>/dev/null | grep -E "USB Product Name|UsbCPortNumber" | paste - - 2>/dev/null`)
 	out2, _ := cmd2.Output()
 	lines2 := strings.Split(string(out2), "\n")
@@ -245,7 +220,6 @@ func getUSBDevicePortMap() map[string]string {
 			}
 		}
 	}
-
 	return portMap
 }
 
@@ -286,10 +260,20 @@ func GetFormattedThunderboltInfo() (*ThunderboltOutput, error) {
 		return nil, err
 	}
 
-	// First pass: detect machine's max port capability
-	// Check for TB5 (120 Gb/s or 80 Gb/s) based on any port's speed
-	maxPortCapability := "TB4" // Default for modern Macs
+	maxPortCapability := getMaxPortCapability(info.Items)
+	output := &ThunderboltOutput{}
 	for _, bus := range info.Items {
+		output.Buses = append(output.Buses, processThunderboltBus(bus, maxPortCapability))
+	}
+
+	assignUSBDevicesToBuses(output, info.Items)
+
+	return output, nil
+}
+
+func getMaxPortCapability(items []ThunderboltBus) string {
+	maxPortCapability := "TB4" // Default for modern Macs
+	for _, bus := range items {
 		if bus.Receptacle != nil {
 			speed := bus.Receptacle.CurrentSpeed
 			if strings.Contains(speed, "120") || strings.Contains(speed, "80 Gb") {
@@ -298,125 +282,135 @@ func GetFormattedThunderboltInfo() (*ThunderboltOutput, error) {
 			}
 		}
 	}
+	return maxPortCapability
+}
 
-	output := &ThunderboltOutput{}
-	for _, bus := range info.Items {
-		// Extract bus number from name
-		busNum := ""
-		if strings.Contains(bus.Name, "_bus_") {
-			parts := strings.Split(bus.Name, "_bus_")
-			if len(parts) > 1 {
-				busNum = parts[1]
-			}
+func getBusNumber(busName string) string {
+	busNum := ""
+	if strings.Contains(busName, "_bus_") {
+		parts := strings.Split(busName, "_bus_")
+		if len(parts) > 1 {
+			busNum = parts[1]
 		}
+	}
+	return busNum
+}
 
-		isActive := false
-		speed := ""
-		activeProtocol := "" // The protocol the connection is actually running at
+func getBusActivityInfo(bus ThunderboltBus) (bool, string, string) {
+	isActive := false
+	speed := ""
+	activeProtocol := ""
 
-		if bus.Receptacle != nil {
-			if bus.Receptacle.Status == "receptacle_connected" {
-				isActive = true
-			}
-			if bus.Receptacle.CurrentSpeed != "" {
-				speed = bus.Receptacle.CurrentSpeed
-				if isActive && !strings.Contains(speed, "Up to") {
-					if strings.Contains(speed, "120") || strings.Contains(speed, "80") {
-						activeProtocol = "TB5"
-					} else if strings.Contains(speed, "40") {
-						activeProtocol = "TB4"
-					} else if strings.Contains(speed, "20") {
-						activeProtocol = "TB3"
-					}
-				}
-			}
-		} else if len(bus.ConnectedDevs) > 0 {
+	if bus.Receptacle != nil {
+		if bus.Receptacle.Status == "receptacle_connected" {
 			isActive = true
 		}
-
-		// Build bus label: show capability, and if active at different protocol, show that too
-		var busLabel string
-		if isActive && activeProtocol != "" && activeProtocol != maxPortCapability {
-			busLabel = fmt.Sprintf("%s @ %s Bus %s", maxPortCapability, activeProtocol, busNum)
-		} else {
-			busLabel = fmt.Sprintf("%s Bus %s", maxPortCapability, busNum)
-		}
-
-		statusStr := "Inactive"
-		icon := "○"
-		if isActive {
-			statusStr = "Active"
-			icon = "ϟ"
-		}
-
-		busOut := ThunderboltBusOutput{
-			Name:   busLabel,
-			Status: statusStr,
-			Icon:   icon,
-			Speed:  speed,
-		}
-
-		for _, dev := range bus.ConnectedDevs {
-			devName := dev.Name
-			if devName == "" {
-				devName = dev.DeviceName
-			}
-
-			devInfo := ""
-			if dev.Vendor != "" {
-				devInfo = fmt.Sprintf("%s", dev.Vendor)
-			}
-			modePretty := ""
-			if dev.Mode != "" {
-				// Convert to short format: "Thunderbolt 3" -> "TB3"
-				mode := strings.ToLower(dev.Mode)
-				mode = strings.ReplaceAll(mode, "_", " ")
-				switch {
-				case strings.Contains(mode, "thunderbolt 5") || strings.Contains(mode, "thunderbolt5") || strings.Contains(mode, "thunderbolt five"):
-					modePretty = "TB5"
-				case strings.Contains(mode, "thunderbolt 4") || strings.Contains(mode, "thunderbolt4") || strings.Contains(mode, "thunderbolt four"):
-					modePretty = "TB4"
-				case strings.Contains(mode, "thunderbolt 3") || strings.Contains(mode, "thunderbolt3") || strings.Contains(mode, "thunderbolt three"):
-					modePretty = "TB3"
-				case strings.Contains(mode, "usb4") || strings.Contains(mode, "usb 4"):
-					modePretty = "USB4"
-				default:
-					modePretty = strings.Title(strings.ReplaceAll(dev.Mode, "_", " "))
-				}
-				if devInfo != "" {
-					devInfo += ", " + modePretty
-				} else {
-					devInfo = modePretty
+		if bus.Receptacle.CurrentSpeed != "" {
+			speed = bus.Receptacle.CurrentSpeed
+			if isActive && !strings.Contains(speed, "Up to") {
+				if strings.Contains(speed, "120") || strings.Contains(speed, "80") {
+					activeProtocol = "TB5"
+				} else if strings.Contains(speed, "40") {
+					activeProtocol = "TB4"
+				} else if strings.Contains(speed, "20") {
+					activeProtocol = "TB3"
 				}
 			}
-
-			busOut.Devices = append(busOut.Devices, ThunderboltDeviceOutput{
-				Name:   devName,
-				Vendor: dev.Vendor,
-				Mode:   modePretty,
-				Info:   devInfo,
-			})
 		}
-		output.Buses = append(output.Buses, busOut)
+	} else if len(bus.ConnectedDevs) > 0 {
+		isActive = true
+	}
+	return isActive, speed, activeProtocol
+}
+
+func formatConnectedDevices(devices []ThunderboltDevice) []ThunderboltDeviceOutput {
+	var outputs []ThunderboltDeviceOutput
+	for _, dev := range devices {
+		devName := dev.Name
+		if devName == "" {
+			devName = dev.DeviceName
+		}
+
+		devInfo := ""
+		if dev.Vendor != "" {
+			devInfo = fmt.Sprintf("%s", dev.Vendor)
+		}
+		modePretty := getFormattedMode(dev.Mode)
+
+		if modePretty != "" {
+			if devInfo != "" {
+				devInfo += ", " + modePretty
+			} else {
+				devInfo = modePretty
+			}
+		}
+
+		outputs = append(outputs, ThunderboltDeviceOutput{
+			Name:   devName,
+			Vendor: dev.Vendor,
+			Mode:   modePretty,
+			Info:   devInfo,
+		})
+	}
+	return outputs
+}
+
+func getFormattedMode(rawMode string) string {
+	if rawMode == "" {
+		return ""
+	}
+	mode := strings.ToLower(rawMode)
+	mode = strings.ReplaceAll(mode, "_", " ")
+	switch {
+	case strings.Contains(mode, "thunderbolt 5") || strings.Contains(mode, "thunderbolt5") || strings.Contains(mode, "thunderbolt five"):
+		return "TB5"
+	case strings.Contains(mode, "thunderbolt 4") || strings.Contains(mode, "thunderbolt4") || strings.Contains(mode, "thunderbolt four"):
+		return "TB4"
+	case strings.Contains(mode, "thunderbolt 3") || strings.Contains(mode, "thunderbolt3") || strings.Contains(mode, "thunderbolt three"):
+		return "TB3"
+	case strings.Contains(mode, "usb4") || strings.Contains(mode, "usb 4"):
+		return "USB4"
+	default:
+		return strings.Title(strings.ReplaceAll(rawMode, "_", " "))
+	}
+}
+
+func processThunderboltBus(bus ThunderboltBus, maxPortCapability string) ThunderboltBusOutput {
+	busNum := getBusNumber(bus.Name)
+	isActive, speed, activeProtocol := getBusActivityInfo(bus)
+
+	var busLabel string
+	if isActive && activeProtocol != "" && activeProtocol != maxPortCapability {
+		busLabel = fmt.Sprintf("%s @ %s Bus %s", maxPortCapability, activeProtocol, busNum)
+	} else {
+		busLabel = fmt.Sprintf("%s Bus %s", maxPortCapability, busNum)
 	}
 
-	// Add USB storage devices to matching TB buses based on USB-C port numbers
+	statusStr := "Inactive"
+	icon := "○"
+	if isActive {
+		statusStr = "Active"
+		icon = "ϟ"
+	}
+
+	busOut := ThunderboltBusOutput{
+		Name:    busLabel,
+		Status:  statusStr,
+		Icon:    icon,
+		Speed:   speed,
+		Devices: formatConnectedDevices(bus.ConnectedDevs),
+	}
+	return busOut
+}
+
+func assignUSBDevicesToBuses(output *ThunderboltOutput, infoItems []ThunderboltBus) {
 	usbDevicesWithPorts := GetUSBDevicesWithPorts()
 	for _, usbDev := range usbDevicesWithPorts {
 		matched := false
-		// Try to match by USB-C port number to TB bus receptacle ID
 		if usbDev.PortNumber != "" {
 			for i := range output.Buses {
-				// Get receptacle ID for this bus from original info
-				for _, bus := range info.Items {
-					busNum := ""
-					if strings.Contains(bus.Name, "_bus_") {
-						parts := strings.Split(bus.Name, "_bus_")
-						if len(parts) > 1 {
-							busNum = parts[1]
-						}
-					}
-					// Match bus by number
+				for _, bus := range infoItems {
+					busNum := getBusNumber(bus.Name)
 					if strings.HasSuffix(output.Buses[i].Name, "Bus "+busNum) && bus.Receptacle != nil {
 						if bus.Receptacle.ReceptacleID == usbDev.PortNumber {
 							output.Buses[i].Devices = append(output.Buses[i].Devices, usbDev.Device)
@@ -434,7 +428,6 @@ func GetFormattedThunderboltInfo() (*ThunderboltOutput, error) {
 				}
 			}
 		}
-		// Fallback: add to first inactive bus if no match
 		if !matched {
 			for i := range output.Buses {
 				if output.Buses[i].Status == "Inactive" && len(output.Buses[i].Devices) == 0 {
@@ -446,8 +439,6 @@ func GetFormattedThunderboltInfo() (*ThunderboltOutput, error) {
 			}
 		}
 	}
-
-	return output, nil
 }
 
 func (t *ThunderboltInfo) Description() string {
