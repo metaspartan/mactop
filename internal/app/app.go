@@ -671,6 +671,9 @@ func updateNetDiskUI(netdiskMetrics NetDiskMetrics) {
 }
 
 func updateTBNetUI(tbStats []ThunderboltNetStats) {
+	if tbStats == nil {
+		return
+	}
 	// Calculate total bandwidth from all Thunderbolt interfaces (in bytes/sec)
 	var totalBytesIn, totalBytesOut float64
 	for _, stat := range tbStats {
