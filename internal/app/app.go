@@ -704,16 +704,17 @@ func updateTBNetUI(tbStats []ThunderboltNetStats) {
 	tbNetInValues[len(tbNetInValues)-1] = totalBytesIn / 1024
 	tbNetOutValues[len(tbNetOutValues)-1] = totalBytesOut / 1024
 
-	// Find max value for scaling (use same scale for both)
-	maxVal := 1.0 // Minimum to avoid division by zero
+	// Calculate independent max values for specific scaling
+	maxValIn := 1.0
 	for _, v := range tbNetInValues {
-		if v > maxVal {
-			maxVal = v
+		if v > maxValIn {
+			maxValIn = v
 		}
 	}
+	maxValOut := 1.0
 	for _, v := range tbNetOutValues {
-		if v > maxVal {
-			maxVal = v
+		if v > maxValOut {
+			maxValOut = v
 		}
 	}
 
@@ -722,11 +723,11 @@ func updateTBNetUI(tbStats []ThunderboltNetStats) {
 		tbNetSparklineGroup.Title = fmt.Sprintf("TB Net: ↓%s/s ↑%s/s", inStr, outStr)
 		if tbNetSparklineIn != nil {
 			tbNetSparklineIn.Data = tbNetInValues
-			tbNetSparklineIn.MaxVal = maxVal * 1.1
+			tbNetSparklineIn.MaxVal = maxValIn * 1.1
 		}
 		if tbNetSparklineOut != nil {
 			tbNetSparklineOut.Data = tbNetOutValues
-			tbNetSparklineOut.MaxVal = maxVal * 1.1
+			tbNetSparklineOut.MaxVal = maxValOut * 1.1
 		}
 	}
 }
