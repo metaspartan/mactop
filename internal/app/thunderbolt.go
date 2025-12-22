@@ -78,6 +78,19 @@ func GetFormattedThunderboltInfo() (*ThunderboltOutput, error) {
 		return nil, err
 	}
 
+	// First pass: detect machine's max port capability
+	// Check for TB5 (120 Gb/s or 80 Gb/s) based on any port's speed
+	maxPortCapability := "TB4" // Default for modern Macs
+	for _, bus := range info.Items {
+		if bus.Receptacle != nil {
+			speed := bus.Receptacle.CurrentSpeed
+			if strings.Contains(speed, "120") || strings.Contains(speed, "80 Gb") {
+				maxPortCapability = "TB5"
+				break
+			}
+		}
+	}
+
 	output := &ThunderboltOutput{}
 	for _, bus := range info.Items {
 		// Extract bus number from name
@@ -89,24 +102,9 @@ func GetFormattedThunderboltInfo() (*ThunderboltOutput, error) {
 			}
 		}
 
-		// Check speed to determine TB version
-		// TB5 reports "Up to 120 Gb/s" when no device or with TB5 device
-		// TB4/3 reports "Up to 40 Gb/s" or lower
-		tbVersion := "TB4" // Default to TB4 for USB4-based naming
-		speedStr := ""
-
-		if bus.Receptacle != nil {
-			speedStr = bus.Receptacle.CurrentSpeed
-			// Check for TB5 capability based on max speed
-			if strings.Contains(speedStr, "120") || strings.Contains(speedStr, "80") {
-				tbVersion = "TB5"
-			}
-		}
-
-		busLabel := fmt.Sprintf("%s Bus %s", tbVersion, busNum)
-
 		isActive := false
 		speed := ""
+		activeProtocol := "" // The protocol the connection is actually running at
 
 		if bus.Receptacle != nil {
 			if bus.Receptacle.Status == "receptacle_connected" {
@@ -114,9 +112,26 @@ func GetFormattedThunderboltInfo() (*ThunderboltOutput, error) {
 			}
 			if bus.Receptacle.CurrentSpeed != "" {
 				speed = bus.Receptacle.CurrentSpeed
+				if isActive && !strings.Contains(speed, "Up to") {
+					if strings.Contains(speed, "120") || strings.Contains(speed, "80") {
+						activeProtocol = "TB5"
+					} else if strings.Contains(speed, "40") {
+						activeProtocol = "TB4"
+					} else if strings.Contains(speed, "20") {
+						activeProtocol = "TB3"
+					}
+				}
 			}
 		} else if len(bus.ConnectedDevs) > 0 {
 			isActive = true
+		}
+
+		// Build bus label: show capability, and if active at different protocol, show that too
+		var busLabel string
+		if isActive && activeProtocol != "" && activeProtocol != maxPortCapability {
+			busLabel = fmt.Sprintf("%s @ %s Bus %s", maxPortCapability, activeProtocol, busNum)
+		} else {
+			busLabel = fmt.Sprintf("%s Bus %s", maxPortCapability, busNum)
 		}
 
 		statusStr := "Inactive"
@@ -145,8 +160,21 @@ func GetFormattedThunderboltInfo() (*ThunderboltOutput, error) {
 			}
 			modePretty := ""
 			if dev.Mode != "" {
-				modePretty = strings.ReplaceAll(dev.Mode, "_", " ")
-				modePretty = strings.Title(modePretty)
+				// Convert to short format: "Thunderbolt 3" -> "TB3"
+				mode := strings.ToLower(dev.Mode)
+				mode = strings.ReplaceAll(mode, "_", " ")
+				switch {
+				case strings.Contains(mode, "thunderbolt 5") || strings.Contains(mode, "thunderbolt5") || strings.Contains(mode, "thunderbolt five"):
+					modePretty = "TB5"
+				case strings.Contains(mode, "thunderbolt 4") || strings.Contains(mode, "thunderbolt4") || strings.Contains(mode, "thunderbolt four"):
+					modePretty = "TB4"
+				case strings.Contains(mode, "thunderbolt 3") || strings.Contains(mode, "thunderbolt3") || strings.Contains(mode, "thunderbolt three"):
+					modePretty = "TB3"
+				case strings.Contains(mode, "usb4") || strings.Contains(mode, "usb 4"):
+					modePretty = "USB4"
+				default:
+					modePretty = strings.Title(strings.ReplaceAll(dev.Mode, "_", " "))
+				}
 				if devInfo != "" {
 					devInfo += ", " + modePretty
 				} else {
