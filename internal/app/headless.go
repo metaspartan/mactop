@@ -56,6 +56,8 @@ func runHeadless(count int) {
 	}
 
 	GetCPUPercentages()
+	getNetDiskMetrics()
+	GetThunderboltNetStats()
 
 	if count > 0 {
 		fmt.Print("[")
