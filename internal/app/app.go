@@ -564,7 +564,7 @@ func updateCPUUI(cpuMetrics CPUMetrics) {
 
 	// Update gauge colors with dynamic saturation if 1977 theme is active
 	if currentConfig.Theme == "1977" {
-		updateCustomGaugeColors()
+		update1977GaugeColors()
 	}
 }
 
@@ -607,7 +607,7 @@ func updateGPUUI(gpuMetrics GPUMetrics) {
 
 	// Update gauge colors with dynamic saturation if 1977 theme is active
 	if currentConfig.Theme == "1977" {
-		updateCustomGaugeColors()
+		update1977GaugeColors()
 	}
 }
 

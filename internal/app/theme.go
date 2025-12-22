@@ -83,7 +83,7 @@ func getANEColor(percent int) ui.Color {
 	return ui.ColorRed
 }
 
-func updateCustomGaugeColors() {
+func update1977GaugeColors() {
 	if cpuGauge != nil {
 		cpuColor := getCPUColor(cpuGauge.Percent)
 		cpuGauge.BarColor = cpuColor
@@ -233,7 +233,7 @@ func applyTheme(colorName string, lightMode bool) {
 	ui.Theme.BarChart.Bars = []ui.Color{color}
 
 	if is1977 {
-		updateCustomGaugeColors()
+		update1977GaugeColors()
 	} else {
 		applyThemeToGauges(color)
 	}
