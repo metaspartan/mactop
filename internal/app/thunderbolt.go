@@ -24,6 +24,7 @@ type StorageItem struct {
 type ThunderboltBus struct {
 	Name          string                 `json:"_name"`
 	Vendor        string                 `json:"vendor_name_key"`
+	DomainUUID    string                 `json:"domain_uuid_key"`
 	Receptacle    *ThunderboltReceptacle `json:"receptacle_1_tag"`
 	ConnectedDevs []ThunderboltDevice    `json:"_items"`
 	NetworkStats  *ThunderboltNetStats   `json:"network_stats,omitempty"`
@@ -40,6 +41,8 @@ type ThunderboltDevice struct {
 	Vendor     string `json:"vendor_name_key"`
 	Mode       string `json:"mode_key"`
 	DeviceName string `json:"device_name_key"`
+	SwitchUID  string `json:"switch_uid_key"`
+	DeviceID   string `json:"device_id_key"`
 }
 
 // USB device types for SPUSBDataType
@@ -173,15 +176,18 @@ type ThunderboltBusOutput struct {
 	Status       string                    `json:"status"` // Active, Inactive
 	Icon         string                    `json:"icon"`   // ⚡, ○
 	Speed        string                    `json:"speed,omitempty"`
+	DomainUUID   string                    `json:"domain_uuid,omitempty"`
 	Devices      []ThunderboltDeviceOutput `json:"devices,omitempty"`
 	NetworkStats *ThunderboltNetStats      `json:"network_stats,omitempty"`
 }
 
 type ThunderboltDeviceOutput struct {
-	Name   string `json:"name"`
-	Vendor string `json:"vendor,omitempty"`
-	Mode   string `json:"mode,omitempty"`
-	Info   string `json:"info_string,omitempty"`
+	Name      string `json:"name"`
+	Vendor    string `json:"vendor,omitempty"`
+	Mode      string `json:"mode,omitempty"`
+	SwitchUID string `json:"switch_uid,omitempty"`
+	DeviceID  string `json:"device_id,omitempty"`
+	Info      string `json:"info_string,omitempty"`
 }
 
 func GetFormattedThunderboltInfo() (*ThunderboltOutput, error) {
@@ -281,10 +287,12 @@ func formatConnectedDevices(devices []ThunderboltDevice) []ThunderboltDeviceOutp
 		}
 
 		outputs = append(outputs, ThunderboltDeviceOutput{
-			Name:   devName,
-			Vendor: dev.Vendor,
-			Mode:   modePretty,
-			Info:   devInfo,
+			Name:      devName,
+			Vendor:    dev.Vendor,
+			Mode:      modePretty,
+			SwitchUID: dev.SwitchUID,
+			DeviceID:  dev.DeviceID,
+			Info:      devInfo,
 		})
 	}
 	return outputs
@@ -329,11 +337,12 @@ func processThunderboltBus(bus ThunderboltBus, maxPortCapability string) Thunder
 	}
 
 	busOut := ThunderboltBusOutput{
-		Name:    busLabel,
-		Status:  statusStr,
-		Icon:    icon,
-		Speed:   speed,
-		Devices: formatConnectedDevices(bus.ConnectedDevs),
+		Name:       busLabel,
+		Status:     statusStr,
+		Icon:       icon,
+		Speed:      speed,
+		DomainUUID: bus.DomainUUID,
+		Devices:    formatConnectedDevices(bus.ConnectedDevs),
 	}
 	return busOut
 }
