@@ -555,8 +555,9 @@ func updateCPUUI(cpuMetrics CPUMetrics) {
 		thermalStr,
 	)
 	memoryMetrics := getMemoryMetrics()
-	memoryGauge.Title = fmt.Sprintf("Memory Usage: %.2f GB / %.2f GB (Swap: %.2f/%.2f GB)", float64(memoryMetrics.Used)/1024/1024/1024, float64(memoryMetrics.Total)/1024/1024/1024, float64(memoryMetrics.SwapUsed)/1024/1024/1024, float64(memoryMetrics.SwapTotal)/1024/1024/1024)
+	memoryGauge.Title = fmt.Sprintf("Memory Usage: %.2f GB / %.2f GB", float64(memoryMetrics.Used)/1024/1024/1024, float64(memoryMetrics.Total)/1024/1024/1024)
 	memoryGauge.Percent = int((float64(memoryMetrics.Used) / float64(memoryMetrics.Total)) * 100)
+	memoryGauge.TitleRight = fmt.Sprintf("Swap: %.2f/%.2f GB", float64(memoryMetrics.SwapUsed)/1024/1024/1024, float64(memoryMetrics.SwapTotal)/1024/1024/1024)
 
 	var ecoreAvg, pcoreAvg float64
 	if cpuCoreWidget.eCoreCount > 0 && len(coreUsages) >= cpuCoreWidget.eCoreCount {
