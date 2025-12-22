@@ -25,6 +25,7 @@ type ThunderboltBus struct {
 	Name          string                 `json:"_name"`
 	Vendor        string                 `json:"vendor_name_key"`
 	DomainUUID    string                 `json:"domain_uuid_key"`
+	SwitchUID     string                 `json:"switch_uid_key"`
 	Receptacle    *ThunderboltReceptacle `json:"receptacle_1_tag"`
 	ConnectedDevs []ThunderboltDevice    `json:"_items"`
 	NetworkStats  *ThunderboltNetStats   `json:"network_stats,omitempty"`
@@ -39,6 +40,7 @@ type ThunderboltReceptacle struct {
 type ThunderboltDevice struct {
 	Name       string `json:"_name"`
 	Vendor     string `json:"vendor_name_key"`
+	VendorID   string `json:"vendor_id_key"`
 	Mode       string `json:"mode_key"`
 	DeviceName string `json:"device_name_key"`
 	SwitchUID  string `json:"switch_uid_key"`
@@ -177,6 +179,7 @@ type ThunderboltBusOutput struct {
 	Icon         string                    `json:"icon"`   // ⚡, ○
 	Speed        string                    `json:"speed,omitempty"`
 	DomainUUID   string                    `json:"domain_uuid,omitempty"`
+	SwitchUID    string                    `json:"switch_uid,omitempty"`
 	Devices      []ThunderboltDeviceOutput `json:"devices,omitempty"`
 	NetworkStats *ThunderboltNetStats      `json:"network_stats,omitempty"`
 }
@@ -184,6 +187,7 @@ type ThunderboltBusOutput struct {
 type ThunderboltDeviceOutput struct {
 	Name      string `json:"name"`
 	Vendor    string `json:"vendor,omitempty"`
+	VendorID  string `json:"vendor_id,omitempty"`
 	Mode      string `json:"mode,omitempty"`
 	SwitchUID string `json:"switch_uid,omitempty"`
 	DeviceID  string `json:"device_id,omitempty"`
@@ -289,6 +293,7 @@ func formatConnectedDevices(devices []ThunderboltDevice) []ThunderboltDeviceOutp
 		outputs = append(outputs, ThunderboltDeviceOutput{
 			Name:      devName,
 			Vendor:    dev.Vendor,
+			VendorID:  dev.VendorID,
 			Mode:      modePretty,
 			SwitchUID: dev.SwitchUID,
 			DeviceID:  dev.DeviceID,
@@ -342,6 +347,7 @@ func processThunderboltBus(bus ThunderboltBus, maxPortCapability string) Thunder
 		Icon:       icon,
 		Speed:      speed,
 		DomainUUID: bus.DomainUUID,
+		SwitchUID:  bus.SwitchUID,
 		Devices:    formatConnectedDevices(bus.ConnectedDevs),
 	}
 	return busOut
