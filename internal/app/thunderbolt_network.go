@@ -4,6 +4,7 @@
 package app
 
 import (
+	"os/exec"
 	"strings"
 	"sync"
 	"time"
@@ -26,14 +27,68 @@ var (
 	tbNetMutex          sync.Mutex
 	lastTBNetStats      map[string]net.IOCountersStat
 	lastTBNetUpdateTime time.Time
+	tbBridgeMembers     map[string]bool // Cached bridge member interfaces
+	tbBridgeMembersInit bool
 )
+
+// getTBBridgeMembers returns the interface names that are Thunderbolt network interfaces
+func getTBBridgeMembers() map[string]bool {
+	if tbBridgeMembersInit {
+		return tbBridgeMembers
+	}
+
+	tbBridgeMembers = make(map[string]bool)
+
+	cmd := exec.Command("ifconfig", "bridge0")
+	out, err := cmd.Output()
+	if err == nil {
+		tbBridgeMembers["bridge0"] = true
+		lines := strings.Split(string(out), "\n")
+		for _, line := range lines {
+			line = strings.TrimSpace(line)
+			if strings.HasPrefix(line, "member:") {
+				// Format: "member: en2 flags=..."
+				parts := strings.Fields(line)
+				if len(parts) >= 2 {
+					tbBridgeMembers[parts[1]] = true
+				}
+			}
+		}
+	}
+
+	cmd2 := exec.Command("networksetup", "-listallhardwareports")
+	out2, err := cmd2.Output()
+	if err == nil {
+		lines := strings.Split(string(out2), "\n")
+		for i, line := range lines {
+			if strings.Contains(line, "Thunderbolt") {
+				// Next line should have "Device: enX"
+				if i+1 < len(lines) {
+					deviceLine := lines[i+1]
+					if strings.HasPrefix(deviceLine, "Device:") {
+						parts := strings.Fields(deviceLine)
+						if len(parts) >= 2 {
+							tbBridgeMembers[parts[1]] = true
+						}
+					}
+				}
+			}
+		}
+	}
+
+	tbBridgeMembersInit = true
+	return tbBridgeMembers
+}
 
 // isThunderboltInterface checks if an interface name indicates a Thunderbolt bridge
 func isThunderboltInterface(name string) bool {
-	// Common Thunderbolt interface patterns on macOS
-	return strings.HasPrefix(name, "bridge") ||
-		strings.Contains(strings.ToLower(name), "thunderbolt") ||
-		strings.HasPrefix(name, "tb") // tb0, tb1, etc. for RDMA interfaces
+	members := getTBBridgeMembers()
+	if members[name] {
+		return true
+	}
+
+	return strings.HasPrefix(name, "tb") ||
+		strings.Contains(strings.ToLower(name), "thunderbolt")
 }
 
 // GetThunderboltNetStats returns network statistics for all Thunderbolt interfaces
