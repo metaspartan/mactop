@@ -1,6 +1,6 @@
 # mactop
 
-[![Go Report Card](https://goreportcard.com/badge/github.com/metaspartan/mactop)](https://goreportcard.com/report/github.com/metaspartan/mactop/v2)
+[![Go Report Card](https://goreportcard.com/badge/github.com/metaspartan/mactop/v2)](https://goreportcard.com/report/github.com/metaspartan/mactop/v2)
 [![GoDoc](https://godoc.org/github.com/metaspartan/mactop?status.svg)](https://godoc.org/github.com/metaspartan/mactop/v2)
 ![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/metaspartan/mactop/total) ![GitHub Release](https://img.shields.io/github/v/release/metaspartan/mactop)
 
