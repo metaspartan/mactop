@@ -12,6 +12,8 @@ import (
 var themeOrder = []string{
 	"green", "red", "blue", "skyblue", "magenta", "yellow",
 	"gold", "silver", "white", "lime", "orange", "violet", "pink",
+	"coffee", "mint", "coral", "babyblue",
+	"indigo", "teal", "lavender", "rose",
 	"1977", // Special theme without a single color
 	"latte", "frappe", "macchiato", "mocha",
 }
@@ -31,6 +33,14 @@ var colorMap = map[string]ui.Color{
 	"orange":    ui.ColorOrange,
 	"violet":    ui.ColorViolet,
 	"pink":      ui.ColorPink,
+	"coffee":    ui.NewRGBColor(193, 165, 137),
+	"mint":      ui.NewRGBColor(152, 255, 152),
+	"coral":     ui.NewRGBColor(255, 127, 80),
+	"babyblue":  ui.NewRGBColor(137, 207, 240),
+	"indigo":    ui.NewRGBColor(75, 0, 130),
+	"teal":      ui.NewRGBColor(0, 128, 128),
+	"lavender":  ui.NewRGBColor(186, 187, 241),
+	"rose":      ui.NewRGBColor(255, 0, 127),
 	"latte":     CatppuccinLatte.Lavender,
 	"frappe":    CatppuccinFrappe.Mauve,
 	"macchiato": CatppuccinMacchiato.Sapphire,
@@ -42,7 +52,9 @@ var colorMap = map[string]ui.Color{
 var bgColorOrder = []string{
 	"clear",
 	"mocha-base", "mocha-mantle", "mocha-crust",
-	"macchiato-base", "frappe-base", "white", "grey", "black",
+	"macchiato-base", "frappe-base",
+	"midnight", "dark-slate", "deep-space",
+	"white", "grey", "black",
 }
 
 // bgColorMap maps background names to their UI color
@@ -53,8 +65,9 @@ var bgColorMap = map[string]ui.Color{
 	"mocha-crust":    CatppuccinMocha.Crust,
 	"macchiato-base": CatppuccinMacchiato.Base,
 	"frappe-base":    CatppuccinFrappe.Base,
+	"deep-space":     rgb(13, 13, 19),
 	"white":          ui.ColorWhite,
-	"grey":           ui.ColorGrey,
+	"grey":           rgb(54, 54, 54),
 	"black":          rgb(1, 1, 1),
 }
 
@@ -406,6 +419,33 @@ func GetThemeColorWithLightMode(colorName string, lightMode bool) ui.Color {
 	return color
 }
 
+func resolveThemeColorString(theme string) string {
+	switch theme {
+	case "coffee":
+		return "#C1A589"
+	case "mint":
+		return "#98FF98"
+	case "babyblue":
+		return "#89CFF0"
+	case "indigo":
+		return "#4B0082"
+	case "teal":
+		return "#008080"
+	case "coral":
+		return "#FF7F50"
+	case "lavender":
+		return "#BABBF1" // Matches RGB(186, 187, 241)
+	case "rose":
+		return "#FF007F"
+	case "lime", "orange", "violet", "pink":
+		return theme
+	case "1977":
+		return "green"
+	default:
+		return theme
+	}
+}
+
 func GetProcessTextColor(isCurrentUser bool) string {
 	if IsLightMode {
 		if isCurrentUser {
@@ -413,13 +453,10 @@ func GetProcessTextColor(isCurrentUser bool) string {
 			if color == ui.ColorBlack {
 				return "black"
 			}
-			if currentConfig.Theme == "1977" {
-				return "green"
-			}
 			if IsCatppuccinTheme(currentConfig.Theme) {
 				return GetCatppuccinHex(currentConfig.Theme, "Text")
 			}
-			return currentConfig.Theme
+			return resolveThemeColorString(currentConfig.Theme)
 		}
 		return "240"
 	}
@@ -428,21 +465,7 @@ func GetProcessTextColor(isCurrentUser bool) string {
 		if IsCatppuccinTheme(currentConfig.Theme) {
 			return GetCatppuccinHex(currentConfig.Theme, "Primary")
 		}
-		switch currentConfig.Theme {
-		case "lime":
-			return "lime"
-		case "orange":
-			return "orange"
-		case "violet":
-			return "violet"
-		case "pink":
-			return "pink"
-		default:
-			if currentConfig.Theme == "1977" {
-				return "green"
-			}
-			return currentConfig.Theme
-		}
+		return resolveThemeColorString(currentConfig.Theme)
 	}
 	return "white"
 }

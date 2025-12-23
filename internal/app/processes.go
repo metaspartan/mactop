@@ -425,6 +425,15 @@ func updateProcessList() {
 		themeColorStr = GetCatppuccinHex(currentConfig.Theme, "Primary")
 	} else if IsLightMode && currentConfig.Theme == "white" {
 		themeColorStr = "black"
+	} else if currentConfig.Theme == "1977" {
+		themeColorStr = "green"
+	} else if color, ok := colorMap[currentConfig.Theme]; ok {
+		hexStr := resolveThemeColorString(currentConfig.Theme)
+		if hexStr != currentConfig.Theme {
+			themeColorStr = hexStr
+		} else {
+			themeColorStr = getThemeColorName(color)
+		}
 	} else {
 		themeColorStr = getThemeColorName(themeColor)
 	}
