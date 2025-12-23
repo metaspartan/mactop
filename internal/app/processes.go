@@ -421,7 +421,11 @@ func updateProcessList() {
 	}
 	themeColor := processList.TextStyle.Fg
 	var themeColorStr string
-	themeColorStr = getThemeColorName(themeColor)
+	if strings.HasPrefix(currentConfig.Theme, "catppuccin-") {
+		themeColorStr = GetCatppuccinHex(currentConfig.Theme, "Peach")
+	} else {
+		themeColorStr = getThemeColorName(themeColor)
+	}
 
 	termWidth, _ := ui.TerminalDimensions()
 	availableWidth := termWidth - 2

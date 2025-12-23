@@ -2,27 +2,51 @@ package app
 
 import (
 	"fmt"
+	"strings"
 
 	ui "github.com/metaspartan/gotui/v4"
 )
 
 var colorMap = map[string]ui.Color{
-	"green":   ui.ColorGreen,
-	"red":     ui.ColorRed,
-	"blue":    ui.ColorBlue,
-	"skyblue": ui.ColorSkyBlue,
-	"magenta": ui.ColorMagenta,
-	"yellow":  ui.ColorYellow,
-	"gold":    ui.ColorGold,
-	"silver":  ui.ColorSilver,
-	"white":   ui.ColorWhite,
-	"lime":    ui.ColorLime,
-	"orange":  ui.ColorOrange,
-	"violet":  ui.ColorViolet,
-	"pink":    ui.ColorPink,
+	"green":                ui.ColorGreen,
+	"red":                  ui.ColorRed,
+	"blue":                 ui.ColorBlue,
+	"skyblue":              ui.ColorSkyBlue,
+	"magenta":              ui.ColorMagenta,
+	"yellow":               ui.ColorYellow,
+	"gold":                 ui.ColorGold,
+	"silver":               ui.ColorSilver,
+	"white":                ui.ColorWhite,
+	"lime":                 ui.ColorLime,
+	"orange":               ui.ColorOrange,
+	"violet":               ui.ColorViolet,
+	"pink":                 ui.ColorPink,
+	"catppuccin-latte":     CatppuccinLatte.Peach,
+	"catppuccin-frappe":    CatppuccinFrappe.Peach,
+	"catppuccin-macchiato": CatppuccinMacchiato.Peach,
+	"catppuccin-mocha":     CatppuccinMocha.Peach,
 }
 
-var colorNames = []string{"green", "red", "blue", "skyblue", "magenta", "yellow", "gold", "silver", "white", "lime", "orange", "violet", "pink", "1977"}
+var colorNames = []string{
+	"green",
+	"red",
+	"blue",
+	"skyblue",
+	"magenta",
+	"yellow",
+	"gold",
+	"silver",
+	"white",
+	"lime",
+	"orange",
+	"violet",
+	"pink",
+	"1977",
+	"catppuccin-latte",
+	"catppuccin-frappe",
+	"catppuccin-macchiato",
+	"catppuccin-mocha",
+}
 
 var (
 	BracketColor       ui.Color = ui.ColorWhite
@@ -30,24 +54,19 @@ var (
 	IsLightMode        bool     = false
 )
 
-// Individual gauge color generators - using standard colors for better compatibility
 func getCPUColor() ui.Color {
-	// CPU = Green
 	return ui.ColorGreen
 }
 
 func getGPUColor() ui.Color {
-	// GPU = Magenta (closest to purple in standard colors)
 	return ui.ColorMagenta
 }
 
 func getMemoryColor() ui.Color {
-	// Memory = Blue
 	return ui.ColorBlue
 }
 
 func getANEColor() ui.Color {
-	// ANE = Red
 	return ui.ColorRed
 }
 
@@ -105,6 +124,34 @@ func applyThemeToGauges(color ui.Color) {
 		aneGauge.BarColor = color
 		aneGauge.BorderStyle.Fg = color
 		aneGauge.TitleStyle.Fg = color
+		aneGauge.LabelStyle = ui.NewStyle(SecondaryTextColor)
+	}
+}
+
+func applyCatppuccinThemeToGauges(palette *CatppuccinPalette) {
+	if cpuGauge != nil {
+		// CPU = Peach (warm, distinct from standard green)
+		cpuGauge.BarColor = palette.Peach
+		cpuGauge.BorderStyle.Fg = palette.Peach
+		cpuGauge.TitleStyle.Fg = palette.Peach
+		cpuGauge.LabelStyle = ui.NewStyle(SecondaryTextColor)
+
+		// GPU = Mauve (purple-ish)
+		gpuGauge.BarColor = palette.Mauve
+		gpuGauge.BorderStyle.Fg = palette.Mauve
+		gpuGauge.TitleStyle.Fg = palette.Mauve
+		gpuGauge.LabelStyle = ui.NewStyle(SecondaryTextColor)
+
+		// Memory = Pink (soft, pleasant)
+		memoryGauge.BarColor = palette.Pink
+		memoryGauge.BorderStyle.Fg = palette.Pink
+		memoryGauge.TitleStyle.Fg = palette.Pink
+		memoryGauge.LabelStyle = ui.NewStyle(SecondaryTextColor)
+
+		// ANE = Maroon (red-ish but earthy)
+		aneGauge.BarColor = palette.Maroon
+		aneGauge.BorderStyle.Fg = palette.Maroon
+		aneGauge.TitleStyle.Fg = palette.Maroon
 		aneGauge.LabelStyle = ui.NewStyle(SecondaryTextColor)
 	}
 }
@@ -202,6 +249,36 @@ func applyTheme(colorName string, lightMode bool) {
 
 	if is1977 {
 		update1977GaugeColors()
+	} else if catppuccinPalette := GetCatppuccinPalette(colorName); catppuccinPalette != nil {
+		primaryColor := catppuccinPalette.Peach
+
+		ui.Theme.Block.Title.Fg = primaryColor
+		ui.Theme.Block.Border.Fg = catppuccinPalette.Overlay2
+		ui.Theme.Block.Border.Fg = primaryColor
+		ui.Theme.Paragraph.Text.Fg = catppuccinPalette.Text
+		ui.Theme.Gauge.Label.Fg = catppuccinPalette.Subtext1
+		ui.Theme.BarChart.Bars = []ui.Color{catppuccinPalette.Blue}
+
+		applyCatppuccinThemeToGauges(catppuccinPalette)
+		applyThemeToSparklines(primaryColor)
+		applyThemeToWidgets(primaryColor, lightMode)
+
+		if mainBlock != nil {
+			mainBlock.BorderStyle.Fg = primaryColor
+			mainBlock.TitleStyle.Fg = primaryColor
+			mainBlock.TitleBottomStyle.Fg = primaryColor
+		}
+		if processList != nil {
+			processList.TextStyle = ui.NewStyle(primaryColor)
+			selectedFg := catppuccinPalette.Base
+			if colorName == "catppuccin-latte" {
+				selectedFg = catppuccinPalette.Text
+			}
+			processList.SelectedStyle = ui.NewStyle(selectedFg, primaryColor)
+			processList.BorderStyle.Fg = primaryColor
+			processList.TitleStyle.Fg = primaryColor
+		}
+		return
 	} else {
 		applyThemeToGauges(color)
 	}
@@ -235,12 +312,18 @@ func GetProcessTextColor(isCurrentUser bool) string {
 			if currentConfig.Theme == "1977" {
 				return "green"
 			}
+			if strings.HasPrefix(currentConfig.Theme, "catppuccin-") {
+				return GetCatppuccinHex(currentConfig.Theme, "Text")
+			}
 			return currentConfig.Theme
 		}
 		return "240"
 	}
 
 	if isCurrentUser {
+		if strings.HasPrefix(currentConfig.Theme, "catppuccin-") {
+			return GetCatppuccinHex(currentConfig.Theme, "Peach")
+		}
 		switch currentConfig.Theme {
 		case "lime":
 			return "lime"

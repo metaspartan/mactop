@@ -101,7 +101,7 @@ func getASCIIArt() []string {
 	}
 }
 
-func buildInfoText() string {
+func getThemeColorForInfo() string {
 	themeColor := "green"
 	if currentConfig.Theme != "" {
 		if currentConfig.Theme == "1977" {
@@ -113,26 +113,10 @@ func buildInfoText() string {
 	if IsLightMode && themeColor == "white" {
 		themeColor = "black"
 	}
+	return themeColor
+}
 
-	infoLines := buildInfoLines(themeColor)
-	asciiArt := getASCIIArt()
-
-	termWidth, termHeight := ui.TerminalDimensions()
-	showAscii := termWidth >= 82
-
-	contentWidth := 80
-	if !showAscii {
-		contentWidth = 45
-	}
-
-	maxHeight := len(infoLines)
-	if showAscii {
-		if len(asciiArt) > maxHeight {
-			maxHeight = len(asciiArt)
-		}
-	}
-	contentHeight := maxHeight
-
+func calculatePadding(termWidth, termHeight, contentWidth, contentHeight int) (int, int) {
 	paddingTop := (termHeight - contentHeight) / 2
 	if paddingTop > 5 {
 		paddingTop = paddingTop - 5
@@ -145,6 +129,46 @@ func buildInfoText() string {
 	if paddingLeft < 0 {
 		paddingLeft = 0
 	}
+	return paddingTop, paddingLeft
+}
+
+func buildCombinedLine(i int, asciiArt, infoLines []string, showAscii bool, rainbowColors []string) string {
+	asciiLine := ""
+	if showAscii {
+		if i < len(asciiArt) {
+			color := rainbowColors[i%len(rainbowColors)]
+			asciiLine = fmt.Sprintf("[%s](fg:%s)", asciiArt[i], color)
+		} else {
+			asciiLine = fmt.Sprintf("%30s", " ")
+		}
+	}
+
+	infoLine := ""
+	if i < len(infoLines) {
+		infoLine = infoLines[i]
+	}
+	return fmt.Sprintf("%s   %s", asciiLine, infoLine)
+}
+
+func buildInfoText() string {
+	themeColor := getThemeColorForInfo()
+	infoLines := buildInfoLines(themeColor)
+	asciiArt := getASCIIArt()
+
+	termWidth, termHeight := ui.TerminalDimensions()
+	showAscii := termWidth >= 82
+
+	contentWidth := 80
+	if !showAscii {
+		contentWidth = 45
+	}
+
+	maxHeight := len(infoLines)
+	if showAscii && len(asciiArt) > maxHeight {
+		maxHeight = len(asciiArt)
+	}
+
+	paddingTop, paddingLeft := calculatePadding(termWidth, termHeight, contentWidth, maxHeight)
 	paddingStr := strings.Repeat(" ", paddingLeft)
 
 	var combinedText strings.Builder
@@ -153,24 +177,13 @@ func buildInfoText() string {
 	rainbowColors := []string{"red", "magenta", "blue", "skyblue", "green", "yellow"}
 
 	for i := 0; i < maxHeight; i++ {
-		asciiLine := ""
 		if showAscii {
-			if i < len(asciiArt) {
-				color := rainbowColors[i%len(rainbowColors)]
-				asciiLine = fmt.Sprintf("[%s](fg:%s)", asciiArt[i], color)
-			} else {
-				asciiLine = fmt.Sprintf("%30s", " ")
-			}
-		}
-
-		infoLine := ""
-		if i < len(infoLines) {
-			infoLine = infoLines[i]
-		}
-
-		if showAscii {
-			combinedText.WriteString(fmt.Sprintf("%s%s   %s\n", paddingStr, asciiLine, infoLine))
+			combinedText.WriteString(fmt.Sprintf("%s%s\n", paddingStr, buildCombinedLine(i, asciiArt, infoLines, true, rainbowColors)))
 		} else {
+			infoLine := ""
+			if i < len(infoLines) {
+				infoLine = infoLines[i]
+			}
 			combinedText.WriteString(fmt.Sprintf("%s%s\n", paddingStr, infoLine))
 		}
 	}
