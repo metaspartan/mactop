@@ -147,20 +147,15 @@ func getCoreCounts() map[string]int {
 }
 
 func getGPUCores() string {
-	cmd, err := exec.Command("system_profiler", "-detailLevel", "basic", "SPDisplaysDataType").Output()
+	data, err := GetGlobalProfilerData()
 	if err != nil {
-		stderrLogger.Fatalf("failed to execute system_profiler command: %v", err)
+		stderrLogger.Printf("failed to get global profiler data: %v", err)
+		return "?"
 	}
-	output := string(cmd)
-	lines := strings.Split(output, "\n")
-	for _, line := range lines {
-		if strings.Contains(line, "Total Number of Cores") {
-			parts := strings.Split(line, ": ")
-			if len(parts) > 1 {
-				cores := strings.TrimSpace(parts[1])
-				return cores
-			}
-			break
+
+	for _, display := range data.DisplayItems {
+		if display.Cores != "" {
+			return display.Cores
 		}
 	}
 	return "?"

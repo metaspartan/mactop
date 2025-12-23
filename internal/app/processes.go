@@ -250,6 +250,8 @@ func GetCPUUsage() ([]CPUUsage, error) {
 
 func getThemeColorName(themeColor ui.Color) string {
 	switch themeColor {
+	case ui.ColorBlack:
+		return "black"
 	case ui.ColorRed:
 		return "red"
 	case ui.ColorGreen:
@@ -419,7 +421,9 @@ func updateProcessList() {
 	}
 	themeColor := processList.TextStyle.Fg
 	var themeColorStr string
-	if IsLightMode {
+	if strings.HasPrefix(currentConfig.Theme, "catppuccin-") {
+		themeColorStr = GetCatppuccinHex(currentConfig.Theme, "Peach")
+	} else if IsLightMode && currentConfig.Theme == "white" {
 		themeColorStr = "black"
 	} else {
 		themeColorStr = getThemeColorName(themeColor)
@@ -485,15 +489,21 @@ func handleNavigation(e ui.Event) {
 	case "<Left>":
 		if selectedColumn > 0 {
 			selectedColumn--
+			currentConfig.SortColumn = &selectedColumn
+			saveConfig()
 			updateProcessList()
 		}
 	case "<Right>":
 		if selectedColumn < len(columns)-1 {
 			selectedColumn++
+			currentConfig.SortColumn = &selectedColumn
+			saveConfig()
 			updateProcessList()
 		}
 	case "<Enter>", "<Space>":
 		sortReverse = !sortReverse
+		currentConfig.SortReverse = sortReverse
+		saveConfig()
 		updateProcessList()
 	case "<F9>":
 		if len(processList.Rows) > 0 && processList.SelectedRow > 0 {
@@ -509,6 +519,10 @@ func handleNavigation(e ui.Event) {
 }
 
 func handleProcessListEvents(e ui.Event) {
+	// Don't handle process list navigation when in Info layout (allow Info scrolling)
+	if currentConfig.DefaultLayout == LayoutInfo {
+		return
+	}
 	if killPending {
 		handleKillPending(e)
 		return

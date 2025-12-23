@@ -34,6 +34,14 @@ func startBackgroundUpdates(done chan struct{}) {
 				default:
 				}
 				select {
+				case tbNetStats := <-tbNetStatsChan:
+					renderMutex.Lock()
+					updateTBNetUI(tbNetStats)
+					updateInfoUI()
+					renderMutex.Unlock()
+				default:
+				}
+				select {
 				case netdiskMetrics := <-netdiskMetricsChan:
 					renderMutex.Lock()
 					lastNetDiskMetrics = netdiskMetrics
@@ -211,11 +219,48 @@ func handleKeyboardEvent(e ui.Event, done chan struct{}) {
 		handleModeKeys(key, done)
 	case "-", "_", "+", "=":
 		handleIntervalKeys(key)
+	case "j", "<Down>":
+		// Scroll down in Info layout
+		if currentConfig.DefaultLayout == LayoutInfo {
+			renderMutex.Lock()
+			infoScrollOffset++
+			updateInfoUI()
+			w, h := ui.TerminalDimensions()
+			drawScreen(w, h)
+			renderMutex.Unlock()
+		}
+	case "k", "<Up>":
+		// Scroll up in Info layout
+		if currentConfig.DefaultLayout == LayoutInfo {
+			renderMutex.Lock()
+			if infoScrollOffset > 0 {
+				infoScrollOffset--
+			}
+			updateInfoUI()
+			w, h := ui.TerminalDimensions()
+			drawScreen(w, h)
+			renderMutex.Unlock()
+		}
 	}
 }
 
 func handleGenericMouseEvent(e ui.Event) {
 	renderMutex.Lock()
+
+	// Handle mouse wheel scrolling in Info layout
+	if currentConfig.DefaultLayout == LayoutInfo {
+		switch e.ID {
+		case "<MouseWheelUp>":
+			if infoScrollOffset > 0 {
+				infoScrollOffset--
+			}
+			updateInfoUI()
+		case "<MouseWheelDown>":
+			infoScrollOffset++
+			updateInfoUI()
+		}
+	}
+
 	handleProcessListEvents(e)
 	w, h := ui.TerminalDimensions()
 	drawScreen(w, h)

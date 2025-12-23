@@ -9,6 +9,8 @@ import (
 type AppConfig struct {
 	DefaultLayout string `json:"default_layout"`
 	Theme         string `json:"theme"`
+	SortColumn    *int   `json:"sort_column,omitempty"`
+	SortReverse   bool   `json:"sort_reverse"`
 }
 
 var currentConfig AppConfig

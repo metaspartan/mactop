@@ -2,33 +2,107 @@ package app
 
 import (
 	"fmt"
+	"strings"
 
 	ui "github.com/metaspartan/gotui/v4"
 )
 
 var colorMap = map[string]ui.Color{
-	"green":   ui.ColorGreen,
-	"red":     ui.ColorRed,
-	"blue":    ui.ColorBlue,
-	"skyblue": ui.ColorSkyBlue,
-	"magenta": ui.ColorMagenta,
-	"yellow":  ui.ColorYellow,
-	"gold":    ui.ColorGold,
-	"silver":  ui.ColorSilver,
-	"white":   ui.ColorWhite,
-	"lime":    ui.ColorLime,
-	"orange":  ui.ColorOrange,
-	"violet":  ui.ColorViolet,
-	"pink":    ui.ColorPink,
+	"green":                ui.ColorGreen,
+	"red":                  ui.ColorRed,
+	"blue":                 ui.ColorBlue,
+	"skyblue":              ui.ColorSkyBlue,
+	"magenta":              ui.ColorMagenta,
+	"yellow":               ui.ColorYellow,
+	"gold":                 ui.ColorGold,
+	"silver":               ui.ColorSilver,
+	"white":                ui.ColorWhite,
+	"lime":                 ui.ColorLime,
+	"orange":               ui.ColorOrange,
+	"violet":               ui.ColorViolet,
+	"pink":                 ui.ColorPink,
+	"catppuccin-latte":     CatppuccinLatte.Peach,
+	"catppuccin-frappe":    CatppuccinFrappe.Peach,
+	"catppuccin-macchiato": CatppuccinMacchiato.Peach,
+	"catppuccin-mocha":     CatppuccinMocha.Peach,
 }
 
-var colorNames = []string{"green", "red", "blue", "skyblue", "magenta", "yellow", "gold", "silver", "white", "lime", "orange", "violet", "pink"}
+var colorNames = []string{
+	"green",
+	"red",
+	"blue",
+	"skyblue",
+	"magenta",
+	"yellow",
+	"gold",
+	"silver",
+	"white",
+	"lime",
+	"orange",
+	"violet",
+	"pink",
+	"1977",
+	"catppuccin-latte",
+	"catppuccin-frappe",
+	"catppuccin-macchiato",
+	"catppuccin-mocha",
+}
 
 var (
 	BracketColor       ui.Color = ui.ColorWhite
 	SecondaryTextColor ui.Color = 245
 	IsLightMode        bool     = false
 )
+
+func getCPUColor() ui.Color {
+	return ui.ColorGreen
+}
+
+func getGPUColor() ui.Color {
+	return ui.ColorMagenta
+}
+
+func getMemoryColor() ui.Color {
+	return ui.ColorBlue
+}
+
+func getANEColor() ui.Color {
+	return ui.ColorRed
+}
+
+func update1977GaugeColors() {
+	if cpuGauge != nil {
+		cpuColor := getCPUColor()
+		cpuGauge.BarColor = cpuColor
+		cpuGauge.BorderStyle.Fg = cpuColor
+		cpuGauge.TitleStyle.Fg = cpuColor
+		cpuGauge.LabelStyle = ui.NewStyle(SecondaryTextColor)
+	}
+
+	if gpuGauge != nil {
+		gpuColor := getGPUColor()
+		gpuGauge.BarColor = gpuColor
+		gpuGauge.BorderStyle.Fg = gpuColor
+		gpuGauge.TitleStyle.Fg = gpuColor
+		gpuGauge.LabelStyle = ui.NewStyle(SecondaryTextColor)
+	}
+
+	if memoryGauge != nil {
+		memColor := getMemoryColor()
+		memoryGauge.BarColor = memColor
+		memoryGauge.BorderStyle.Fg = memColor
+		memoryGauge.TitleStyle.Fg = memColor
+		memoryGauge.LabelStyle = ui.NewStyle(SecondaryTextColor)
+	}
+
+	if aneGauge != nil {
+		aneColor := getANEColor()
+		aneGauge.BarColor = aneColor
+		aneGauge.BorderStyle.Fg = aneColor
+		aneGauge.TitleStyle.Fg = aneColor
+		aneGauge.LabelStyle = ui.NewStyle(SecondaryTextColor)
+	}
+}
 
 func applyThemeToGauges(color ui.Color) {
 	if cpuGauge != nil {
@@ -54,6 +128,34 @@ func applyThemeToGauges(color ui.Color) {
 	}
 }
 
+func applyCatppuccinThemeToGauges(palette *CatppuccinPalette) {
+	if cpuGauge != nil {
+		// CPU = Peach (warm, distinct from standard green)
+		cpuGauge.BarColor = palette.Peach
+		cpuGauge.BorderStyle.Fg = palette.Peach
+		cpuGauge.TitleStyle.Fg = palette.Peach
+		cpuGauge.LabelStyle = ui.NewStyle(SecondaryTextColor)
+
+		// GPU = Mauve (purple-ish)
+		gpuGauge.BarColor = palette.Mauve
+		gpuGauge.BorderStyle.Fg = palette.Mauve
+		gpuGauge.TitleStyle.Fg = palette.Mauve
+		gpuGauge.LabelStyle = ui.NewStyle(SecondaryTextColor)
+
+		// Memory = Pink (soft, pleasant)
+		memoryGauge.BarColor = palette.Pink
+		memoryGauge.BorderStyle.Fg = palette.Pink
+		memoryGauge.TitleStyle.Fg = palette.Pink
+		memoryGauge.LabelStyle = ui.NewStyle(SecondaryTextColor)
+
+		// ANE = Maroon (red-ish but earthy)
+		aneGauge.BarColor = palette.Maroon
+		aneGauge.BorderStyle.Fg = palette.Maroon
+		aneGauge.TitleStyle.Fg = palette.Maroon
+		aneGauge.LabelStyle = ui.NewStyle(SecondaryTextColor)
+	}
+}
+
 func applyThemeToSparklines(color ui.Color) {
 	if sparkline != nil {
 		sparkline.LineColor = color
@@ -70,6 +172,19 @@ func applyThemeToSparklines(color ui.Color) {
 	if gpuSparklineGroup != nil {
 		gpuSparklineGroup.BorderStyle.Fg = color
 		gpuSparklineGroup.TitleStyle.Fg = color
+	}
+
+	if tbNetSparklineIn != nil {
+		tbNetSparklineIn.LineColor = color
+		tbNetSparklineIn.TitleStyle = ui.NewStyle(color)
+	}
+	if tbNetSparklineOut != nil {
+		tbNetSparklineOut.LineColor = color
+		tbNetSparklineOut.TitleStyle = ui.NewStyle(color)
+	}
+	if tbNetSparklineGroup != nil {
+		tbNetSparklineGroup.BorderStyle.Fg = color
+		tbNetSparklineGroup.TitleStyle.Fg = color
 	}
 }
 
@@ -113,13 +228,21 @@ func applyThemeToWidgets(color ui.Color, lightMode bool) {
 		mainBlock.TitleStyle.Fg = color
 		mainBlock.TitleBottomStyle.Fg = color
 	}
+	if tbInfoParagraph != nil {
+		tbInfoParagraph.BorderStyle.Fg = color
+		tbInfoParagraph.TitleStyle.Fg = color
+		tbInfoParagraph.TextStyle = ui.NewStyle(color)
+	}
 }
 
 func applyTheme(colorName string, lightMode bool) {
+	is1977 := colorName == "1977"
 	color, ok := colorMap[colorName]
-	if !ok {
+	if !ok && !is1977 {
 		color = ui.ColorGreen
 		colorName = "green"
+	} else if is1977 {
+		color = ui.ColorGreen
 	}
 
 	currentConfig.Theme = colorName
@@ -142,7 +265,40 @@ func applyTheme(colorName string, lightMode bool) {
 	ui.Theme.Gauge.Bar = color
 	ui.Theme.BarChart.Bars = []ui.Color{color}
 
-	applyThemeToGauges(color)
+	if is1977 {
+		update1977GaugeColors()
+	} else if catppuccinPalette := GetCatppuccinPalette(colorName); catppuccinPalette != nil {
+		primaryColor := catppuccinPalette.Peach
+
+		ui.Theme.Block.Title.Fg = primaryColor
+		ui.Theme.Block.Border.Fg = primaryColor
+		ui.Theme.Paragraph.Text.Fg = catppuccinPalette.Text
+		ui.Theme.Gauge.Label.Fg = catppuccinPalette.Subtext1
+		ui.Theme.BarChart.Bars = []ui.Color{catppuccinPalette.Blue}
+
+		applyCatppuccinThemeToGauges(catppuccinPalette)
+		applyThemeToSparklines(primaryColor)
+		applyThemeToWidgets(primaryColor, lightMode)
+
+		if mainBlock != nil {
+			mainBlock.BorderStyle.Fg = primaryColor
+			mainBlock.TitleStyle.Fg = primaryColor
+			mainBlock.TitleBottomStyle.Fg = primaryColor
+		}
+		if processList != nil {
+			processList.TextStyle = ui.NewStyle(primaryColor)
+			selectedFg := catppuccinPalette.Base
+			if colorName == "catppuccin-latte" {
+				selectedFg = catppuccinPalette.Text
+			}
+			processList.SelectedStyle = ui.NewStyle(selectedFg, primaryColor)
+			processList.BorderStyle.Fg = primaryColor
+			processList.TitleStyle.Fg = primaryColor
+		}
+		return
+	} else {
+		applyThemeToGauges(color)
+	}
 	applyThemeToSparklines(color)
 	applyThemeToWidgets(color, lightMode)
 }
@@ -170,12 +326,21 @@ func GetProcessTextColor(isCurrentUser bool) string {
 			if color == ui.ColorBlack {
 				return "black"
 			}
+			if currentConfig.Theme == "1977" {
+				return "green"
+			}
+			if strings.HasPrefix(currentConfig.Theme, "catppuccin-") {
+				return GetCatppuccinHex(currentConfig.Theme, "Text")
+			}
 			return currentConfig.Theme
 		}
 		return "240"
 	}
 
 	if isCurrentUser {
+		if strings.HasPrefix(currentConfig.Theme, "catppuccin-") {
+			return GetCatppuccinHex(currentConfig.Theme, "Peach")
+		}
 		switch currentConfig.Theme {
 		case "lime":
 			return "lime"
@@ -186,6 +351,9 @@ func GetProcessTextColor(isCurrentUser bool) string {
 		case "pink":
 			return "pink"
 		default:
+			if currentConfig.Theme == "1977" {
+				return "green"
+			}
 			return currentConfig.Theme
 		}
 	}
@@ -204,6 +372,10 @@ func cycleTheme() {
 	currentColorName = colorNames[nextIndex]
 	applyTheme(colorNames[nextIndex], IsLightMode)
 	if mainBlock != nil {
-		mainBlock.TitleBottomLeft = fmt.Sprintf(" %d/%d layout (%s) ", currentLayoutNum+1, totalLayouts, currentColorName)
+		displayColorName := currentColorName
+		if IsLightMode && currentColorName == "white" {
+			displayColorName = "black"
+		}
+		mainBlock.TitleBottomLeft = fmt.Sprintf(" %d/%d layout (%s) ", currentLayoutNum+1, totalLayouts, displayColorName)
 	}
 }

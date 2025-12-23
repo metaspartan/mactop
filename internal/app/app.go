@@ -75,6 +75,16 @@ func setupUI() {
 	PowerChart, NetworkInfo = w.NewParagraph(), w.NewParagraph()
 	PowerChart.Title, NetworkInfo.Title = "Power Usage", "Network & Disk"
 
+	tbInfoParagraph = w.NewParagraph()
+	tbInfoParagraph.Title = "Thunderbolt / RDMA"
+	tbInfoParagraph.Text = "Loading Thunderbolt Info..."
+	go func() {
+		description := GetThunderboltDescription()
+		tbInfoMutex.Lock()
+		tbDeviceInfo = description
+		tbInfoMutex.Unlock()
+	}()
+
 	mainBlock = ui.NewBlock()
 	mainBlock.BorderRounded = true
 	mainBlock.Title = " mactop "
@@ -88,6 +98,7 @@ func setupUI() {
 	termWidth, _ := ui.TerminalDimensions()
 	numPoints := termWidth / 2
 	numPointsGPU := termWidth / 2
+
 	powerValues = make([]float64, numPoints)
 	gpuValues = make([]float64, numPointsGPU)
 
@@ -102,6 +113,20 @@ func setupUI() {
 	gpuSparkline.Data = gpuValues
 	gpuSparklineGroup = w.NewSparklineGroup(gpuSparkline)
 	gpuSparklineGroup.Title = "GPU Usage History"
+
+	// TB Net sparklines
+	tbNetSparklineIn = w.NewSparkline()
+	tbNetSparklineIn.Data = tbNetInValues
+	tbNetSparklineIn.LineColor = ui.ColorGreen
+	tbNetSparklineIn.TitleStyle.Fg = ui.ColorGreen
+
+	tbNetSparklineOut = w.NewSparkline()
+	tbNetSparklineOut.Data = tbNetOutValues
+	tbNetSparklineOut.LineColor = ui.ColorMagenta
+	tbNetSparklineOut.TitleStyle.Fg = ui.ColorMagenta
+
+	tbNetSparklineGroup = w.NewSparklineGroup(tbNetSparklineIn, tbNetSparklineOut)
+	tbNetSparklineGroup.Title = "TB Net ↓0/s ↑0/s"
 
 	updateProcessList()
 
@@ -286,6 +311,21 @@ func renderUI() {
 	}
 }
 
+func applyInitialTheme(colorName string, setColor bool, interval int, setInterval bool) {
+	if setColor {
+		applyTheme(colorName, IsLightMode)
+	} else {
+		if currentConfig.Theme == "" {
+			currentConfig.Theme = "green"
+		}
+		applyTheme(currentConfig.Theme, IsLightMode)
+	}
+	if setInterval {
+		updateInterval = interval
+		updateIntervalText()
+	}
+}
+
 func Run() {
 	colorName, interval, setColor, setInterval := handleLegacyFlags()
 
@@ -297,6 +337,7 @@ func Run() {
 
 	flag.StringVar(&prometheusPort, "prometheus", "", "Port to run Prometheus metrics server on (e.g. :9090)")
 	flag.BoolVar(&headless, "headless", false, "Run in headless mode (no TUI, output JSON to stdout)")
+	flag.BoolVar(&headlessPretty, "pretty", false, "Pretty print JSON output in headless mode")
 	flag.IntVar(&headlessCount, "count", 0, "Number of samples to collect in headless mode (0 = infinite)")
 	flag.IntVar(&updateInterval, "interval", 1000, "Update interval in milliseconds")
 	flag.Bool("d", false, "Dump all available IOReport channels and exit")
@@ -307,6 +348,12 @@ func Run() {
 	flag.StringVar(&tempUnit, "unit-temp", "celsius", "Temperature unit: celsius, fahrenheit")
 
 	loadConfig()
+
+	// Load saved sort column from config (only if explicitly set)
+	if currentConfig.SortColumn != nil && *currentConfig.SortColumn >= 0 && *currentConfig.SortColumn < len(columns) {
+		selectedColumn = *currentConfig.SortColumn
+	}
+	sortReverse = currentConfig.SortReverse
 
 	flag.Parse()
 
@@ -336,18 +383,7 @@ func Run() {
 		stderrLogger.Printf("Prometheus metrics available at http://localhost:%s/metrics\n", prometheusPort)
 	}
 	setupUI()
-	if setColor {
-		applyTheme(colorName, IsLightMode)
-	} else {
-		if currentConfig.Theme == "" {
-			currentConfig.Theme = "green"
-		}
-		applyTheme(currentConfig.Theme, IsLightMode)
-	}
-	if setInterval {
-		updateInterval = interval
-		updateIntervalText()
-	}
+	applyInitialTheme(colorName, setColor, interval, setInterval)
 	currentColorName = currentConfig.Theme
 	setupGrid()
 	termWidth, termHeight := ui.TerminalDimensions()
@@ -400,7 +436,7 @@ func Run() {
 
 	netdiskMetricsChan <- getNetDiskMetrics()
 
-	go collectMetrics(done, cpuMetricsChan, gpuMetricsChan)
+	go collectMetrics(done, cpuMetricsChan, gpuMetricsChan, tbNetStatsChan)
 	go collectProcessMetrics(done, processMetricsChan)
 	go collectNetDiskMetrics(done, netdiskMetricsChan)
 
@@ -515,8 +551,9 @@ func updateCPUUI(cpuMetrics CPUMetrics) {
 		thermalStr,
 	)
 	memoryMetrics := getMemoryMetrics()
-	memoryGauge.Title = fmt.Sprintf("Memory Usage: %.2f GB / %.2f GB (Swap: %.2f/%.2f GB)", float64(memoryMetrics.Used)/1024/1024/1024, float64(memoryMetrics.Total)/1024/1024/1024, float64(memoryMetrics.SwapUsed)/1024/1024/1024, float64(memoryMetrics.SwapTotal)/1024/1024/1024)
+	memoryGauge.Title = fmt.Sprintf("Memory Usage: %.2f GB / %.2f GB", float64(memoryMetrics.Used)/1024/1024/1024, float64(memoryMetrics.Total)/1024/1024/1024)
 	memoryGauge.Percent = int((float64(memoryMetrics.Used) / float64(memoryMetrics.Total)) * 100)
+	memoryGauge.TitleRight = fmt.Sprintf("Swap: %.2f/%.2f GB", float64(memoryMetrics.SwapUsed)/1024/1024/1024, float64(memoryMetrics.SwapTotal)/1024/1024/1024)
 
 	var ecoreAvg, pcoreAvg float64
 	if cpuCoreWidget.eCoreCount > 0 && len(coreUsages) >= cpuCoreWidget.eCoreCount {
@@ -561,6 +598,11 @@ func updateCPUUI(cpuMetrics CPUMetrics) {
 	memoryUsage.With(prometheus.Labels{"type": "total"}).Set(float64(memoryMetrics.Total) / 1024 / 1024 / 1024)
 	memoryUsage.With(prometheus.Labels{"type": "swap_used"}).Set(float64(memoryMetrics.SwapUsed) / 1024 / 1024 / 1024)
 	memoryUsage.With(prometheus.Labels{"type": "swap_total"}).Set(float64(memoryMetrics.SwapTotal) / 1024 / 1024 / 1024)
+
+	// Update gauge colors with dynamic saturation if 1977 theme is active
+	if currentConfig.Theme == "1977" {
+		update1977GaugeColors()
+	}
 }
 
 func updateGPUUI(gpuMetrics GPUMetrics) {
@@ -599,6 +641,11 @@ func updateGPUUI(gpuMetrics GPUMetrics) {
 		gpuUsage.Set(0)
 	}
 	gpuFreqMHz.Set(float64(gpuMetrics.FreqMHz))
+
+	// Update gauge colors with dynamic saturation if 1977 theme is active
+	if currentConfig.Theme == "1977" {
+		update1977GaugeColors()
+	}
 }
 
 func updateNetDiskUI(netdiskMetrics NetDiskMetrics) {
@@ -628,4 +675,78 @@ func updateNetDiskUI(netdiskMetrics NetDiskMetrics) {
 	}
 	NetworkInfo.Text = strings.TrimSuffix(sb.String(), "\n")
 
+}
+
+func updateTBNetUI(tbStats []ThunderboltNetStats) {
+	if tbStats == nil {
+		return
+	}
+	// Calculate total bandwidth from all Thunderbolt interfaces (in bytes/sec)
+	var totalBytesIn, totalBytesOut float64
+	for _, stat := range tbStats {
+		totalBytesIn += stat.BytesInPerSec
+		totalBytesOut += stat.BytesOutPerSec
+	}
+	lastTBInBytes = totalBytesIn
+	lastTBOutBytes = totalBytesOut
+	rdmaStatus := CheckRDMAAvailable()
+	rdmaLabel := "RDMA: Disabled"
+	if rdmaStatus.Available {
+		rdmaLabel = "RDMA: Enabled"
+	}
+
+	// Use formatBytes for consistent unit display
+	inStr := formatBytes(totalBytesIn, networkUnit)
+	outStr := formatBytes(totalBytesOut, networkUnit)
+
+	// Set simple title
+	tbInfoParagraph.Title = "Thunderbolt / RDMA"
+
+	// Use cached device info
+	tbInfoMutex.Lock()
+	tbDeviceInfo := tbDeviceInfo
+	tbInfoMutex.Unlock()
+	if tbDeviceInfo == "" {
+		tbDeviceInfo = "Loading..."
+	}
+
+	// Show RDMA status and bandwidth in text, above device list
+	tbInfoParagraph.Text = fmt.Sprintf("%s | TB Net: ↓%s/s ↑%s/s\n%s", rdmaLabel, inStr, outStr, tbDeviceInfo)
+
+	// Update TB Net sparklines with separate download/upload
+	// Shift values left and add new values
+	// Scale bytes to KB for sparkline
+	for i := 0; i < len(tbNetInValues)-1; i++ {
+		tbNetInValues[i] = tbNetInValues[i+1]
+		tbNetOutValues[i] = tbNetOutValues[i+1]
+	}
+	tbNetInValues[len(tbNetInValues)-1] = totalBytesIn / 1024
+	tbNetOutValues[len(tbNetOutValues)-1] = totalBytesOut / 1024
+
+	// Calculate independent max values for specific scaling
+	maxValIn := 1.0
+	for _, v := range tbNetInValues {
+		if v > maxValIn {
+			maxValIn = v
+		}
+	}
+	maxValOut := 1.0
+	for _, v := range tbNetOutValues {
+		if v > maxValOut {
+			maxValOut = v
+		}
+	}
+
+	// Update sparklines and group title
+	if tbNetSparklineGroup != nil {
+		tbNetSparklineGroup.Title = fmt.Sprintf("TB Net: ↓%s/s ↑%s/s", inStr, outStr)
+		if tbNetSparklineIn != nil {
+			tbNetSparklineIn.Data = tbNetInValues
+			tbNetSparklineIn.MaxVal = maxValIn * 1.1
+		}
+		if tbNetSparklineOut != nil {
+			tbNetSparklineOut.Data = tbNetOutValues
+			tbNetSparklineOut.MaxVal = maxValOut * 1.1
+		}
+	}
 }

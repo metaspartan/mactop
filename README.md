@@ -23,16 +23,20 @@
 - Detailed native metrics for CPU cores (E and P cores) via Apple's Mach Kernel API
 - Memory usage and swap information
 - Network usage information (upload/download speeds)
+- **Thunderbolt bandwidth monitoring**: Real-time throughput for Thunderbolt Bridge interfaces
+- **Thunderbolt Device Tree**: Visual tree of connected Thunderbolt/USB4 devices and their speeds
+- **RDMA Support**: Detection of RDMA over Thunderbolt 5 availability
 - Disk I/O activity (read/write speeds)
 - Multiple volume display (shows Mac HD + mounted external volumes)
 - Easy-to-read terminal UI
-- **10 Layouts**: (`L` to cycle layouts)
+- **11 Layouts**: (`L` to cycle layouts)
 - **Persistent Settings**: Remembers your Layout and Theme choice across restarts
-- Customizable UI color (green, red, blue, skyblue, magenta, yellow, gold, silver, white, lime, orange, violet, and pink) (`C` to cycle colors)
+- Customizable UI color (green, red, blue, skyblue, magenta, yellow, gold, silver, white, lime, orange, violet, pink, and more) (`C` to cycle colors)
 - Customizable update interval (default is 1000ms) (`-` or `=` to speed up, `+` to slow down)
 - Process list matching htop format (VIRT in GB, CPU normalized by core count)
 - **Process Management**: Kill processes directly from the UI (F9). List pauses while selecting.
 - **Headless Mode**: Output JSON metrics to stdout for scripting/logging (`--headless`)
+- **JSON Formatting**: Pretty print JSON output (`--pretty`) or set collection count (`--count <n>`)
 - Party Mode (Randomly cycles through colors) (P to toggle)
 - Optional Prometheus Metrics server (default is disabled) (`-p <port>` or `--prometheus <port>`)
 - Support for all Apple Silicon models
@@ -95,10 +99,20 @@ Example with flags:
 mactop --interval 1000 --color green
 ```
 
+Headless Mode (JSON Output):
+```bash
+# Run once and exit (great for scripts)
+mactop --headless --count 1
+
+# Run continuously with pretty printing
+mactop --headless --pretty
+```
+
 ## mactop Flags
 
 - `--headless`: Run in headless mode (no TUI, output JSON to stdout).
 - `--count`: Number of samples to collect in headless mode (0 = infinite).
+- `--pretty`: Pretty print JSON output in headless mode.
 - `--interval` or `-i`: Set the update interval in milliseconds. Default is 1000.
 - `--color` or `-c`: Set the UI color. Default is white. 
 Options are 'green', 'red', 'blue', 'skyblue', 'magenta', 'yellow', 'gold', 'silver', 'white', 'lime', 'orange', 'violet', and 'pink'. (-c green)
@@ -116,6 +130,7 @@ Use the following keys to interact with the application while its running:
 - `r`: Refresh the UI data manually.
 - `c`: Cycle through the color themes.
 - `p`: Party Mode (Randomly cycles through colors)
+- `i`: Toggle Info layout (displays system info)
 - `l`: Cycle through the 10 available layouts.
 - `+` or `=`: Increase update interval (slower updates).
 - `-`: Decrease update interval (faster updates).
@@ -131,74 +146,209 @@ Use the following keys to interact with the application while its running:
 ## Example Headless Output (mactop --headless --count 1)
 
 ```json
-[
-   {
-      "timestamp":"2025-12-04T00:43:06-07:00",
-      "soc_metrics":{
-         "cpu_power":5.971,
-         "gpu_power":1.43491417,
-         "ane_power":0,
-         "dram_power":4.119,
-         "gpu_sram_power":0.04,
-         "system_power":45.92987823486328,
-         "total_power":11.564914169999998,
-         "gpu_freq_mhz":645,
-         "soc_temp":66.51124,
-         "cpu_temp":66.51124,
-         "gpu_temp":59.767166
+[{
+  "timestamp": "2025-12-22T18:16:57-07:00",
+  "soc_metrics": {
+    "cpu_power": 2.1959999999999997,
+    "gpu_power": 5.38552801,
+    "ane_power": 0,
+    "dram_power": 5.702,
+    "gpu_sram_power": 0.158,
+    "system_power": 37.47166092432617,
+    "total_power": 50.91318893432617,
+    "gpu_freq_mhz": 643,
+    "soc_temp": 62.562572,
+    "cpu_temp": 62.562572,
+    "gpu_temp": 58.38886
+  },
+  "memory": {
+    "total": 137438953472,
+    "used": 74062512128,
+    "available": 63376441344,
+    "swap_total": 5368709120,
+    "swap_used": 4094689280
+  },
+  "net_disk": {
+    "out_packets_per_sec": 589.4371024829012,
+    "out_bytes_per_sec": 196028.18012655922,
+    "in_packets_per_sec": 593.3256375185223,
+    "in_bytes_per_sec": 74461.55739710879,
+    "read_ops_per_sec": 0.32404458630175986,
+    "write_ops_per_sec": 40.18152870141822,
+    "read_kbytes_per_sec": 1.2961783452070395,
+    "write_kbytes_per_sec": 308.4904461592754
+  },
+  "cpu_usage": 15.140564910346725,
+  "gpu_usage": 53.51970510465884,
+  "core_usages": [
+    42.244224422442244,
+    37.17105263157895,
+    55.26315789473685,
+    37.704918032786885,
+    27.21311475409836,
+    21.241830065359476,
+    14.563106796116504,
+    6.148867313915858,
+    4.193548387096775,
+    1.9417475728155338,
+    30.718954248366014,
+    20.846905537459286,
+    1.9417475728155338,
+    1.2944983818770228,
+    0.3236245954692557,
+    0,
+    0,
+    0,
+    0,
+    0
+  ],
+  "system_info": {
+    "name": "Apple M1 Ultra",
+    "core_count": 20,
+    "e_core_count": 4,
+    "p_core_count": 16,
+    "gpu_core_count": 64
+  },
+  "thermal_state": "Normal",
+  "thunderbolt_info": {
+    "buses": [
+      {
+        "name": "TB4 Bus 5",
+        "status": "Active (USB)",
+        "icon": "⏺",
+        "speed": "Up to 40 Gb/s",
+        "domain_uuid": "9FDBA52F-DF7C-425E-B67B-FB80F9E1DCD6",
+        "switch_uid": "0x05AC38BE5E390FE5",
+        "receptacle_id": "6",
+        "devices": [
+          {
+            "name": "ASM236X NVME",
+            "mode": "USB",
+            "info_string": "USB, SSD"
+          }
+        ],
+        "network_stats": {
+          "interface_name": "en7",
+          "bytes_in": 0,
+          "bytes_out": 0,
+          "bytes_in_per_sec": 0,
+          "bytes_out_per_sec": 0,
+          "packets_in": 0,
+          "packets_out": 0
+        }
       },
-      "memory":{
-         "total":137438953472,
-         "used":95795822592,
-         "available":41643130880,
-         "swap_total":21474836480,
-         "swap_used":20288831488
+      {
+        "name": "TB4 Bus 4",
+        "status": "Inactive",
+        "icon": "○",
+        "speed": "Up to 40 Gb/s",
+        "domain_uuid": "5DD6DE43-051D-4B32-B044-23E57AA0EEC8",
+        "switch_uid": "0x05AC38BE5E390FE4",
+        "receptacle_id": "5",
+        "network_stats": {
+          "interface_name": "en6",
+          "bytes_in": 0,
+          "bytes_out": 0,
+          "bytes_in_per_sec": 0,
+          "bytes_out_per_sec": 0,
+          "packets_in": 0,
+          "packets_out": 0
+        }
       },
-      "net_disk":{
-         "out_packets_per_sec":333.8985188256889,
-         "out_bytes_per_sec":164.55632002792703,
-         "in_packets_per_sec":295.37176665349403,
-         "in_bytes_per_sec":39.33046303000927,
-         "read_ops_per_sec":2.6754689008468664,
-         "write_ops_per_sec":275.5732967872272,
-         "read_kbytes_per_sec":43.83488247147506,
-         "write_kbytes_per_sec":3763.2246601761335
+      {
+        "name": "TB4 @ TB3 Bus 3",
+        "status": "Active",
+        "icon": "ϟ",
+        "speed": "20 Gb/s",
+        "domain_uuid": "AF4CE493-9005-4E9D-8B8B-0198D27BABA3",
+        "switch_uid": "0x05AC38BE5E390FE3",
+        "receptacle_id": "4",
+        "devices": [
+          {
+            "name": "Studio Display",
+            "vendor": "Apple Inc.",
+            "vendor_id": "0x0001",
+            "mode": "TB3",
+            "switch_uid": "0x0001AFBD0C588A00",
+            "device_id": "0x801F",
+            "info_string": "Apple Inc., TB3"
+          }
+        ],
+        "network_stats": {
+          "interface_name": "en5",
+          "bytes_in": 0,
+          "bytes_out": 0,
+          "bytes_in_per_sec": 0,
+          "bytes_out_per_sec": 0,
+          "packets_in": 0,
+          "packets_out": 0
+        }
       },
-      "cpu_usage":24.052424536171074,
-      "gpu_usage":13.709099344350134,
-      "core_usages":[
-         55.73770491803278,
-         48.08743169398907,
-         64.32432432432432,
-         53.51351351351351,
-         39.45945945945946,
-         32.432432432432435,
-         31.182795698924732,
-         18.71657754010695,
-         12.365591397849462,
-         10.21505376344086,
-         60,
-         40.54054054054054,
-         5.347593582887701,
-         2.6737967914438503,
-         2.1505376344086025,
-         1.0810810810810811,
-         1.06951871657754,
-         1.0752688172043012,
-         1.0752688172043012,
-         0
-      ],
-      "system_info":{
-         "name":"Apple M1 Ultra",
-         "core_count":20,
-         "e_core_count":4,
-         "p_core_count":16,
-         "gpu_core_count":64
+      {
+        "name": "TB4 Bus 2",
+        "status": "Inactive",
+        "icon": "○",
+        "speed": "Up to 40 Gb/s",
+        "domain_uuid": "D589EEFE-98CF-42EC-A729-6C3E523AA321",
+        "switch_uid": "0x05AC38BE5E390FE2",
+        "receptacle_id": "3",
+        "network_stats": {
+          "interface_name": "en4",
+          "bytes_in": 0,
+          "bytes_out": 0,
+          "bytes_in_per_sec": 0,
+          "bytes_out_per_sec": 0,
+          "packets_in": 0,
+          "packets_out": 0
+        }
       },
-      "thermal_state":"Moderate",
-      "cpu_temp":66.51124,
-      "gpu_temp":59.767166
-   }
+      {
+        "name": "TB4 Bus 1",
+        "status": "Inactive",
+        "icon": "○",
+        "speed": "Up to 40 Gb/s",
+        "domain_uuid": "6DAC6FCD-E102-4CCD-9D01-A75540E660CA",
+        "switch_uid": "0x05AC38BE5E390FE1",
+        "receptacle_id": "2",
+        "network_stats": {
+          "interface_name": "en3",
+          "bytes_in": 0,
+          "bytes_out": 0,
+          "bytes_in_per_sec": 0,
+          "bytes_out_per_sec": 0,
+          "packets_in": 0,
+          "packets_out": 0
+        }
+      },
+      {
+        "name": "TB4 Bus 0",
+        "status": "Inactive",
+        "icon": "○",
+        "speed": "Up to 40 Gb/s",
+        "domain_uuid": "63A80A32-E70C-4F22-84BE-EDE632A5BA3E",
+        "switch_uid": "0x05AC38BE5E390FE0",
+        "receptacle_id": "1",
+        "network_stats": {
+          "interface_name": "en2",
+          "bytes_in": 0,
+          "bytes_out": 0,
+          "bytes_in_per_sec": 0,
+          "bytes_out_per_sec": 0,
+          "packets_in": 0,
+          "packets_out": 0
+        }
+      }
+    ]
+  },
+  "tb_net_total_bytes_in_per_sec": 0,
+  "tb_net_total_bytes_out_per_sec": 0,
+  "rdma_status": {
+    "available": false,
+    "status": "RDMA Disabled (use rdma_ctl enable in Recovery Mode)"
+  },
+  "cpu_temp": 62.562572,
+  "gpu_temp": 58.38886
+}
 ]
 ```
 

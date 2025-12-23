@@ -24,6 +24,7 @@ Options:
   -c, --color <color>   Set the UI color (green, red, blue, skyblue, magenta, yellow, gold, silver, white)
   -p, --prometheus <port> Run Prometheus metrics server on specified port (e.g. :9090)
       --headless        Run in headless mode (no TUI, output JSON to stdout)
+      --pretty          Pretty print JSON output in headless mode
       --count <n>       Number of samples to collect in headless mode (0 = infinite)
       --dump-ioreport, -d Dump all available IOReport channels and exit
       --unit-network <unit> Network unit: auto, byte, kb, mb, gb (default: auto)

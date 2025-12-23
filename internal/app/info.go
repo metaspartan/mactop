@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	ui "github.com/metaspartan/gotui/v4"
@@ -44,6 +45,13 @@ func buildInfoLines(themeColor string) []string {
 		avgWatts = sumWatts / float64(countWatts)
 	}
 
+	// Get RDMA status
+	rdmaStatus := CheckRDMAAvailable()
+	rdmaLabel := "Disabled"
+	if rdmaStatus.Available {
+		rdmaLabel = "Enabled"
+	}
+
 	infoLines := []string{
 		fmt.Sprintf("[%s@%s](fg:%s,mod:bold)", cachedCurrentUser, cachedHostname, themeColor),
 		"-------------------------",
@@ -76,6 +84,28 @@ func buildInfoLines(themeColor string) []string {
 			infoLines = append(infoLines, formatLine(v.Name, fmt.Sprintf("%s / %s (%s free)", used, total, avail)))
 		}
 	}
+
+	infoLines = append(infoLines, "-------------------------")
+
+	tbIn := formatBytes(lastTBInBytes, networkUnit)
+	tbOut := formatBytes(lastTBOutBytes, networkUnit)
+	infoLines = append(infoLines, formatLine("TB Net", fmt.Sprintf("↑ %s/s ↓ %s/s", tbOut, tbIn)))
+
+	infoLines = append(infoLines, formatLine("RDMA", rdmaLabel))
+
+	tbInfoMutex.Lock()
+	tbInfo := tbDeviceInfo
+	tbInfoMutex.Unlock()
+
+	if tbInfo != "" {
+		tbLines := strings.Split(tbInfo, "\n")
+		for _, line := range tbLines {
+			if line != "" {
+				infoLines = append(infoLines, fmt.Sprintf("[%s](fg:%s)", line, themeColor))
+			}
+		}
+	}
+
 	return infoLines
 }
 
@@ -102,17 +132,41 @@ func getASCIIArt() []string {
 }
 
 func buildInfoText() string {
+	themeColor := getThemeColor()
+	infoLines := buildInfoLines(themeColor)
+	asciiArt := getASCIIArt()
+
+	layout := calculateInfoLayout(len(infoLines), len(asciiArt))
+
+	return renderInfoText(infoLines, asciiArt, layout, themeColor)
+}
+
+func getThemeColor() string {
 	themeColor := "green"
 	if currentConfig.Theme != "" {
-		themeColor = currentConfig.Theme
+		if currentConfig.Theme == "1977" {
+			themeColor = "green"
+		} else {
+			themeColor = currentConfig.Theme
+		}
 	}
 	if IsLightMode && themeColor == "white" {
 		themeColor = "black"
 	}
+	return themeColor
+}
 
-	infoLines := buildInfoLines(themeColor)
-	asciiArt := getASCIIArt()
+type infoLayout struct {
+	startLine    int
+	endLine      int
+	paddingLeft  int
+	paddingTop   int
+	showAscii    bool
+	totalLines   int
+	contentWidth int
+}
 
+func calculateInfoLayout(infoLinesCount, asciiLinesCount int) infoLayout {
 	termWidth, termHeight := ui.TerminalDimensions()
 	showAscii := termWidth >= 82
 
@@ -121,36 +175,83 @@ func buildInfoText() string {
 		contentWidth = 45
 	}
 
-	maxHeight := len(infoLines)
-	if showAscii {
-		if len(asciiArt) > maxHeight {
-			maxHeight = len(asciiArt)
-		}
+	// Calculate available height for content (leave room for borders and scroll indicators)
+	// We reserve 2 extra lines for top/bottom scroll indicators
+	availableHeight := termHeight - 6
+	if availableHeight < 5 {
+		availableHeight = 5
 	}
-	contentHeight := maxHeight
 
-	paddingTop := (termHeight - contentHeight) / 2
-	if paddingTop > 5 {
-		paddingTop = paddingTop - 5
+	// Determine total content height
+	totalLines := infoLinesCount
+	if showAscii && asciiLinesCount > totalLines {
+		totalLines = asciiLinesCount
 	}
-	if paddingTop < 0 {
-		paddingTop = 0
+
+	// Clamp scroll offset
+	maxScroll := totalLines - availableHeight
+	if maxScroll < 0 {
+		maxScroll = 0
+	}
+	if infoScrollOffset > maxScroll {
+		infoScrollOffset = maxScroll
+	}
+	if infoScrollOffset < 0 {
+		infoScrollOffset = 0
+	}
+
+	// Calculate visible range
+	startLine := infoScrollOffset
+	endLine := startLine + availableHeight
+	if endLine > totalLines {
+		endLine = totalLines
+	}
+
+	// Determine padding based on whether content needs scrolling
+	paddingTop := 0
+	if totalLines <= availableHeight {
+		// Content fits, minimal padding
+		paddingTop = 1 // Just a little spacing
 	}
 
 	paddingLeft := (termWidth - contentWidth) / 2
 	if paddingLeft < 0 {
 		paddingLeft = 0
 	}
-	paddingStr := strings.Repeat(" ", paddingLeft)
+
+	return infoLayout{
+		startLine:    startLine,
+		endLine:      endLine,
+		paddingLeft:  paddingLeft,
+		paddingTop:   paddingTop,
+		showAscii:    showAscii,
+		totalLines:   totalLines,
+		contentWidth: contentWidth,
+	}
+}
+
+func renderInfoText(infoLines, asciiArt []string, layout infoLayout, themeColor string) string {
+	paddingStr := strings.Repeat(" ", layout.paddingLeft)
 
 	var combinedText strings.Builder
-	combinedText.WriteString(strings.Repeat("\n", paddingTop))
+	combinedText.WriteString(strings.Repeat("\n", layout.paddingTop))
 
 	rainbowColors := []string{"red", "magenta", "blue", "skyblue", "green", "yellow"}
 
-	for i := 0; i < maxHeight; i++ {
+	// Show scroll indicator if needed
+	if infoScrollOffset > 0 {
+		fmt.Fprintf(&combinedText, "%s[↑ Scroll up (k/↑)](fg:%s)\n", paddingStr, themeColor)
+	}
+
+	// Helper for stripping tags to calculate visible length
+	stripTags := func(s string) string {
+		re := regexp.MustCompile(`\[(.*?)\]\(.*?\)`)
+		return re.ReplaceAllString(s, "$1")
+	}
+
+	for i := layout.startLine; i < layout.endLine; i++ {
 		asciiLine := ""
-		if showAscii {
+		if layout.showAscii {
 			if i < len(asciiArt) {
 				color := rainbowColors[i%len(rainbowColors)]
 				asciiLine = fmt.Sprintf("[%s](fg:%s)", asciiArt[i], color)
@@ -164,11 +265,28 @@ func buildInfoText() string {
 			infoLine = infoLines[i]
 		}
 
-		if showAscii {
-			combinedText.WriteString(fmt.Sprintf("%s%s   %s\n", paddingStr, asciiLine, infoLine))
+		if layout.showAscii {
+			visibleLen := len(stripTags(infoLine))
+
+			textColWidth := 48
+			paddingSpaces := textColWidth - visibleLen
+			if paddingSpaces < 2 {
+				paddingSpaces = 2
+			}
+
+			fmt.Fprintf(&combinedText, "%s%s%s%s\n", paddingStr, infoLine, strings.Repeat(" ", paddingSpaces), asciiLine)
 		} else {
-			combinedText.WriteString(fmt.Sprintf("%s%s\n", paddingStr, infoLine))
+			infoLine := ""
+			if i < len(infoLines) {
+				infoLine = infoLines[i]
+			}
+			fmt.Fprintf(&combinedText, "%s%s\n", paddingStr, infoLine)
 		}
+	}
+
+	// Show scroll indicator if there's more below
+	if layout.endLine < layout.totalLines {
+		fmt.Fprintf(&combinedText, "%s[↓ Scroll down (j/↓)](fg:%s)\n", paddingStr, themeColor)
 	}
 
 	return combinedText.String()
