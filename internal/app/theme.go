@@ -99,32 +99,40 @@ func update1977GaugeColors() {
 		cpuColor := getCPUColor()
 		cpuGauge.BarColor = cpuColor
 		cpuGauge.BorderStyle.Fg = cpuColor
+		cpuGauge.BorderStyle.Bg = CurrentBgColor
 		cpuGauge.TitleStyle.Fg = cpuColor
-		cpuGauge.LabelStyle = ui.NewStyle(SecondaryTextColor)
+		cpuGauge.TitleStyle.Bg = CurrentBgColor
+		cpuGauge.LabelStyle = ui.NewStyle(SecondaryTextColor, CurrentBgColor)
 	}
 
 	if gpuGauge != nil {
 		gpuColor := getGPUColor()
 		gpuGauge.BarColor = gpuColor
 		gpuGauge.BorderStyle.Fg = gpuColor
+		gpuGauge.BorderStyle.Bg = CurrentBgColor
 		gpuGauge.TitleStyle.Fg = gpuColor
-		gpuGauge.LabelStyle = ui.NewStyle(SecondaryTextColor)
+		gpuGauge.TitleStyle.Bg = CurrentBgColor
+		gpuGauge.LabelStyle = ui.NewStyle(SecondaryTextColor, CurrentBgColor)
 	}
 
 	if memoryGauge != nil {
 		memColor := getMemoryColor()
 		memoryGauge.BarColor = memColor
 		memoryGauge.BorderStyle.Fg = memColor
+		memoryGauge.BorderStyle.Bg = CurrentBgColor
 		memoryGauge.TitleStyle.Fg = memColor
-		memoryGauge.LabelStyle = ui.NewStyle(SecondaryTextColor)
+		memoryGauge.TitleStyle.Bg = CurrentBgColor
+		memoryGauge.LabelStyle = ui.NewStyle(SecondaryTextColor, CurrentBgColor)
 	}
 
 	if aneGauge != nil {
 		aneColor := getANEColor()
 		aneGauge.BarColor = aneColor
 		aneGauge.BorderStyle.Fg = aneColor
+		aneGauge.BorderStyle.Bg = CurrentBgColor
 		aneGauge.TitleStyle.Fg = aneColor
-		aneGauge.LabelStyle = ui.NewStyle(SecondaryTextColor)
+		aneGauge.TitleStyle.Bg = CurrentBgColor
+		aneGauge.LabelStyle = ui.NewStyle(SecondaryTextColor, CurrentBgColor)
 	}
 }
 

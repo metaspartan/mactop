@@ -62,7 +62,7 @@ var (
 		Surface2:  rgb(172, 176, 190),
 		Surface1:  rgb(188, 192, 204),
 		Surface0:  rgb(204, 208, 218),
-		Base:      rgb(48, 52, 70),
+		Base:      rgb(239, 241, 245),
 		Mantle:    rgb(230, 233, 239),
 		Crust:     rgb(220, 224, 232),
 	}
@@ -158,8 +158,8 @@ var (
 var (
 	LatteHex = map[string]string{
 		"Primary": "#7287fd", // Lavender
-		"Text":    "#cdd6f4",
-		"Base":    "#303446",
+		"Text":    "#4c4f69",
+		"Base":    "#eff1f5",
 	}
 	FrappeHex = map[string]string{
 		"Primary": "#ca9ee6", // Mauve (purple)
