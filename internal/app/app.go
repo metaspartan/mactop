@@ -286,6 +286,21 @@ func renderUI() {
 	}
 }
 
+func applyInitialTheme(colorName string, setColor bool, interval int, setInterval bool) {
+	if setColor {
+		applyTheme(colorName, IsLightMode)
+	} else {
+		if currentConfig.Theme == "" {
+			currentConfig.Theme = "green"
+		}
+		applyTheme(currentConfig.Theme, IsLightMode)
+	}
+	if setInterval {
+		updateInterval = interval
+		updateIntervalText()
+	}
+}
+
 func Run() {
 	colorName, interval, setColor, setInterval := handleLegacyFlags()
 
@@ -307,6 +322,12 @@ func Run() {
 	flag.StringVar(&tempUnit, "unit-temp", "celsius", "Temperature unit: celsius, fahrenheit")
 
 	loadConfig()
+
+	// Load saved sort column from config
+	if currentConfig.SortColumn >= 0 && currentConfig.SortColumn < len(columns) {
+		selectedColumn = currentConfig.SortColumn
+	}
+	sortReverse = currentConfig.SortReverse
 
 	flag.Parse()
 
@@ -336,18 +357,7 @@ func Run() {
 		stderrLogger.Printf("Prometheus metrics available at http://localhost:%s/metrics\n", prometheusPort)
 	}
 	setupUI()
-	if setColor {
-		applyTheme(colorName, IsLightMode)
-	} else {
-		if currentConfig.Theme == "" {
-			currentConfig.Theme = "green"
-		}
-		applyTheme(currentConfig.Theme, IsLightMode)
-	}
-	if setInterval {
-		updateInterval = interval
-		updateIntervalText()
-	}
+	applyInitialTheme(colorName, setColor, interval, setInterval)
 	currentColorName = currentConfig.Theme
 	setupGrid()
 	termWidth, termHeight := ui.TerminalDimensions()

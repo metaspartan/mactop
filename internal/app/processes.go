@@ -487,15 +487,21 @@ func handleNavigation(e ui.Event) {
 	case "<Left>":
 		if selectedColumn > 0 {
 			selectedColumn--
+			currentConfig.SortColumn = selectedColumn
+			saveConfig()
 			updateProcessList()
 		}
 	case "<Right>":
 		if selectedColumn < len(columns)-1 {
 			selectedColumn++
+			currentConfig.SortColumn = selectedColumn
+			saveConfig()
 			updateProcessList()
 		}
 	case "<Enter>", "<Space>":
 		sortReverse = !sortReverse
+		currentConfig.SortReverse = sortReverse
+		saveConfig()
 		updateProcessList()
 	case "<F9>":
 		if len(processList.Rows) > 0 && processList.SelectedRow > 0 {
