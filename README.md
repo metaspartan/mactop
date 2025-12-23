@@ -146,60 +146,60 @@ Use the following keys to interact with the application while its running:
 
 ```json
 [{
-  "timestamp": "2025-12-22T16:36:12-07:00",
+  "timestamp": "2025-12-22T18:16:57-07:00",
   "soc_metrics": {
-    "cpu_power": 5.339,
-    "gpu_power": 0.26590266,
+    "cpu_power": 2.1959999999999997,
+    "gpu_power": 5.38552801,
     "ane_power": 0,
-    "dram_power": 3.259,
-    "gpu_sram_power": 0.009,
-    "system_power": 29.9868385509375,
-    "total_power": 38.8597412109375,
-    "gpu_freq_mhz": 641,
-    "soc_temp": 63.224873,
-    "cpu_temp": 63.224873,
-    "gpu_temp": 56.55863
+    "dram_power": 5.702,
+    "gpu_sram_power": 0.158,
+    "system_power": 37.47166092432617,
+    "total_power": 50.91318893432617,
+    "gpu_freq_mhz": 643,
+    "soc_temp": 62.562572,
+    "cpu_temp": 62.562572,
+    "gpu_temp": 58.38886
   },
   "memory": {
     "total": 137438953472,
-    "used": 73988947968,
-    "available": 63450005504,
+    "used": 74062512128,
+    "available": 63376441344,
     "swap_total": 5368709120,
     "swap_used": 4094689280
   },
   "net_disk": {
-    "out_packets_per_sec": 567.7947826882348,
-    "out_bytes_per_sec": 176409.0232115319,
-    "in_packets_per_sec": 556.9204640047393,
-    "in_bytes_per_sec": 181192.55832669672,
-    "read_ops_per_sec": 5.82552786615836,
-    "write_ops_per_sec": 0.38836852441055736,
-    "read_kbytes_per_sec": 23.30211146463344,
-    "write_kbytes_per_sec": 1.5534740976422294
+    "out_packets_per_sec": 589.4371024829012,
+    "out_bytes_per_sec": 196028.18012655922,
+    "in_packets_per_sec": 593.3256375185223,
+    "in_bytes_per_sec": 74461.55739710879,
+    "read_ops_per_sec": 0.32404458630175986,
+    "write_ops_per_sec": 40.18152870141822,
+    "read_kbytes_per_sec": 1.2961783452070395,
+    "write_kbytes_per_sec": 308.4904461592754
   },
-  "cpu_usage": 21.527670264484684,
-  "gpu_usage": 5.9208071439023335,
+  "cpu_usage": 15.140564910346725,
+  "gpu_usage": 53.51970510465884,
   "core_usages": [
-    35.039370078740156,
-    30.58823529411765,
-    57.421875,
-    46.09375,
-    38.671875,
-    33.85214007782101,
-    33.85214007782101,
-    17.441860465116278,
-    13.513513513513514,
-    11.24031007751938,
-    25.291828793774318,
-    16.342412451361866,
-    12.741312741312742,
-    9.30232558139535,
-    8.494208494208493,
-    8.527131782945736,
-    8.108108108108109,
-    7.751937984496124,
-    8.13953488372093,
-    8.13953488372093
+    42.244224422442244,
+    37.17105263157895,
+    55.26315789473685,
+    37.704918032786885,
+    27.21311475409836,
+    21.241830065359476,
+    14.563106796116504,
+    6.148867313915858,
+    4.193548387096775,
+    1.9417475728155338,
+    30.718954248366014,
+    20.846905537459286,
+    1.9417475728155338,
+    1.2944983818770228,
+    0.3236245954692557,
+    0,
+    0,
+    0,
+    0,
+    0
   ],
   "system_info": {
     "name": "Apple M1 Ultra",
@@ -218,6 +218,7 @@ Use the following keys to interact with the application while its running:
         "speed": "Up to 40 Gb/s",
         "domain_uuid": "9FDBA52F-DF7C-425E-B67B-FB80F9E1DCD6",
         "switch_uid": "0x05AC38BE5E390FE5",
+        "receptacle_id": "6",
         "devices": [
           {
             "name": "ASM236X NVME",
@@ -242,6 +243,7 @@ Use the following keys to interact with the application while its running:
         "speed": "Up to 40 Gb/s",
         "domain_uuid": "5DD6DE43-051D-4B32-B044-23E57AA0EEC8",
         "switch_uid": "0x05AC38BE5E390FE4",
+        "receptacle_id": "5",
         "network_stats": {
           "interface_name": "en6",
           "bytes_in": 0,
@@ -259,6 +261,7 @@ Use the following keys to interact with the application while its running:
         "speed": "20 Gb/s",
         "domain_uuid": "AF4CE493-9005-4E9D-8B8B-0198D27BABA3",
         "switch_uid": "0x05AC38BE5E390FE3",
+        "receptacle_id": "4",
         "devices": [
           {
             "name": "Studio Display",
@@ -287,6 +290,7 @@ Use the following keys to interact with the application while its running:
         "speed": "Up to 40 Gb/s",
         "domain_uuid": "D589EEFE-98CF-42EC-A729-6C3E523AA321",
         "switch_uid": "0x05AC38BE5E390FE2",
+        "receptacle_id": "3",
         "network_stats": {
           "interface_name": "en4",
           "bytes_in": 0,
@@ -304,6 +308,7 @@ Use the following keys to interact with the application while its running:
         "speed": "Up to 40 Gb/s",
         "domain_uuid": "6DAC6FCD-E102-4CCD-9D01-A75540E660CA",
         "switch_uid": "0x05AC38BE5E390FE1",
+        "receptacle_id": "2",
         "network_stats": {
           "interface_name": "en3",
           "bytes_in": 0,
@@ -321,6 +326,7 @@ Use the following keys to interact with the application while its running:
         "speed": "Up to 40 Gb/s",
         "domain_uuid": "63A80A32-E70C-4F22-84BE-EDE632A5BA3E",
         "switch_uid": "0x05AC38BE5E390FE0",
+        "receptacle_id": "1",
         "network_stats": {
           "interface_name": "en2",
           "bytes_in": 0,
@@ -339,8 +345,8 @@ Use the following keys to interact with the application while its running:
     "available": false,
     "status": "RDMA Disabled (use rdma_ctl enable in Recovery Mode)"
   },
-  "cpu_temp": 63.224873,
-  "gpu_temp": 56.55863
+  "cpu_temp": 62.562572,
+  "gpu_temp": 58.38886
 }
 ]
 ```

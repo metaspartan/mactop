@@ -45,6 +45,7 @@ type ThunderboltDevice struct {
 	DeviceName string `json:"device_name_key"`
 	SwitchUID  string `json:"switch_uid_key"`
 	DeviceID   string `json:"device_id_key"`
+	DomainUUID string `json:"domain_uuid_key"`
 }
 
 // USB device types for SPUSBDataType
@@ -180,18 +181,20 @@ type ThunderboltBusOutput struct {
 	Speed        string                    `json:"speed,omitempty"`
 	DomainUUID   string                    `json:"domain_uuid,omitempty"`
 	SwitchUID    string                    `json:"switch_uid,omitempty"`
+	ReceptacleID string                    `json:"receptacle_id,omitempty"`
 	Devices      []ThunderboltDeviceOutput `json:"devices,omitempty"`
 	NetworkStats *ThunderboltNetStats      `json:"network_stats,omitempty"`
 }
 
 type ThunderboltDeviceOutput struct {
-	Name      string `json:"name"`
-	Vendor    string `json:"vendor,omitempty"`
-	VendorID  string `json:"vendor_id,omitempty"`
-	Mode      string `json:"mode,omitempty"`
-	SwitchUID string `json:"switch_uid,omitempty"`
-	DeviceID  string `json:"device_id,omitempty"`
-	Info      string `json:"info_string,omitempty"`
+	Name       string `json:"name"`
+	Vendor     string `json:"vendor,omitempty"`
+	VendorID   string `json:"vendor_id,omitempty"`
+	Mode       string `json:"mode,omitempty"`
+	SwitchUID  string `json:"switch_uid,omitempty"`
+	DeviceID   string `json:"device_id,omitempty"`
+	DomainUUID string `json:"domain_uuid,omitempty"`
+	Info       string `json:"info_string,omitempty"`
 }
 
 func GetFormattedThunderboltInfo() (*ThunderboltOutput, error) {
@@ -291,13 +294,14 @@ func formatConnectedDevices(devices []ThunderboltDevice) []ThunderboltDeviceOutp
 		}
 
 		outputs = append(outputs, ThunderboltDeviceOutput{
-			Name:      devName,
-			Vendor:    dev.Vendor,
-			VendorID:  dev.VendorID,
-			Mode:      modePretty,
-			SwitchUID: dev.SwitchUID,
-			DeviceID:  dev.DeviceID,
-			Info:      devInfo,
+			Name:       devName,
+			Vendor:     dev.Vendor,
+			VendorID:   dev.VendorID,
+			Mode:       modePretty,
+			SwitchUID:  dev.SwitchUID,
+			DeviceID:   dev.DeviceID,
+			DomainUUID: dev.DomainUUID,
+			Info:       devInfo,
 		})
 	}
 	return outputs
@@ -341,14 +345,20 @@ func processThunderboltBus(bus ThunderboltBus, maxPortCapability string) Thunder
 		icon = "ϟ"
 	}
 
+	receptacleID := ""
+	if bus.Receptacle != nil {
+		receptacleID = bus.Receptacle.ReceptacleID
+	}
+
 	busOut := ThunderboltBusOutput{
-		Name:       busLabel,
-		Status:     statusStr,
-		Icon:       icon,
-		Speed:      speed,
-		DomainUUID: bus.DomainUUID,
-		SwitchUID:  bus.SwitchUID,
-		Devices:    formatConnectedDevices(bus.ConnectedDevs),
+		Name:         busLabel,
+		Status:       statusStr,
+		Icon:         icon,
+		Speed:        speed,
+		DomainUUID:   bus.DomainUUID,
+		SwitchUID:    bus.SwitchUID,
+		ReceptacleID: receptacleID,
+		Devices:      formatConnectedDevices(bus.ConnectedDevs),
 	}
 	return busOut
 }
@@ -405,7 +415,7 @@ func GetThunderboltDescription() string {
 		if bus.Speed != "" {
 			speedStr = " @ " + bus.Speed
 		}
-		sb.WriteString(fmt.Sprintf("%s %s (%s)%s\n", bus.Icon, bus.Name, bus.Status, speedStr))
+		fmt.Fprintf(&sb, "%s %s (%s)%s\n", bus.Icon, bus.Name, bus.Status, speedStr)
 
 		if len(bus.Devices) > 0 {
 			for i, dev := range bus.Devices {
@@ -414,9 +424,9 @@ func GetThunderboltDescription() string {
 					prefix = "  └─"
 				}
 				if dev.Info != "" {
-					sb.WriteString(fmt.Sprintf("%s %s (%s)\n", prefix, dev.Name, dev.Info))
+					fmt.Fprintf(&sb, "%s %s (%s)\n", prefix, dev.Name, dev.Info)
 				} else {
-					sb.WriteString(fmt.Sprintf("%s %s\n", prefix, dev.Name))
+					fmt.Fprintf(&sb, "%s %s\n", prefix, dev.Name)
 				}
 			}
 		}
