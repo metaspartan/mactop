@@ -323,9 +323,9 @@ func Run() {
 
 	loadConfig()
 
-	// Load saved sort column from config
-	if currentConfig.SortColumn >= 0 && currentConfig.SortColumn < len(columns) {
-		selectedColumn = currentConfig.SortColumn
+	// Load saved sort column from config (only if explicitly set)
+	if currentConfig.SortColumn != nil && *currentConfig.SortColumn >= 0 && *currentConfig.SortColumn < len(columns) {
+		selectedColumn = *currentConfig.SortColumn
 	}
 	sortReverse = currentConfig.SortReverse
 

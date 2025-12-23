@@ -489,14 +489,14 @@ func handleNavigation(e ui.Event) {
 	case "<Left>":
 		if selectedColumn > 0 {
 			selectedColumn--
-			currentConfig.SortColumn = selectedColumn
+			currentConfig.SortColumn = &selectedColumn
 			saveConfig()
 			updateProcessList()
 		}
 	case "<Right>":
 		if selectedColumn < len(columns)-1 {
 			selectedColumn++
-			currentConfig.SortColumn = selectedColumn
+			currentConfig.SortColumn = &selectedColumn
 			saveConfig()
 			updateProcessList()
 		}
