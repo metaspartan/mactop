@@ -34,6 +34,8 @@ github.com/mattn/go-runewidth v0.0.19 h1:v++JhqYnZuu5jSKrk9RbgF5v4CGUjqRfBm05byF
 github.com/mattn/go-runewidth v0.0.19/go.mod h1:XBkDxAl56ILZc9knddidhrOlY5R/pDhgLpndooCuJAs=
 github.com/metaspartan/gotui/v4 v4.2.2 h1:wMd8aD8fruePEPN7KWk8JTKJ7EfyX19e6gK+NpqoMxQ=
 github.com/metaspartan/gotui/v4 v4.2.2/go.mod h1:V8E8/v0XdvOUvvmTpuwwX7OkgOXVI+41wl1+Eq8vecE=
+github.com/metaspartan/gotui/v4 v4.2.3 h1:30SbLpDAgd/5z/nU5th+1LeMXaWJB9gJNT1guhO1SMc=
+github.com/metaspartan/gotui/v4 v4.2.3/go.mod h1:V8E8/v0XdvOUvvmTpuwwX7OkgOXVI+41wl1+Eq8vecE=
 github.com/mitchellh/go-wordwrap v1.0.1 h1:TLuKupo69TCn6TQSyGxwI1EblZZEsQ0vMlAFQflz0v0=
 github.com/mitchellh/go-wordwrap v1.0.1/go.mod h1:R62XHJLzvMFRBbcrT7m7WgmE1eOyTSsCt+hzestvNj0=
 github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 h1:C3w9PqII01/Oq1c1nUAm88MOHcQC9l5mIlSMApZMrHA=

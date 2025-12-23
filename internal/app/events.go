@@ -167,6 +167,12 @@ func handleModeKeys(key string, done chan struct{}) {
 		w, h := ui.TerminalDimensions()
 		drawScreen(w, h)
 		renderMutex.Unlock()
+	case "b":
+		renderMutex.Lock()
+		cycleBackground()
+		w, h := ui.TerminalDimensions()
+		drawScreen(w, h)
+		renderMutex.Unlock()
 	}
 }
 
@@ -215,7 +221,7 @@ func handleKeyboardEvent(e ui.Event, done chan struct{}) {
 	renderMutex.Unlock()
 
 	switch key {
-	case "q", "<C-c>", "r", "p", "c", "l", "h", "?", "i":
+	case "q", "<C-c>", "r", "p", "c", "l", "h", "?", "i", "b":
 		handleModeKeys(key, done)
 	case "-", "_", "+", "=":
 		handleIntervalKeys(key)

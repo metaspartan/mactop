@@ -180,7 +180,7 @@ func (w *CPUCoreWidget) calculateLayout(availableWidth, availableHeight, totalCo
 func (w *CPUCoreWidget) drawCore(buf *ui.Buffer, x, y, barWidth, index int, usage float64, themeColor ui.Color) {
 	labelWidth := 3
 	label := fmt.Sprintf("%-2d", index)
-	buf.SetString(label, ui.NewStyle(themeColor), image.Pt(x, y))
+	buf.SetString(label, ui.NewStyle(themeColor, CurrentBgColor), image.Pt(x, y))
 
 	availWidth := barWidth - labelWidth
 	if x+labelWidth+availWidth > w.Inner.Max.X {
@@ -198,7 +198,7 @@ func (w *CPUCoreWidget) drawCore(buf *ui.Buffer, x, y, barWidth, index int, usag
 	}
 	usedWidth := int((usage / 100.0) * float64(innerBarWidth))
 
-	buf.SetString("[", ui.NewStyle(BracketColor), image.Pt(x+labelWidth, y))
+	buf.SetString("[", ui.NewStyle(BracketColor, CurrentBgColor), image.Pt(x+labelWidth, y))
 
 	for bx := 0; bx < innerBarWidth; bx++ {
 		char := " "
@@ -218,12 +218,12 @@ func (w *CPUCoreWidget) drawCore(buf *ui.Buffer, x, y, barWidth, index int, usag
 		} else {
 			color = themeColor
 		}
-		buf.SetString(char, ui.NewStyle(color), image.Pt(x+labelWidth+1+bx, y))
+		buf.SetString(char, ui.NewStyle(color, CurrentBgColor), image.Pt(x+labelWidth+1+bx, y))
 	}
 
 	percentage := fmt.Sprintf("%5.1f%%", usage)
-	buf.SetString(percentage, ui.NewStyle(SecondaryTextColor), image.Pt(x+labelWidth+1+innerBarWidth, y))
-	buf.SetString("]", ui.NewStyle(BracketColor), image.Pt(x+labelWidth+availWidth-1, y))
+	buf.SetString(percentage, ui.NewStyle(SecondaryTextColor, CurrentBgColor), image.Pt(x+labelWidth+1+innerBarWidth, y))
+	buf.SetString("]", ui.NewStyle(BracketColor, CurrentBgColor), image.Pt(x+labelWidth+availWidth-1, y))
 }
 
 func (w *CPUCoreWidget) Draw(buf *ui.Buffer) {

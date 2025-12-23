@@ -21,10 +21,10 @@ var colorMap = map[string]ui.Color{
 	"orange":               ui.ColorOrange,
 	"violet":               ui.ColorViolet,
 	"pink":                 ui.ColorPink,
-	"catppuccin-latte":     CatppuccinLatte.Peach,
-	"catppuccin-frappe":    CatppuccinFrappe.Peach,
-	"catppuccin-macchiato": CatppuccinMacchiato.Peach,
-	"catppuccin-mocha":     CatppuccinMocha.Peach,
+	"catppuccin-latte":     CatppuccinLatte.Lavender,     // Purple-blue
+	"catppuccin-frappe":    CatppuccinFrappe.Mauve,       // Purple
+	"catppuccin-macchiato": CatppuccinMacchiato.Sapphire, // Blue
+	"catppuccin-mocha":     CatppuccinMocha.Peach,        // Peach (orange)
 }
 
 var colorNames = []string{
@@ -52,7 +52,19 @@ var (
 	BracketColor       ui.Color = ui.ColorWhite
 	SecondaryTextColor ui.Color = 245
 	IsLightMode        bool     = false
+	CurrentBgColor     ui.Color = ui.ColorClear // Current background color for widgets
 )
+
+// Background colors to cycle through with 'b' key
+// "clear" means terminal default (transparent)
+var bgColorNames = []string{
+	"clear",
+	"mocha-base",     // #1e1e2e
+	"mocha-mantle",   // #181825
+	"mocha-crust",    // #11111b
+	"macchiato-base", // #24273a
+	"frappe-base",    // #303446
+}
 
 func getCPUColor() ui.Color {
 	return ui.ColorGreen
@@ -130,61 +142,64 @@ func applyThemeToGauges(color ui.Color) {
 
 func applyCatppuccinThemeToGauges(palette *CatppuccinPalette) {
 	if cpuGauge != nil {
-		// CPU = Peach (warm, distinct from standard green)
-		cpuGauge.BarColor = palette.Peach
-		cpuGauge.BorderStyle.Fg = palette.Peach
-		cpuGauge.TitleStyle.Fg = palette.Peach
-		cpuGauge.LabelStyle = ui.NewStyle(SecondaryTextColor)
+		// CPU = Green (success/performance - per Catppuccin style guide)
+		cpuGauge.BarColor = palette.Green
+		cpuGauge.BorderStyle.Fg = palette.Green
+		cpuGauge.TitleStyle.Fg = palette.Green
+		cpuGauge.LabelStyle = ui.NewStyle(palette.Subtext0)
 
-		// GPU = Mauve (purple-ish)
-		gpuGauge.BarColor = palette.Mauve
-		gpuGauge.BorderStyle.Fg = palette.Mauve
-		gpuGauge.TitleStyle.Fg = palette.Mauve
-		gpuGauge.LabelStyle = ui.NewStyle(SecondaryTextColor)
+		// GPU = Blue (info/secondary compute - per Catppuccin style guide)
+		gpuGauge.BarColor = palette.Blue
+		gpuGauge.BorderStyle.Fg = palette.Blue
+		gpuGauge.TitleStyle.Fg = palette.Blue
+		gpuGauge.LabelStyle = ui.NewStyle(palette.Subtext0)
 
-		// Memory = Pink (soft, pleasant)
-		memoryGauge.BarColor = palette.Pink
-		memoryGauge.BorderStyle.Fg = palette.Pink
-		memoryGauge.TitleStyle.Fg = palette.Pink
-		memoryGauge.LabelStyle = ui.NewStyle(SecondaryTextColor)
+		// Memory = Yellow (warning/resource usage - per Catppuccin style guide)
+		memoryGauge.BarColor = palette.Yellow
+		memoryGauge.BorderStyle.Fg = palette.Yellow
+		memoryGauge.TitleStyle.Fg = palette.Yellow
+		memoryGauge.LabelStyle = ui.NewStyle(palette.Subtext0)
 
-		// ANE = Maroon (red-ish but earthy)
-		aneGauge.BarColor = palette.Maroon
-		aneGauge.BorderStyle.Fg = palette.Maroon
-		aneGauge.TitleStyle.Fg = palette.Maroon
-		aneGauge.LabelStyle = ui.NewStyle(SecondaryTextColor)
+		// ANE = Lavender (AI/neural - distinctive accent)
+		aneGauge.BarColor = palette.Lavender
+		aneGauge.BorderStyle.Fg = palette.Lavender
+		aneGauge.TitleStyle.Fg = palette.Lavender
+		aneGauge.LabelStyle = ui.NewStyle(palette.Subtext0)
 	}
 }
 
 func applyThemeToSparklines(color ui.Color) {
 	if sparkline != nil {
 		sparkline.LineColor = color
-		sparkline.TitleStyle = ui.NewStyle(color)
+		sparkline.TitleStyle = ui.NewStyle(color, CurrentBgColor)
 	}
 	if sparklineGroup != nil {
 		sparklineGroup.BorderStyle.Fg = color
 		sparklineGroup.TitleStyle.Fg = color
+		sparklineGroup.TitleStyle.Bg = CurrentBgColor
 	}
 	if gpuSparkline != nil {
 		gpuSparkline.LineColor = color
-		gpuSparkline.TitleStyle = ui.NewStyle(color)
+		gpuSparkline.TitleStyle = ui.NewStyle(color, CurrentBgColor)
 	}
 	if gpuSparklineGroup != nil {
 		gpuSparklineGroup.BorderStyle.Fg = color
 		gpuSparklineGroup.TitleStyle.Fg = color
+		gpuSparklineGroup.TitleStyle.Bg = CurrentBgColor
 	}
 
 	if tbNetSparklineIn != nil {
 		tbNetSparklineIn.LineColor = color
-		tbNetSparklineIn.TitleStyle = ui.NewStyle(color)
+		tbNetSparklineIn.TitleStyle = ui.NewStyle(color, CurrentBgColor)
 	}
 	if tbNetSparklineOut != nil {
 		tbNetSparklineOut.LineColor = color
-		tbNetSparklineOut.TitleStyle = ui.NewStyle(color)
+		tbNetSparklineOut.TitleStyle = ui.NewStyle(color, CurrentBgColor)
 	}
 	if tbNetSparklineGroup != nil {
 		tbNetSparklineGroup.BorderStyle.Fg = color
 		tbNetSparklineGroup.TitleStyle.Fg = color
+		tbNetSparklineGroup.TitleStyle.Bg = CurrentBgColor
 	}
 }
 
@@ -268,7 +283,20 @@ func applyTheme(colorName string, lightMode bool) {
 	if is1977 {
 		update1977GaugeColors()
 	} else if catppuccinPalette := GetCatppuccinPalette(colorName); catppuccinPalette != nil {
-		primaryColor := catppuccinPalette.Peach
+		// Use distinct accent colors for each Catppuccin flavor
+		var primaryColor ui.Color
+		switch colorName {
+		case "catppuccin-latte":
+			primaryColor = catppuccinPalette.Lavender // Purple-blue
+		case "catppuccin-frappe":
+			primaryColor = catppuccinPalette.Mauve // Purple
+		case "catppuccin-macchiato":
+			primaryColor = catppuccinPalette.Sapphire // Blue
+		case "catppuccin-mocha":
+			primaryColor = catppuccinPalette.Peach // Peach (orange)
+		default:
+			primaryColor = catppuccinPalette.Lavender
+		}
 
 		ui.Theme.Block.Title.Fg = primaryColor
 		ui.Theme.Block.Border.Fg = primaryColor
@@ -339,7 +367,7 @@ func GetProcessTextColor(isCurrentUser bool) string {
 
 	if isCurrentUser {
 		if strings.HasPrefix(currentConfig.Theme, "catppuccin-") {
-			return GetCatppuccinHex(currentConfig.Theme, "Peach")
+			return GetCatppuccinHex(currentConfig.Theme, "Primary")
 		}
 		switch currentConfig.Theme {
 		case "lime":
@@ -378,4 +406,169 @@ func cycleTheme() {
 		}
 		mainBlock.TitleBottomLeft = fmt.Sprintf(" %d/%d layout (%s) ", currentLayoutNum+1, totalLayouts, displayColorName)
 	}
+}
+
+// cycleBackground cycles through background colors
+func cycleBackground() {
+	currentBgIndex = (currentBgIndex + 1) % len(bgColorNames)
+	applyBackground(bgColorNames[currentBgIndex])
+}
+
+// applyBackground sets the terminal background color
+func applyBackground(bgName string) {
+	var bgColor ui.Color
+	switch bgName {
+	case "clear":
+		bgColor = ui.ColorClear
+	case "mocha-base":
+		bgColor = CatppuccinMocha.Base // #1e1e2e
+	case "mocha-mantle":
+		bgColor = CatppuccinMocha.Mantle // #181825
+	case "mocha-crust":
+		bgColor = CatppuccinMocha.Crust // #11111b
+	case "macchiato-base":
+		bgColor = CatppuccinMacchiato.Base // #24273a
+	case "frappe-base":
+		bgColor = CatppuccinFrappe.Base // #303446
+	default:
+		bgColor = ui.ColorClear
+	}
+
+	// Store current background color globally
+	CurrentBgColor = bgColor
+
+	// Set global theme background
+	ui.Theme.Default.Bg = bgColor
+	ui.Theme.Block.Border.Bg = bgColor
+	ui.Theme.Block.Title.Bg = bgColor
+	ui.Theme.Paragraph.Text.Bg = bgColor
+	ui.Theme.Sparkline.Title.Bg = bgColor
+
+	// Update main block
+	if mainBlock != nil {
+		mainBlock.BackgroundColor = bgColor
+		mainBlock.BorderStyle.Bg = bgColor
+		mainBlock.TitleStyle.Bg = bgColor
+		mainBlock.TitleBottomStyle.Bg = bgColor
+	}
+
+	// Update process list
+	if processList != nil {
+		processList.BackgroundColor = bgColor
+		processList.BorderStyle.Bg = bgColor
+		processList.TitleStyle.Bg = bgColor
+		processList.TextStyle.Bg = bgColor
+	}
+
+	// Update gauges
+	if cpuGauge != nil {
+		cpuGauge.BackgroundColor = bgColor
+		cpuGauge.BorderStyle.Bg = bgColor
+		cpuGauge.TitleStyle.Bg = bgColor
+		cpuGauge.LabelStyle.Bg = bgColor
+	}
+	if gpuGauge != nil {
+		gpuGauge.BackgroundColor = bgColor
+		gpuGauge.BorderStyle.Bg = bgColor
+		gpuGauge.TitleStyle.Bg = bgColor
+		gpuGauge.LabelStyle.Bg = bgColor
+	}
+	if memoryGauge != nil {
+		memoryGauge.BackgroundColor = bgColor
+		memoryGauge.BorderStyle.Bg = bgColor
+		memoryGauge.TitleStyle.Bg = bgColor
+		memoryGauge.LabelStyle.Bg = bgColor
+	}
+	if aneGauge != nil {
+		aneGauge.BackgroundColor = bgColor
+		aneGauge.BorderStyle.Bg = bgColor
+		aneGauge.TitleStyle.Bg = bgColor
+		aneGauge.LabelStyle.Bg = bgColor
+	}
+
+	// Update paragraphs
+	if PowerChart != nil {
+		PowerChart.BackgroundColor = bgColor
+		PowerChart.BorderStyle.Bg = bgColor
+		PowerChart.TitleStyle.Bg = bgColor
+		PowerChart.TextStyle.Bg = bgColor
+	}
+	if NetworkInfo != nil {
+		NetworkInfo.BackgroundColor = bgColor
+		NetworkInfo.BorderStyle.Bg = bgColor
+		NetworkInfo.TitleStyle.Bg = bgColor
+		NetworkInfo.TextStyle.Bg = bgColor
+	}
+	if modelText != nil {
+		modelText.BackgroundColor = bgColor
+		modelText.BorderStyle.Bg = bgColor
+		modelText.TitleStyle.Bg = bgColor
+		modelText.TextStyle.Bg = bgColor
+	}
+	if helpText != nil {
+		helpText.BackgroundColor = bgColor
+		helpText.BorderStyle.Bg = bgColor
+		helpText.TitleStyle.Bg = bgColor
+		helpText.TextStyle.Bg = bgColor
+	}
+	if tbInfoParagraph != nil {
+		tbInfoParagraph.BackgroundColor = bgColor
+		tbInfoParagraph.BorderStyle.Bg = bgColor
+		tbInfoParagraph.TitleStyle.Bg = bgColor
+		tbInfoParagraph.TextStyle.Bg = bgColor
+	}
+	if infoParagraph != nil {
+		infoParagraph.BackgroundColor = bgColor
+		infoParagraph.BorderStyle.Bg = bgColor
+		infoParagraph.TitleStyle.Bg = bgColor
+		infoParagraph.TextStyle.Bg = bgColor
+	}
+
+	// Update sparkline groups and individual sparklines
+	if sparkline != nil {
+		sparkline.BackgroundColor = bgColor
+		sparkline.TitleStyle.Bg = bgColor
+	}
+	if sparklineGroup != nil {
+		sparklineGroup.BackgroundColor = bgColor
+		sparklineGroup.BorderStyle.Bg = bgColor
+		sparklineGroup.TitleStyle.Bg = bgColor
+	}
+	if gpuSparkline != nil {
+		gpuSparkline.BackgroundColor = bgColor
+		gpuSparkline.TitleStyle.Bg = bgColor
+	}
+	if gpuSparklineGroup != nil {
+		gpuSparklineGroup.BackgroundColor = bgColor
+		gpuSparklineGroup.BorderStyle.Bg = bgColor
+		gpuSparklineGroup.TitleStyle.Bg = bgColor
+	}
+	if tbNetSparklineIn != nil {
+		tbNetSparklineIn.BackgroundColor = bgColor
+		tbNetSparklineIn.TitleStyle.Bg = bgColor
+	}
+	if tbNetSparklineOut != nil {
+		tbNetSparklineOut.BackgroundColor = bgColor
+		tbNetSparklineOut.TitleStyle.Bg = bgColor
+	}
+	if tbNetSparklineGroup != nil {
+		tbNetSparklineGroup.BackgroundColor = bgColor
+		tbNetSparklineGroup.BorderStyle.Bg = bgColor
+		tbNetSparklineGroup.TitleStyle.Bg = bgColor
+	}
+
+	// Update CPU core widget
+	if cpuCoreWidget != nil {
+		cpuCoreWidget.BackgroundColor = bgColor
+		cpuCoreWidget.BorderStyle.Bg = bgColor
+		cpuCoreWidget.TitleStyle.Bg = bgColor
+	}
+}
+
+// GetCurrentBgName returns the current background color name
+func GetCurrentBgName() string {
+	if currentBgIndex < len(bgColorNames) {
+		return bgColorNames[currentBgIndex]
+	}
+	return "clear"
 }

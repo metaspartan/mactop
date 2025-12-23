@@ -157,20 +157,24 @@ var (
 
 var (
 	LatteHex = map[string]string{
-		"Peach": "#fe640b",
-		"Text":  "#4c4f69",
+		"Primary": "#7287fd", // Lavender
+		"Text":    "#4c4f69",
+		"Base":    "#eff1f5",
 	}
 	FrappeHex = map[string]string{
-		"Peach": "#ef9f76",
-		"Text":  "#c6d0f5",
+		"Primary": "#ca9ee6", // Mauve (purple)
+		"Text":    "#c6d0f5",
+		"Base":    "#303446",
 	}
 	MacchiatoHex = map[string]string{
-		"Peach": "#f5a97f",
-		"Text":  "#cad3f5",
+		"Primary": "#7dc4e4", // Sapphire (blue)
+		"Text":    "#cad3f5",
+		"Base":    "#24273a",
 	}
 	MochaHex = map[string]string{
-		"Peach": "#fab387",
-		"Text":  "#cdd6f4",
+		"Primary": "#fab387", // Peach (orange)
+		"Text":    "#cdd6f4",
+		"Base":    "#1e1e2e",
 	}
 )
 
