@@ -240,7 +240,7 @@ func renderInfoText(infoLines, asciiArt []string, layout infoLayout, themeColor 
 
 	// Show scroll indicator if needed
 	if infoScrollOffset > 0 {
-		combinedText.WriteString(fmt.Sprintf("%s[↑ Scroll up (k/↑)](fg:%s)\n", paddingStr, themeColor))
+		fmt.Fprintf(&combinedText, "%s[↑ Scroll up (k/↑)](fg:%s)\n", paddingStr, themeColor)
 	}
 
 	// Helper for stripping tags to calculate visible length
@@ -274,19 +274,19 @@ func renderInfoText(infoLines, asciiArt []string, layout infoLayout, themeColor 
 				paddingSpaces = 2
 			}
 
-			combinedText.WriteString(fmt.Sprintf("%s%s%s%s\n", paddingStr, infoLine, strings.Repeat(" ", paddingSpaces), asciiLine))
+			fmt.Fprintf(&combinedText, "%s%s%s%s\n", paddingStr, infoLine, strings.Repeat(" ", paddingSpaces), asciiLine)
 		} else {
 			infoLine := ""
 			if i < len(infoLines) {
 				infoLine = infoLines[i]
 			}
-			combinedText.WriteString(fmt.Sprintf("%s%s\n", paddingStr, infoLine))
+			fmt.Fprintf(&combinedText, "%s%s\n", paddingStr, infoLine)
 		}
 	}
 
 	// Show scroll indicator if there's more below
 	if layout.endLine < layout.totalLines {
-		combinedText.WriteString(fmt.Sprintf("%s[↓ Scroll down (j/↓)](fg:%s)\n", paddingStr, themeColor))
+		fmt.Fprintf(&combinedText, "%s[↓ Scroll down (j/↓)](fg:%s)\n", paddingStr, themeColor)
 	}
 
 	return combinedText.String()
