@@ -26,6 +26,10 @@ func startPrometheusServer(port string) {
 	registry.MustRegister(networkSpeed)
 	registry.MustRegister(diskIOSpeed)
 	registry.MustRegister(diskIOPS)
+	registry.MustRegister(tbNetworkSpeed)
+	registry.MustRegister(rdmaAvailable)
+	registry.MustRegister(cpuCoreUsage)
+	registry.MustRegister(systemInfoGauge)
 
 	handler := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})
 
