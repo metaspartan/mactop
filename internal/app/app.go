@@ -521,13 +521,17 @@ func updateCPUUI(cpuMetrics CPUMetrics) {
 	}
 	totalUsage /= float64(len(coreUsages))
 	cpuGauge.Percent = int(totalUsage)
-	cpuGauge.Title = fmt.Sprintf("%d Cores (%dE/%dP) %.2f%% (%s)",
-		cpuCoreWidget.eCoreCount+cpuCoreWidget.pCoreCount,
-		cpuCoreWidget.eCoreCount,
-		cpuCoreWidget.pCoreCount,
-		totalUsage,
-		formatTemp(cpuMetrics.CPUTemp),
-	)
+	if isCompactLayout() {
+		cpuGauge.Title = fmt.Sprintf("CPU %.0f%% %s", totalUsage, formatTemp(cpuMetrics.CPUTemp))
+	} else {
+		cpuGauge.Title = fmt.Sprintf("%d Cores (%dE/%dP) %.2f%% (%s)",
+			cpuCoreWidget.eCoreCount+cpuCoreWidget.pCoreCount,
+			cpuCoreWidget.eCoreCount,
+			cpuCoreWidget.pCoreCount,
+			totalUsage,
+			formatTemp(cpuMetrics.CPUTemp),
+		)
+	}
 	cpuCoreWidget.Title = fmt.Sprintf("%d Cores (%dE/%dP) %.2f%% (%s)",
 		cpuCoreWidget.eCoreCount+cpuCoreWidget.pCoreCount,
 		cpuCoreWidget.eCoreCount,
@@ -536,23 +540,43 @@ func updateCPUUI(cpuMetrics CPUMetrics) {
 		formatTemp(cpuMetrics.CPUTemp),
 	)
 	aneUtil := float64(cpuMetrics.ANEW / 1 / 8.0 * 100)
-	aneGauge.Title = fmt.Sprintf("ANE Usage: %.2f%% @ %.2f W", aneUtil, cpuMetrics.ANEW)
+	if isCompactLayout() {
+		aneGauge.Title = fmt.Sprintf("ANE %.1fW", cpuMetrics.ANEW)
+	} else {
+		aneGauge.Title = fmt.Sprintf("ANE Usage: %.2f%% @ %.2f W", aneUtil, cpuMetrics.ANEW)
+	}
 	aneGauge.Percent = int(aneUtil)
 
 	thermalStr, _ := getThermalStateString()
 
 	PowerChart.Title = "Power Usage"
-	PowerChart.Text = fmt.Sprintf("CPU: %.2f W | GPU: %.2f W\nANE: %.2f W | DRAM: %.2f W\nSystem: %.2f W\nTotal: %.2f W\nThermals: %s",
-		cpuMetrics.CPUW,
-		cpuMetrics.GPUW+cpuMetrics.GPUSRAMW,
-		cpuMetrics.ANEW,
-		cpuMetrics.DRAMW,
-		cpuMetrics.SystemW,
-		cpuMetrics.PackageW,
-		thermalStr,
-	)
+	if isCompactLayout() {
+		PowerChart.Title = "Power"
+		PowerChart.Text = fmt.Sprintf("C:%.1fW G:%.1fW\nA:%.1fW D:%.1fW\nTot:%.1fW %s",
+			cpuMetrics.CPUW,
+			cpuMetrics.GPUW+cpuMetrics.GPUSRAMW,
+			cpuMetrics.ANEW,
+			cpuMetrics.DRAMW,
+			cpuMetrics.PackageW,
+			thermalStr,
+		)
+	} else {
+		PowerChart.Text = fmt.Sprintf("CPU: %.2f W | GPU: %.2f W\nANE: %.2f W | DRAM: %.2f W\nSystem: %.2f W\nTotal: %.2f W\nThermals: %s",
+			cpuMetrics.CPUW,
+			cpuMetrics.GPUW+cpuMetrics.GPUSRAMW,
+			cpuMetrics.ANEW,
+			cpuMetrics.DRAMW,
+			cpuMetrics.SystemW,
+			cpuMetrics.PackageW,
+			thermalStr,
+		)
+	}
 	memoryMetrics := getMemoryMetrics()
-	memoryGauge.Title = fmt.Sprintf("Memory: %.2f GB / %.2f GB (Swap: %.2f/%.2f GB)", float64(memoryMetrics.Used)/1024/1024/1024, float64(memoryMetrics.Total)/1024/1024/1024, float64(memoryMetrics.SwapUsed)/1024/1024/1024, float64(memoryMetrics.SwapTotal)/1024/1024/1024)
+	if isCompactLayout() {
+		memoryGauge.Title = fmt.Sprintf("Mem %.0f/%.0fG", float64(memoryMetrics.Used)/1024/1024/1024, float64(memoryMetrics.Total)/1024/1024/1024)
+	} else {
+		memoryGauge.Title = fmt.Sprintf("Memory: %.2f GB / %.2f GB (Swap: %.2f/%.2f GB)", float64(memoryMetrics.Used)/1024/1024/1024, float64(memoryMetrics.Total)/1024/1024/1024, float64(memoryMetrics.SwapUsed)/1024/1024/1024, float64(memoryMetrics.SwapTotal)/1024/1024/1024)
+	}
 	memoryGauge.Percent = int((float64(memoryMetrics.Used) / float64(memoryMetrics.Total)) * 100)
 	var ecoreAvg, pcoreAvg float64
 	if cpuCoreWidget.eCoreCount > 0 && len(coreUsages) >= cpuCoreWidget.eCoreCount {
@@ -605,10 +629,18 @@ func updateCPUUI(cpuMetrics CPUMetrics) {
 }
 
 func updateGPUUI(gpuMetrics GPUMetrics) {
-	if gpuMetrics.Temp > 0 {
-		gpuGauge.Title = fmt.Sprintf("GPU Usage: %d%% @ %d MHz (%s)", int(gpuMetrics.ActivePercent), gpuMetrics.FreqMHz, formatTemp(float64(gpuMetrics.Temp)))
+	if isCompactLayout() {
+		if gpuMetrics.Temp > 0 {
+			gpuGauge.Title = fmt.Sprintf("GPU %d%% %s", int(gpuMetrics.ActivePercent), formatTemp(float64(gpuMetrics.Temp)))
+		} else {
+			gpuGauge.Title = fmt.Sprintf("GPU %d%% %dMHz", int(gpuMetrics.ActivePercent), gpuMetrics.FreqMHz)
+		}
 	} else {
-		gpuGauge.Title = fmt.Sprintf("GPU Usage: %d%% @ %d MHz", int(gpuMetrics.ActivePercent), gpuMetrics.FreqMHz)
+		if gpuMetrics.Temp > 0 {
+			gpuGauge.Title = fmt.Sprintf("GPU Usage: %d%% @ %d MHz (%s)", int(gpuMetrics.ActivePercent), gpuMetrics.FreqMHz, formatTemp(float64(gpuMetrics.Temp)))
+		} else {
+			gpuGauge.Title = fmt.Sprintf("GPU Usage: %d%% @ %d MHz", int(gpuMetrics.ActivePercent), gpuMetrics.FreqMHz)
+		}
 	}
 	gpuGauge.Percent = int(gpuMetrics.ActivePercent)
 
@@ -632,7 +664,11 @@ func updateGPUUI(gpuMetrics GPUMetrics) {
 
 	gpuSparkline.Data = gpuValues
 	gpuSparkline.MaxVal = 100 // GPU usage is 0-100%
-	gpuSparklineGroup.Title = fmt.Sprintf("GPU History: %d%% (Avg: %.1f%%)", int(gpuMetrics.ActivePercent), avgGPU)
+	if isCompactLayout() {
+		gpuSparklineGroup.Title = fmt.Sprintf("GPU %d%% (%.0f%%)", int(gpuMetrics.ActivePercent), avgGPU)
+	} else {
+		gpuSparklineGroup.Title = fmt.Sprintf("GPU History: %d%% (Avg: %.1f%%)", int(gpuMetrics.ActivePercent), avgGPU)
+	}
 
 	if gpuMetrics.ActivePercent > 0 {
 		gpuUsage.Set(gpuMetrics.ActivePercent)

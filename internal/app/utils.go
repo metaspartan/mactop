@@ -138,3 +138,9 @@ func formatTemp(celsius float64) string {
 	}
 	return fmt.Sprintf("%d°C", int(celsius))
 }
+
+// isCompactLayout returns true if the current layout is one of the compact layouts (tiny, micro, nano, pico)
+func isCompactLayout() bool {
+	layout := currentConfig.DefaultLayout
+	return layout == LayoutTiny || layout == LayoutMicro || layout == LayoutNano || layout == LayoutPico
+}

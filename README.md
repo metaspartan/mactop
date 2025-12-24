@@ -29,7 +29,7 @@
 - Disk I/O activity (read/write speeds)
 - Multiple volume display (shows Mac HD + mounted external volumes)
 - Easy-to-read terminal UI
-- **11 Layouts**: (`L` to cycle layouts)
+- **15 Layouts**: (`L` to cycle layouts)
 - **Persistent Settings**: Remembers your Layout and Theme choice across restarts
 - Customizable UI color (green, red, blue, skyblue, magenta, yellow, gold, silver, white, lime, orange, violet, pink, and more) (`C` to cycle colors)
 - Customizable background color (`B` to cycle colors)

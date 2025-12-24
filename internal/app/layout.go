@@ -19,9 +19,13 @@ const (
 	LayoutSmall           = "small"
 	LayoutNetworkIO       = "network_io"
 	LayoutInfo            = "info"
+	LayoutTiny            = "tiny"  // Compact layout with abbreviated stats + mini process list
+	LayoutMicro           = "micro" // Ultra-compact gauges + sparklines, no process list
+	LayoutNano            = "nano"  // Dense info panel + small gauges + mini process list
+	LayoutPico            = "pico"  // Maximum density with 2x2 gauges + sparklines
 )
 
-var layoutOrder = []string{LayoutDefault, LayoutAlternative, LayoutAlternativeFull, LayoutVertical, LayoutCompact, LayoutDashboard, LayoutGaugesOnly, LayoutGPUFocus, LayoutCPUFocus, LayoutNetworkIO, LayoutSmall}
+var layoutOrder = []string{LayoutDefault, LayoutAlternative, LayoutAlternativeFull, LayoutVertical, LayoutCompact, LayoutDashboard, LayoutGaugesOnly, LayoutGPUFocus, LayoutCPUFocus, LayoutNetworkIO, LayoutSmall, LayoutTiny, LayoutMicro, LayoutNano, LayoutPico}
 
 func setupGrid() {
 	totalLayouts = len(layoutOrder)
@@ -240,6 +244,83 @@ func setLayoutGrid(layoutName string) {
 					ui.NewRow(1.0/4, memoryGauge),
 					ui.NewRow(1.0/4, aneGauge),
 				),
+			),
+		)
+	case LayoutTiny:
+		// Compact vertical with all key metrics + mini process list
+		grid.Set(
+			ui.NewRow(1.0/4,
+				ui.NewCol(1.0/2, cpuGauge),
+				ui.NewCol(1.0/2, gpuGauge),
+			),
+			ui.NewRow(1.0/4,
+				ui.NewCol(1.0/2, memoryGauge),
+				ui.NewCol(1.0/2, aneGauge),
+			),
+			ui.NewRow(1.0/4,
+				ui.NewCol(1.0/2, PowerChart),
+				ui.NewCol(1.0/2, NetworkInfo),
+			),
+			ui.NewRow(1.0/4,
+				ui.NewCol(1.0, processList),
+			),
+		)
+	case LayoutMicro:
+		// Ultra-compact gauges + sparklines, no process list
+		grid.Set(
+			ui.NewRow(1.0/4,
+				ui.NewCol(1.0/2, cpuGauge),
+				ui.NewCol(1.0/2, gpuGauge),
+			),
+			ui.NewRow(1.0/4,
+				ui.NewCol(1.0/2, memoryGauge),
+				ui.NewCol(1.0/2, aneGauge),
+			),
+			ui.NewRow(1.0/4,
+				ui.NewCol(1.0/2, sparklineGroup),
+				ui.NewCol(1.0/2, gpuSparklineGroup),
+			),
+			ui.NewRow(1.0/4,
+				ui.NewCol(1.0/2, PowerChart),
+				ui.NewCol(1.0/2, NetworkInfo),
+			),
+		)
+	case LayoutNano:
+		// Dense info panel + gauges + mini process list
+		grid.Set(
+			ui.NewRow(1.0/4,
+				ui.NewCol(1.0, cpuGauge),
+			),
+			ui.NewRow(1.0/4,
+				ui.NewCol(1.0/2, gpuGauge),
+				ui.NewCol(1.0/2, memoryGauge),
+			),
+			ui.NewRow(1.0/4,
+				ui.NewCol(1.0/3, aneGauge),
+				ui.NewCol(1.0/3, PowerChart),
+				ui.NewCol(1.0/3, NetworkInfo),
+			),
+			ui.NewRow(1.0/4,
+				ui.NewCol(1.0, processList),
+			),
+		)
+	case LayoutPico:
+		// Maximum density with 2x2 gauges + sparklines
+		grid.Set(
+			ui.NewRow(1.0/3,
+				ui.NewCol(1.0/4, cpuGauge),
+				ui.NewCol(1.0/4, gpuGauge),
+				ui.NewCol(1.0/4, memoryGauge),
+				ui.NewCol(1.0/4, aneGauge),
+			),
+			ui.NewRow(1.0/3,
+				ui.NewCol(1.0/2, sparklineGroup),
+				ui.NewCol(1.0/2, gpuSparklineGroup),
+			),
+			ui.NewRow(1.0/3,
+				ui.NewCol(1.0/3, PowerChart),
+				ui.NewCol(1.0/3, NetworkInfo),
+				ui.NewCol(1.0/3, modelText),
 			),
 		)
 	case LayoutInfo:
