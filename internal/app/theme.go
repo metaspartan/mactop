@@ -458,49 +458,33 @@ func GetThemeColorWithLightMode(colorName string, lightMode bool) ui.Color {
 	return color
 }
 
+// themeHexMap maps theme names to their hex color strings for text rendering
+var themeHexMap = map[string]string{
+	"coffee":   "#C1A589",
+	"mint":     "#98FF98",
+	"babyblue": "#89CFF0",
+	"indigo":   "#4B0082",
+	"teal":     "#008080",
+	"coral":    "#FF7F50",
+	"lavender": "#BABBF1",
+	"rose":     "#FF007F",
+	"cyan":     "#00FFFF",
+	"amber":    "#FFBF00",
+	"crimson":  "#DC143C",
+	"aqua":     "#00FFC8",
+	"peach":    "#FFB480",
+	"caramel":  "#FFC380",
+	"mosse":    "#AD9971",
+	"sand":     "#EDC9AF",
+	"copper":   "#B87333",
+	"1977":     "green",
+}
+
 func resolveThemeColorString(theme string) string {
-	switch theme {
-	case "coffee":
-		return "#C1A589"
-	case "mint":
-		return "#98FF98"
-	case "babyblue":
-		return "#89CFF0"
-	case "indigo":
-		return "#4B0082"
-	case "teal":
-		return "#008080"
-	case "coral":
-		return "#FF7F50"
-	case "lavender":
-		return "#BABBF1"
-	case "rose":
-		return "#FF007F"
-	case "cyan":
-		return "#00FFFF"
-	case "amber":
-		return "#FFBF00"
-	case "crimson":
-		return "#DC143C"
-	case "aqua":
-		return "#00FFC8"
-	case "peach":
-		return "#FFB480"
-	case "caramel":
-		return "#FFC380"
-	case "mosse":
-		return "#AD9971"
-	case "sand":
-		return "#EDC9AF"
-	case "copper":
-		return "#B87333"
-	case "lime", "orange", "violet", "pink":
-		return theme
-	case "1977":
-		return "green"
-	default:
-		return theme
+	if hex, ok := themeHexMap[theme]; ok {
+		return hex
 	}
+	return theme
 }
 
 func GetProcessTextColor(isCurrentUser bool) string {
