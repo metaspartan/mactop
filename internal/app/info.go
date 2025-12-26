@@ -5,7 +5,7 @@ import (
 	"regexp"
 	"strings"
 
-	ui "github.com/metaspartan/gotui/v4"
+	ui "github.com/metaspartan/gotui/v5"
 	"github.com/shirou/gopsutil/v4/host"
 )
 

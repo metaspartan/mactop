@@ -6,15 +6,15 @@ import (
 	"sync"
 	"time"
 
-	ui "github.com/metaspartan/gotui/v4"
-	w "github.com/metaspartan/gotui/v4/widgets"
+	ui "github.com/metaspartan/gotui/v5"
+	w "github.com/metaspartan/gotui/v5/widgets"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/shirou/gopsutil/v4/disk"
 	"github.com/shirou/gopsutil/v4/net"
 )
 
 var (
-	version                                                     = "v2.0.2"
+	version                                                     = "v2.0.3"
 	cpuGauge, gpuGauge, memoryGauge, aneGauge                   *w.Gauge
 	mainBlock                                                   *ui.Block
 	modelText, PowerChart, NetworkInfo, helpText, infoParagraph *w.Paragraph

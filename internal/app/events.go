@@ -4,7 +4,7 @@ import (
 	"os"
 	"time"
 
-	ui "github.com/metaspartan/gotui/v4"
+	ui "github.com/metaspartan/gotui/v5"
 )
 
 func startBackgroundUpdates(done chan struct{}) {

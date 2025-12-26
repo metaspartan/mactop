@@ -3,8 +3,8 @@ package app
 import (
 	"fmt"
 
-	ui "github.com/metaspartan/gotui/v4"
-	w "github.com/metaspartan/gotui/v4/widgets"
+	ui "github.com/metaspartan/gotui/v5"
+	w "github.com/metaspartan/gotui/v5/widgets"
 )
 
 // themeOrder defines the order themes cycle through with 'c' key

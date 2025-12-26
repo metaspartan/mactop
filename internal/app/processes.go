@@ -23,7 +23,7 @@ import (
 	"time"
 	"unsafe"
 
-	ui "github.com/metaspartan/gotui/v4"
+	ui "github.com/metaspartan/gotui/v5"
 )
 
 var uidCache = make(map[uint32]string)
