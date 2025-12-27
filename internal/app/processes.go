@@ -533,8 +533,12 @@ func updateKillModal() {
 	}
 	confirmModal.BorderStyle = ui.NewStyle(primaryColor, bg)
 	confirmModal.TitleStyle = ui.NewStyle(primaryColor, bg, ui.ModifierBold)
-
-	confirmModal.Text = fmt.Sprintf("Are you sure you want to kill PID %d?", killPID)
+	// Style buttons
+	for _, btn := range confirmModal.Buttons {
+		btn.TextStyle = ui.NewStyle(primaryColor, bg)
+		btn.ActiveStyle = ui.NewStyle(bg, primaryColor)
+		btn.BorderStyle = ui.NewStyle(primaryColor, bg)
+	}
 }
 
 func showKillModal(pid int) {

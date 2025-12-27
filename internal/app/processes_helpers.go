@@ -87,7 +87,7 @@ func handleSearchClear() {
 func handleVerticalNavigation(e ui.Event) {
 	switch e.ID {
 	case "<Up>", "k", "<MouseWheelUp>":
-		if processList.SelectedRow > 1 {
+		if processList.SelectedRow > 0 {
 			processList.SelectedRow--
 		}
 	case "<Down>", "j", "<MouseWheelDown>":
