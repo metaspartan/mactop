@@ -151,6 +151,23 @@ func setupUI() {
 		eCoreCount,
 		pCoreCount,
 	)
+
+	confirmModal = w.NewModal("CONFIRM KILL")
+	confirmModal.Title = " CONFIRM "
+	confirmModal.Border = true
+	confirmModal.BorderRounded = true
+	confirmModal.BorderStyle.Fg = ui.ColorRed
+	confirmModal.BorderStyle.Bg = ui.ColorBlack
+	confirmModal.TextStyle.Fg = ui.ColorWhite
+	confirmModal.TextStyle.Bg = ui.ColorBlack
+	confirmModal.ActiveButtonIndex = 1 // Default to No (Safe)
+
+	_ = confirmModal.AddButton("Yes", func() {
+		// Callback logic will be handled elsewhere or reused
+	})
+	_ = confirmModal.AddButton("No", func() {
+		// Callback logic
+	})
 }
 
 func updateModelText() {
@@ -219,8 +236,10 @@ func updateHelpText() {
 			"- c: Cycle through UI color themes\n"+
 			"- p: Toggle party mode (color cycling)\n"+
 			"- l: Cycle through the 6 available layouts\n"+
+			"- F9: Kill selected process (y/n confirm)\n"+ // Updated text
+			"- /: Search process list\n"+ // Added help
+			"- g/G: Jump to top/bottom of process list\n"+ // Added help
 			"- + or -: Adjust update interval (faster/slower)\n"+
-			"- F9: Kill selected process\n"+
 			"- h or ?: Toggle this help menu\n"+
 			"- q or <C-c>: Quit the application\n\n"+
 			"Start Flags:\n"+
@@ -313,7 +332,11 @@ func renderUI() {
 	defer renderMutex.Unlock()
 	w, h := ui.TerminalDimensions()
 	if w > 2 && h > 2 {
-		ui.Render(mainBlock, grid)
+		if killPending {
+			ui.Render(mainBlock, grid, confirmModal) // Render on top
+		} else {
+			ui.Render(mainBlock, grid)
+		}
 	} else {
 		ui.Render(mainBlock)
 	}

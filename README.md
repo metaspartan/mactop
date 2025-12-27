@@ -37,7 +37,9 @@
 - Customizable background color (`B` to cycle colors)
 - Customizable update interval (default is 1000ms) (`-` or `=` to speed up, `+` to slow down)
 - Process list matching htop format (VIRT in GB, CPU normalized by core count)
-- **Process Management**: Kill processes directly from the UI (F9). List pauses while selecting.
+- **Process Management**: Kill processes directly from the UI (F9) with safe confirmation.
+- **Process Filter**: Search and filter processes by name (`/`)
+- **Navigation**: Enhanced Vim-like navigation (`g` top, `G` bottom, `j`/`k` scroll)
 - **Headless Mode**: Output JSON metrics to stdout for scripting/logging (`--headless`)
 - **JSON Formatting**: Pretty print JSON output (`--pretty`) or set collection count (`--count <n>`)
 - Party Mode (Randomly cycles through colors) (P to toggle)
@@ -140,6 +142,8 @@ Use the following keys to interact with the application while its running:
 - `-`: Decrease update interval (faster updates).
 - `F9`: Kill the currently selected process (pauses updates while selecting).
 - `Arrow Keys` or `h/j/k/l`: Navigate the process list and select columns.
+- `g` / `G`: Jump to the top or bottom of the process list.
+- `/`: Search/Filter the process list by name (Esc to clear).
 - `Enter` or `Space`: Sort by the selected column.
 - `h` or `?`: Toggle the help menu.
 

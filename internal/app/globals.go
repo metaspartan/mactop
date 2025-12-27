@@ -21,8 +21,16 @@ var (
 	tbInfoParagraph                                             *w.Paragraph
 	grid                                                        *ui.Grid
 	processList                                                 *w.List
-	sparkline, gpuSparkline                                     *w.Sparkline
-	sparklineGroup, gpuSparklineGroup                           *w.SparklineGroup
+	// Search state
+	searchMode        bool
+	searchText        string
+	filteredProcesses []ProcessMetrics
+
+	// Modal state
+	confirmModal *w.Modal
+
+	sparkline, gpuSparkline           *w.Sparkline
+	sparklineGroup, gpuSparklineGroup *w.SparklineGroup
 
 	tbNetSparklineIn, tbNetSparklineOut *w.Sparkline
 	tbNetSparklineGroup                 *w.SparklineGroup

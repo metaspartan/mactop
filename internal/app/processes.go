@@ -365,11 +365,11 @@ func buildHeader(maxWidths map[string]int, themeColorStr, selectedHeaderFg strin
 
 		colText := fmt.Sprintf(format, col)
 		if i == selectedColumn {
+			arrow := "↓"
 			if sortReverse {
-				header += fmt.Sprintf("[%s↑](fg:%s,bg:%s)", colText, selectedHeaderFg, themeColorStr)
-			} else {
-				header += fmt.Sprintf("[%s↓](fg:%s,bg:%s)", colText, selectedHeaderFg, themeColorStr)
+				arrow = "↑"
 			}
+			header += fmt.Sprintf("[%s%s](fg:%s,mod:reverse)", colText, arrow, themeColorStr)
 		} else {
 			header += fmt.Sprintf("[%s](fg:%s)", colText, themeColorStr)
 		}
@@ -416,6 +416,15 @@ func buildProcessRows(processes []ProcessMetrics, maxWidths map[string]int) []st
 
 func updateProcessList() {
 	processes := lastProcesses
+	if searchText != "" {
+		if filteredProcesses == nil {
+			// Ensure it's not nil if empty
+			processes = []ProcessMetrics{}
+		} else {
+			processes = filteredProcesses
+		}
+	}
+
 	if processes == nil {
 		return
 	}
@@ -462,33 +471,177 @@ func updateProcessList() {
 	copy(items[1:], rows)
 
 	if killPending {
-		processList.Title = fmt.Sprintf("CONFIRM KILL PID %d? (y/n)", killPID)
+		// Modal handles the UI, but we keep the title clean or informative
+		processList.Title = " Process List - KILL CONFIRMATION PENDING "
 		processList.TitleStyle = ui.NewStyle(ui.ColorRed, CurrentBgColor, ui.ModifierBold)
+	} else if searchMode || searchText != "" {
+		processList.Title = fmt.Sprintf(" Search: %s_ (Esc to clear) ", searchText)
+		processList.TitleStyle = ui.NewStyle(ui.ColorYellow, CurrentBgColor, ui.ModifierBold)
 	} else {
-		processList.Title = "Process List (↑/↓ scroll, ←/→ select column, Enter/Space to sort, F9 to kill process)"
+		processList.Title = "Process List (↑/↓ scroll, / search, F9 kill)"
 		processList.TitleStyle = ui.NewStyle(GetThemeColorWithLightMode(currentConfig.Theme, IsLightMode), CurrentBgColor)
 	}
 	processList.Rows = items
 }
 
-func handleKillPending(e ui.Event) {
+func handleSearchInput(e ui.Event) {
 	switch e.ID {
-	case "y", "Y":
-		if err := syscall.Kill(killPID, syscall.SIGTERM); err == nil {
-			stderrLogger.Printf("Sent SIGTERM to PID %d\n", killPID)
-		} else {
-			stderrLogger.Printf("Failed to kill PID %d: %v\n", killPID, err)
+	case "<Escape>":
+		searchMode = false
+		searchText = ""
+		filteredProcesses = nil
+		updateProcessList()
+	case "<Enter>":
+		searchMode = false
+		updateProcessList()
+	case "<Backspace>":
+		if len(searchText) > 0 {
+			searchText = searchText[:len(searchText)-1]
 		}
-		killPending = false
+		updateFilteredProcesses()
 		updateProcessList()
-	case "n", "N", "<Escape>":
-		killPending = false
+	case "<Space>":
+		searchText += " "
+		updateFilteredProcesses()
 		updateProcessList()
+	default:
+		// Only append printable characters (simple check)
+		if len(e.ID) == 1 {
+			searchText += e.ID
+			updateFilteredProcesses()
+			updateProcessList()
+		}
 	}
 }
 
-func handleNavigation(e ui.Event) {
+func updateFilteredProcesses() {
+	if searchText == "" {
+		filteredProcesses = nil
+		return
+	}
+	filteredProcesses = nil
+	lowerText := strings.ToLower(searchText)
+	for _, p := range lastProcesses {
+		if strings.Contains(strings.ToLower(p.Command), lowerText) {
+			filteredProcesses = append(filteredProcesses, p)
+		}
+	}
+	if len(filteredProcesses) > 0 {
+		processList.SelectedRow = 0
+	}
+}
+
+func updateKillModal() {
+	termWidth, termHeight := ui.TerminalDimensions()
+	modalWidth := 50
+	modalHeight := 10 // Slightly taller for the buttons provided by widget
+
+	x := (termWidth - modalWidth) / 2
+	y := (termHeight - modalHeight) / 2
+	confirmModal.SetRect(x, y, x+modalWidth, y+modalHeight)
+
+	// Theme colors
+	var primaryColor ui.Color
+	var bg ui.Color = CurrentBgColor
+	// Ensure opacity
+	if GetCurrentBgName() == "clear" {
+		bg = ui.ColorBlack
+	}
+
+	if IsCatppuccinTheme(currentConfig.Theme) {
+		primaryColor = processList.TitleStyle.Fg
+	} else if IsLightMode && currentConfig.Theme == "white" {
+		primaryColor = ui.ColorBlack
+	} else if color, ok := colorMap[currentConfig.Theme]; ok {
+		primaryColor = color
+	} else {
+		primaryColor = ui.ColorGreen
+	}
+
+	confirmModal.BackgroundColor = bg
+	confirmModal.TextStyle = ui.NewStyle(ui.ColorWhite, bg)
+	if IsLightMode {
+		confirmModal.TextStyle = ui.NewStyle(ui.ColorBlack, bg)
+	}
+	confirmModal.BorderStyle = ui.NewStyle(primaryColor, bg)
+	confirmModal.TitleStyle = ui.NewStyle(primaryColor, bg, ui.ModifierBold)
+
+	confirmModal.Text = fmt.Sprintf("Are you sure you want to kill PID %d?", killPID)
+}
+
+func showKillModal(pid int) {
+	killPending = true
+	killPID = pid
+	confirmModal.ActiveButtonIndex = 1
+
+	if len(confirmModal.Buttons) >= 2 {
+		confirmModal.Buttons[0].OnClick = func() {
+			executeKill()
+		}
+		confirmModal.Buttons[1].OnClick = func() {
+			hideKillModal()
+			updateProcessList()
+		}
+	}
+
+	confirmModal.Title = " CONFIRM KILL "
+	updateKillModal()
+}
+
+func hideKillModal() {
+	killPending = false
+}
+
+func handleKillPending(e ui.Event) {
 	switch e.ID {
+	case "y", "Y": // Quick confirm
+		executeKill()
+	case "n", "N", "<Escape>": // Quick cancel
+		hideKillModal()
+		updateProcessList()
+	case "<Left>", "h":
+		confirmModal.ActiveButtonIndex = 0
+		updateKillModal()
+	case "<Right>", "l":
+		confirmModal.ActiveButtonIndex = 1
+		updateKillModal()
+	case "<Enter>", "<Space>":
+		if confirmModal.ActiveButtonIndex >= 0 && confirmModal.ActiveButtonIndex < len(confirmModal.Buttons) {
+			if confirmModal.Buttons[confirmModal.ActiveButtonIndex].OnClick != nil {
+				confirmModal.Buttons[confirmModal.ActiveButtonIndex].OnClick()
+			}
+		}
+	}
+}
+
+func executeKill() {
+	if err := syscall.Kill(killPID, syscall.SIGTERM); err == nil {
+		stderrLogger.Printf("Sent SIGTERM to PID %d\n", killPID)
+	} else {
+		stderrLogger.Printf("Failed to kill PID %d: %v\n", killPID, err)
+	}
+	hideKillModal()
+	updateProcessList()
+}
+
+func handleNavigation(e ui.Event) {
+	// If search mode is active, don't handle navigation
+	if searchMode {
+		return
+	}
+
+	switch e.ID {
+	case "/":
+		searchMode = true
+		searchText = ""
+		filteredProcesses = nil
+		updateProcessList()
+	case "<Escape>":
+		if searchText != "" {
+			searchText = ""
+			filteredProcesses = nil
+			updateProcessList()
+		}
 	case "<Up>", "k", "<MouseWheelUp>":
 		if processList.SelectedRow > 0 {
 			processList.SelectedRow--
@@ -496,6 +649,12 @@ func handleNavigation(e ui.Event) {
 	case "<Down>", "j", "<MouseWheelDown>":
 		if processList.SelectedRow < len(processList.Rows)-1 {
 			processList.SelectedRow++
+		}
+	case "g", "<Home>":
+		processList.SelectedRow = 0
+	case "G", "<End>":
+		if len(processList.Rows) > 0 {
+			processList.SelectedRow = len(processList.Rows) - 1
 		}
 	case "<Left>":
 		if selectedColumn > 0 {
@@ -517,13 +676,21 @@ func handleNavigation(e ui.Event) {
 		saveConfig()
 		updateProcessList()
 	case "<F9>":
-		if len(processList.Rows) > 0 && processList.SelectedRow > 0 {
-			processIndex := processList.SelectedRow - 1
-			if processIndex < len(lastProcesses) {
-				pid := lastProcesses[processIndex].PID
-				killPending = true
-				killPID = pid
-				updateProcessList()
+		// We need to know which list is being displayed.
+		currentViewProcesses := lastProcesses
+		if searchText != "" && filteredProcesses != nil {
+			currentViewProcesses = filteredProcesses
+		}
+
+		if len(currentViewProcesses) > 0 && processList.SelectedRow < len(currentViewProcesses)+1 {
+			// +1 because of header row at index 0
+			if processList.SelectedRow > 0 {
+				processIndex := processList.SelectedRow - 1
+				if processIndex < len(currentViewProcesses) {
+					pid := currentViewProcesses[processIndex].PID
+					showKillModal(pid)
+					// Don't update list yet, modal is overlay
+				}
 			}
 		}
 	}
@@ -536,6 +703,10 @@ func handleProcessListEvents(e ui.Event) {
 	}
 	if killPending {
 		handleKillPending(e)
+		return
+	}
+	if searchMode {
+		handleSearchInput(e)
 		return
 	}
 	handleNavigation(e)

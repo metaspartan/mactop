@@ -85,7 +85,11 @@ func updateLayout(w, h int) {
 func drawScreen(w, h int) {
 	ui.Clear()
 	if w > 2 && h > 2 {
-		ui.Render(mainBlock, grid)
+		if killPending {
+			ui.Render(mainBlock, grid, confirmModal)
+		} else {
+			ui.Render(mainBlock, grid)
+		}
 	} else {
 		ui.Render(mainBlock)
 	}
@@ -206,16 +210,21 @@ func handleIntervalKeys(key string) {
 
 func handleKeyboardEvent(e ui.Event, done chan struct{}) {
 	key := e.ID
-	fakeEvent := ui.Event{Type: ui.KeyboardEvent, ID: key}
+
+	// Delegate to process list events (handles search/modal/navigation)
 	renderMutex.Lock()
-	handleProcessListEvents(fakeEvent)
+	handleProcessListEvents(e)
+
+	if killPending || searchMode {
+		w, h := ui.TerminalDimensions()
+		drawScreen(w, h)
+		renderMutex.Unlock()
+		return
+	}
+
 	ui.Clear()
 	w, h := ui.TerminalDimensions()
-	if w > 2 && h > 2 {
-		ui.Render(mainBlock, grid)
-	} else {
-		ui.Render(mainBlock)
-	}
+	drawScreen(w, h)
 	renderMutex.Unlock()
 
 	switch key {
