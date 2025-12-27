@@ -418,7 +418,6 @@ func updateProcessList() {
 	processes := lastProcesses
 	if searchText != "" {
 		if filteredProcesses == nil {
-			// Ensure it's not nil if empty
 			processes = []ProcessMetrics{}
 		} else {
 			processes = filteredProcesses
@@ -428,24 +427,8 @@ func updateProcessList() {
 	if processes == nil {
 		return
 	}
-	themeColor := processList.TextStyle.Fg
-	var themeColorStr string
-	if IsCatppuccinTheme(currentConfig.Theme) {
-		themeColorStr = GetCatppuccinHex(currentConfig.Theme, "Primary")
-	} else if IsLightMode && currentConfig.Theme == "white" {
-		themeColorStr = "black"
-	} else if currentConfig.Theme == "1977" {
-		themeColorStr = "green"
-	} else if color, ok := colorMap[currentConfig.Theme]; ok {
-		hexStr := resolveThemeColorString(currentConfig.Theme)
-		if hexStr != currentConfig.Theme {
-			themeColorStr = hexStr
-		} else {
-			themeColorStr = getThemeColorName(color)
-		}
-	} else {
-		themeColorStr = getThemeColorName(themeColor)
-	}
+
+	themeColorStr, selectedHeaderFg := resolveProcessThemeColor()
 
 	termWidth, _ := ui.TerminalDimensions()
 	availableWidth := termWidth - 2
@@ -455,32 +438,15 @@ func updateProcessList() {
 
 	maxWidths := calculateMaxWidths(availableWidth)
 
-	selectedHeaderFg := "black"
-	if themeColorStr == "black" {
-		selectedHeaderFg = "white"
-	} else if IsCatppuccinTheme(currentConfig.Theme) {
-		selectedHeaderFg = GetCatppuccinHex(currentConfig.Theme, "Base")
-	}
-
 	header := buildHeader(maxWidths, themeColorStr, selectedHeaderFg)
 	sortProcesses(processes)
 	rows := buildProcessRows(processes, maxWidths)
 
-	items := make([]string, len(processes)+1) // +1 for header
+	items := make([]string, len(processes)+1)
 	items[0] = header
 	copy(items[1:], rows)
 
-	if killPending {
-		// Modal handles the UI, but we keep the title clean or informative
-		processList.Title = " Process List - KILL CONFIRMATION PENDING "
-		processList.TitleStyle = ui.NewStyle(ui.ColorRed, CurrentBgColor, ui.ModifierBold)
-	} else if searchMode || searchText != "" {
-		processList.Title = fmt.Sprintf(" Search: %s_ (Esc to clear) ", searchText)
-		processList.TitleStyle = ui.NewStyle(ui.ColorYellow, CurrentBgColor, ui.ModifierBold)
-	} else {
-		processList.Title = "Process List (↑/↓ scroll, / search, F9 kill)"
-		processList.TitleStyle = ui.NewStyle(GetThemeColorWithLightMode(currentConfig.Theme, IsLightMode), CurrentBgColor)
-	}
+	processList.Title, processList.TitleStyle = getProcessListTitle()
 	processList.Rows = items
 }
 
@@ -617,6 +583,14 @@ func handleKillPending(e ui.Event) {
 func executeKill() {
 	if err := syscall.Kill(killPID, syscall.SIGTERM); err == nil {
 		stderrLogger.Printf("Sent SIGTERM to PID %d\n", killPID)
+		// Immediately refresh process list to reflect changes
+		if procs, err := getProcessList(); err == nil {
+			lastProcesses = procs
+			// If searching, re-filter against new list
+			if searchMode || searchText != "" {
+				updateFilteredProcesses()
+			}
+		}
 	} else {
 		stderrLogger.Printf("Failed to kill PID %d: %v\n", killPID, err)
 	}
@@ -625,74 +599,23 @@ func executeKill() {
 }
 
 func handleNavigation(e ui.Event) {
-	// If search mode is active, don't handle navigation
 	if searchMode {
 		return
 	}
 
 	switch e.ID {
 	case "/":
-		searchMode = true
-		searchText = ""
-		filteredProcesses = nil
-		updateProcessList()
+		handleSearchToggle()
 	case "<Escape>":
-		if searchText != "" {
-			searchText = ""
-			filteredProcesses = nil
-			updateProcessList()
-		}
-	case "<Up>", "k", "<MouseWheelUp>":
-		if processList.SelectedRow > 0 {
-			processList.SelectedRow--
-		}
-	case "<Down>", "j", "<MouseWheelDown>":
-		if processList.SelectedRow < len(processList.Rows)-1 {
-			processList.SelectedRow++
-		}
-	case "g", "<Home>":
-		processList.SelectedRow = 0
-	case "G", "<End>":
-		if len(processList.Rows) > 0 {
-			processList.SelectedRow = len(processList.Rows) - 1
-		}
-	case "<Left>":
-		if selectedColumn > 0 {
-			selectedColumn--
-			currentConfig.SortColumn = &selectedColumn
-			saveConfig()
-			updateProcessList()
-		}
-	case "<Right>":
-		if selectedColumn < len(columns)-1 {
-			selectedColumn++
-			currentConfig.SortColumn = &selectedColumn
-			saveConfig()
-			updateProcessList()
-		}
+		handleSearchClear()
+	case "<Up>", "k", "<MouseWheelUp>", "<Down>", "j", "<MouseWheelDown>", "g", "<Home>", "G", "<End>":
+		handleVerticalNavigation(e)
+	case "<Left>", "<Right>":
+		handleColumnNavigation(e)
 	case "<Enter>", "<Space>":
-		sortReverse = !sortReverse
-		currentConfig.SortReverse = sortReverse
-		saveConfig()
-		updateProcessList()
+		handleSortToggle()
 	case "<F9>":
-		// We need to know which list is being displayed.
-		currentViewProcesses := lastProcesses
-		if searchText != "" && filteredProcesses != nil {
-			currentViewProcesses = filteredProcesses
-		}
-
-		if len(currentViewProcesses) > 0 && processList.SelectedRow < len(currentViewProcesses)+1 {
-			// +1 because of header row at index 0
-			if processList.SelectedRow > 0 {
-				processIndex := processList.SelectedRow - 1
-				if processIndex < len(currentViewProcesses) {
-					pid := currentViewProcesses[processIndex].PID
-					showKillModal(pid)
-					// Don't update list yet, modal is overlay
-				}
-			}
-		}
+		attemptKillProcess()
 	}
 }
 
