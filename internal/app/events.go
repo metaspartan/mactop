@@ -55,6 +55,9 @@ func startBackgroundUpdates(done chan struct{}) {
 					renderMutex.Lock()
 					if processList.SelectedRow <= 1 {
 						lastProcesses = processes
+						if searchText != "" {
+							refreshFilteredProcesses()
+						}
 						updateProcessList()
 					}
 					renderMutex.Unlock()

@@ -480,7 +480,7 @@ func handleSearchInput(e ui.Event) {
 	}
 }
 
-func updateFilteredProcesses() {
+func refreshFilteredProcesses() {
 	if searchText == "" {
 		filteredProcesses = nil
 		return
@@ -492,6 +492,10 @@ func updateFilteredProcesses() {
 			filteredProcesses = append(filteredProcesses, p)
 		}
 	}
+}
+
+func updateFilteredProcesses() {
+	refreshFilteredProcesses()
 	if len(filteredProcesses) > 0 {
 		processList.SelectedRow = 1
 	} else {
