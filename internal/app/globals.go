@@ -57,6 +57,7 @@ var (
 	headless           bool
 	headlessPretty     bool
 	headlessCount      int
+	headlessFormat     string
 	interruptChan      = make(chan struct{}, 10)
 	lastNetStats       net.IOCountersStat
 	lastDiskStats      disk.IOCountersStat

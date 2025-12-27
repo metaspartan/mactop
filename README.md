@@ -33,8 +33,8 @@
 - Easy-to-read terminal UI
 - **15 Layouts**: (`L` to cycle layouts)
 - **Persistent Settings**: Remembers your Layout and Theme choice across restarts
-- Customizable UI color (green, red, blue, skyblue, magenta, yellow, gold, silver, white, lime, orange, violet, pink, and more) (`C` to cycle colors)
-- Customizable background color (`B` to cycle colors)
+- Customizable UI color (green, red, blue, skyblue, magenta, yellow, gold, silver, white, lime, orange, violet, pink, and more) (`c` to cycle colors)
+- Customizable background color (`b` to cycle colors)
 - Customizable update interval (default is 1000ms) (`-` or `=` to speed up, `+` to slow down)
 - Process list matching htop format (VIRT in GB, CPU normalized by core count)
 - **Process Management**: Kill processes directly from the UI (F9) with safe confirmation.
@@ -42,7 +42,8 @@
 - **Navigation**: Enhanced Vim-like navigation (`g` top, `G` bottom, `j`/`k` scroll)
 - **Headless Mode**: Output JSON metrics to stdout for scripting/logging (`--headless`)
 - **JSON Formatting**: Pretty print JSON output (`--pretty`) or set collection count (`--count <n>`)
-- Party Mode (Randomly cycles through colors) (P to toggle)
+- **Output Formats**: JSON (default), YAML, XML, and TOON (`--format <format>`)
+- Party Mode (Randomly cycles through colors) (`p` to toggle)
 - Optional Prometheus Metrics server (default is disabled) (`-p <port>` or `--prometheus <port>`)
 - Support for all Apple Silicon models
 - **Auto-detect Light/Dark Mode**: Automatically adjusts UI colors based on your terminal's background color or system theme.
@@ -111,11 +112,15 @@ mactop --headless --count 1
 
 # Run continuously with pretty printing
 mactop --headless --pretty
+
+# Run with different output formats (json, yaml, xml, toon)
+mactop --headless --format toon
 ```
 
 ## mactop Flags
 
-- `--headless`: Run in headless mode (no TUI, output JSON to stdout).
+- `--headless`: Run in headless mode (no TUI, output to stdout).
+- `--format`: Output format for headless mode (json, yaml, xml, toon). Default is json.
 - `--count`: Number of samples to collect in headless mode (0 = infinite).
 - `--pretty`: Pretty print JSON output in headless mode.
 - `--interval` or `-i`: Set the update interval in milliseconds. Default is 1000.

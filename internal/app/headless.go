@@ -2,6 +2,7 @@ package app
 
 import (
 	"encoding/json"
+	"encoding/xml"
 	"fmt"
 	"net/http"
 	"os"
@@ -11,24 +12,26 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/toon-format/toon-go"
+	"gopkg.in/yaml.v3"
 )
 
 type HeadlessOutput struct {
-	Timestamp             string             `json:"timestamp"`
-	SocMetrics            SocMetrics         `json:"soc_metrics"`
-	Memory                MemoryMetrics      `json:"memory"`
-	NetDisk               NetDiskMetrics     `json:"net_disk"`
-	CPUUsage              float64            `json:"cpu_usage"`
-	GPUUsage              float64            `json:"gpu_usage"`
-	CoreUsages            []float64          `json:"core_usages"`
-	SystemInfo            SystemInfo         `json:"system_info"`
-	ThermalState          string             `json:"thermal_state"`
-	ThunderboltInfo       *ThunderboltOutput `json:"thunderbolt_info"`
-	TBNetTotalBytesInSec  float64            `json:"tb_net_total_bytes_in_per_sec"`
-	TBNetTotalBytesOutSec float64            `json:"tb_net_total_bytes_out_per_sec"`
-	RDMAStatus            RDMAStatus         `json:"rdma_status"`
-	CPUTemp               float32            `json:"cpu_temp"`
-	GPUTemp               float32            `json:"gpu_temp"`
+	Timestamp             string             `json:"timestamp" yaml:"timestamp" xml:"Timestamp" toon:"timestamp"`
+	SocMetrics            SocMetrics         `json:"soc_metrics" yaml:"soc_metrics" xml:"SocMetrics" toon:"soc_metrics"`
+	Memory                MemoryMetrics      `json:"memory" yaml:"memory" xml:"Memory" toon:"memory"`
+	NetDisk               NetDiskMetrics     `json:"net_disk" yaml:"net_disk" xml:"NetDisk" toon:"net_disk"`
+	CPUUsage              float64            `json:"cpu_usage" yaml:"cpu_usage" xml:"CPUUsage" toon:"cpu_usage"`
+	GPUUsage              float64            `json:"gpu_usage" yaml:"gpu_usage" xml:"GPUUsage" toon:"gpu_usage"`
+	CoreUsages            []float64          `json:"core_usages" yaml:"core_usages" xml:"CoreUsages" toon:"core_usages"`
+	SystemInfo            SystemInfo         `json:"system_info" yaml:"system_info" xml:"SystemInfo" toon:"system_info"`
+	ThermalState          string             `json:"thermal_state" yaml:"thermal_state" xml:"ThermalState" toon:"thermal_state"`
+	ThunderboltInfo       *ThunderboltOutput `json:"thunderbolt_info" yaml:"thunderbolt_info" xml:"ThunderboltInfo" toon:"thunderbolt_info"`
+	TBNetTotalBytesInSec  float64            `json:"tb_net_total_bytes_in_per_sec" yaml:"tb_net_total_bytes_in_per_sec" xml:"TBNetTotalBytesInSec" toon:"tb_net_total_bytes_in_per_sec"`
+	TBNetTotalBytesOutSec float64            `json:"tb_net_total_bytes_out_per_sec" yaml:"tb_net_total_bytes_out_per_sec" xml:"TBNetTotalBytesOutSec" toon:"tb_net_total_bytes_out_per_sec"`
+	RDMAStatus            RDMAStatus         `json:"rdma_status" yaml:"rdma_status" xml:"RDMAStatus" toon:"rdma_status"`
+	CPUTemp               float32            `json:"cpu_temp" yaml:"cpu_temp" xml:"CPUTemp" toon:"cpu_temp"`
+	GPUTemp               float32            `json:"gpu_temp" yaml:"gpu_temp" xml:"GPUTemp" toon:"gpu_temp"`
 }
 
 func runHeadless(count int) {
@@ -40,48 +43,82 @@ func runHeadless(count int) {
 
 	startHeadlessPrometheus()
 
-	encoder := json.NewEncoder(os.Stdout)
-	if headlessPretty {
-		encoder.SetIndent("", "  ")
+	// Validate format
+	format := strings.ToLower(headlessFormat)
+	switch format {
+	case "json", "yaml", "xml", "toon":
+	default:
+		fmt.Fprintf(os.Stderr, "Unknown format: %s. Defaulting to json.\n", format)
+		format = "json"
 	}
 
 	tbInfo := performHeadlessWarmup()
 
-	// Calculate and wait for initial delay
-	if count > 0 {
-		fmt.Print("[")
-	}
+	printHeadlessStart(format, count)
 
 	samplesCollected := 0
 
 	// First manual collection
-	if err := processHeadlessSample(encoder, tbInfo); err != nil {
-		fmt.Fprintf(os.Stderr, "Error encoding JSON: %v\n", err)
+	if err := processHeadlessSample(format, tbInfo); err != nil {
+		fmt.Fprintf(os.Stderr, "Error formatting output: %v\n", err)
 	}
 	samplesCollected++
 
 	if count > 0 && samplesCollected >= count {
-		fmt.Println("]")
+		printHeadlessEnd(format, count)
 		return
 	}
 
-	// Continue with regular ticker
 	ticker := time.NewTicker(time.Duration(updateInterval) * time.Millisecond)
 	defer ticker.Stop()
 
 	for range ticker.C {
-		if samplesCollected > 0 && count > 0 {
-			fmt.Print(",")
-		}
-		if err := processHeadlessSample(encoder, tbInfo); err != nil {
-			fmt.Fprintf(os.Stderr, "Error encoding JSON: %v\n", err)
+		printHeadlessSeparator(format, count, samplesCollected)
+
+		if err := processHeadlessSample(format, tbInfo); err != nil {
+			fmt.Fprintf(os.Stderr, "Error formatting output: %v\n", err)
 		}
 
 		samplesCollected++
 		if count > 0 && samplesCollected >= count {
-			fmt.Println("]")
+			printHeadlessEnd(format, count)
 			return
 		}
+	}
+}
+
+func printHeadlessStart(format string, count int) {
+	if count > 0 {
+		switch format {
+		case "json":
+			fmt.Print("[")
+		case "xml":
+			fmt.Print("<MactopOutputList>")
+		}
+	}
+}
+
+func printHeadlessEnd(format string, count int) {
+	if count > 0 {
+		switch format {
+		case "json":
+			fmt.Println("]")
+		case "xml":
+			fmt.Println("</MactopOutputList>")
+		}
+	}
+}
+
+func printHeadlessSeparator(format string, count int, samplesCollected int) {
+	if samplesCollected > 0 && count > 0 {
+		switch format {
+		case "json":
+			fmt.Print(",")
+		case "yaml":
+			fmt.Println("---")
+		}
+	} else if format == "yaml" {
+		fmt.Println("---")
 	}
 }
 
@@ -112,9 +149,36 @@ func performHeadlessWarmup() *ThunderboltOutput {
 	return tbInfo
 }
 
-func processHeadlessSample(encoder *json.Encoder, tbInfo *ThunderboltOutput) error {
+func processHeadlessSample(format string, tbInfo *ThunderboltOutput) error {
 	output := collectHeadlessData(tbInfo)
-	return encoder.Encode(output)
+	var data []byte
+	var err error
+
+	switch format {
+	case "json":
+		if headlessPretty {
+			data, err = json.MarshalIndent(output, "", "  ")
+		} else {
+			data, err = json.Marshal(output)
+		}
+	case "yaml":
+		data, err = yaml.Marshal(output)
+	case "xml":
+		if headlessPretty {
+			data, err = xml.MarshalIndent(output, "", "  ")
+		} else {
+			data, err = xml.Marshal(output)
+		}
+	case "toon":
+		data, err = toon.Marshal(output)
+	}
+
+	if err != nil {
+		return err
+	}
+
+	fmt.Println(string(data))
+	return nil
 }
 
 func collectHeadlessData(tbInfo *ThunderboltOutput) HeadlessOutput {
