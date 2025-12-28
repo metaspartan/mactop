@@ -3,7 +3,7 @@ package app
 import (
 	"fmt"
 
-	ui "github.com/metaspartan/gotui/v4"
+	ui "github.com/metaspartan/gotui/v5"
 )
 
 const (

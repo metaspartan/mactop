@@ -23,7 +23,7 @@ import (
 	"time"
 	"unsafe"
 
-	ui "github.com/metaspartan/gotui/v4"
+	ui "github.com/metaspartan/gotui/v5"
 )
 
 var uidCache = make(map[uint32]string)
@@ -285,35 +285,52 @@ func getThemeColorName(themeColor ui.Color) string {
 
 func sortProcesses(processes []ProcessMetrics) {
 	sort.Slice(processes, func(i, j int) bool {
-		var result bool
+		var less bool
+		var equal bool
 
 		switch columns[selectedColumn] {
 		case "PID":
-			result = processes[i].PID < processes[j].PID
+			less = processes[i].PID < processes[j].PID
+			equal = processes[i].PID == processes[j].PID
 		case "USER":
-			result = strings.ToLower(processes[i].User) < strings.ToLower(processes[j].User)
+			u1, u2 := strings.ToLower(processes[i].User), strings.ToLower(processes[j].User)
+			less = u1 < u2
+			equal = u1 == u2
 		case "VIRT":
-			result = processes[i].VSZ > processes[j].VSZ
+			less = processes[i].VSZ > processes[j].VSZ // Descending default
+			equal = processes[i].VSZ == processes[j].VSZ
 		case "RES":
-			result = processes[i].RSS > processes[j].RSS
+			less = processes[i].RSS > processes[j].RSS // Descending default
+			equal = processes[i].RSS == processes[j].RSS
 		case "CPU":
-			result = processes[i].CPU > processes[j].CPU
+			less = processes[i].CPU > processes[j].CPU // Descending default
+			equal = processes[i].CPU == processes[j].CPU
 		case "MEM":
-			result = processes[i].Memory > processes[j].Memory
+			less = processes[i].Memory > processes[j].Memory // Descending default
+			equal = processes[i].Memory == processes[j].Memory
 		case "TIME":
 			iTime := parseTimeString(processes[i].Time)
 			jTime := parseTimeString(processes[j].Time)
-			result = iTime > jTime
+			less = iTime > jTime // Descending default
+			equal = iTime == jTime
 		case "CMD":
-			result = strings.ToLower(processes[i].Command) < strings.ToLower(processes[j].Command)
+			c1, c2 := strings.ToLower(processes[i].Command), strings.ToLower(processes[j].Command)
+			less = c1 < c2
+			equal = c1 == c2
 		default:
-			result = processes[i].CPU > processes[j].CPU
+			less = processes[i].CPU > processes[j].CPU
+			equal = processes[i].CPU == processes[j].CPU
+		}
+
+		if equal {
+			// Secondary sort by PID (always ascending) to ensure stability
+			return processes[i].PID < processes[j].PID
 		}
 
 		if sortReverse {
-			return !result
+			return !less
 		}
-		return result
+		return less
 	})
 }
 
@@ -365,17 +382,17 @@ func buildHeader(maxWidths map[string]int, themeColorStr, selectedHeaderFg strin
 
 		colText := fmt.Sprintf(format, col)
 		if i == selectedColumn {
+			arrow := "↓"
 			if sortReverse {
-				header += fmt.Sprintf("[%s↑](fg:%s,bg:%s)", colText, selectedHeaderFg, themeColorStr)
-			} else {
-				header += fmt.Sprintf("[%s↓](fg:%s,bg:%s)", colText, selectedHeaderFg, themeColorStr)
+				arrow = "↑"
 			}
+			header += fmt.Sprintf("[%s%s](fg:%s,bg:%s,mod:bold)", colText, arrow, selectedHeaderFg, themeColorStr)
 		} else {
-			header += fmt.Sprintf("[%s](fg:%s)", colText, themeColorStr)
+			header += fmt.Sprintf("[%s](fg:%s,bg:%s,mod:bold)", colText, selectedHeaderFg, themeColorStr)
 		}
 
 		if i < len(columns)-1 {
-			header += "|"
+			header += fmt.Sprintf("[%s](fg:%s,bg:%s,mod:bold)", "|", selectedHeaderFg, themeColorStr)
 		}
 	}
 	return header
@@ -403,7 +420,9 @@ func buildProcessRows(processes []ProcessMetrics, maxWidths map[string]int) []st
 			truncateWithEllipsis(cmdName, maxWidths["CMD"]),
 		)
 
-		if p.User != currentUser {
+		if i == processList.SelectedRow-1 {
+			items[i] = line
+		} else if currentUser != "" && currentUser != "root" && p.User != currentUser {
 			color := GetProcessTextColor(false)
 			items[i] = fmt.Sprintf("[%s](fg:%s)", line, color)
 		} else {
@@ -416,27 +435,19 @@ func buildProcessRows(processes []ProcessMetrics, maxWidths map[string]int) []st
 
 func updateProcessList() {
 	processes := lastProcesses
+	if searchText != "" {
+		if filteredProcesses == nil {
+			processes = []ProcessMetrics{}
+		} else {
+			processes = filteredProcesses
+		}
+	}
+
 	if processes == nil {
 		return
 	}
-	themeColor := processList.TextStyle.Fg
-	var themeColorStr string
-	if IsCatppuccinTheme(currentConfig.Theme) {
-		themeColorStr = GetCatppuccinHex(currentConfig.Theme, "Primary")
-	} else if IsLightMode && currentConfig.Theme == "white" {
-		themeColorStr = "black"
-	} else if currentConfig.Theme == "1977" {
-		themeColorStr = "green"
-	} else if color, ok := colorMap[currentConfig.Theme]; ok {
-		hexStr := resolveThemeColorString(currentConfig.Theme)
-		if hexStr != currentConfig.Theme {
-			themeColorStr = hexStr
-		} else {
-			themeColorStr = getThemeColorName(color)
-		}
-	} else {
-		themeColorStr = getThemeColorName(themeColor)
-	}
+
+	themeColorStr, selectedHeaderFg := resolveProcessThemeColor()
 
 	termWidth, _ := ui.TerminalDimensions()
 	availableWidth := termWidth - 2
@@ -446,86 +457,201 @@ func updateProcessList() {
 
 	maxWidths := calculateMaxWidths(availableWidth)
 
-	selectedHeaderFg := "black"
-	if themeColorStr == "black" {
-		selectedHeaderFg = "white"
-	} else if IsCatppuccinTheme(currentConfig.Theme) {
-		selectedHeaderFg = GetCatppuccinHex(currentConfig.Theme, "Base")
-	}
-
 	header := buildHeader(maxWidths, themeColorStr, selectedHeaderFg)
 	sortProcesses(processes)
 	rows := buildProcessRows(processes, maxWidths)
 
-	items := make([]string, len(processes)+1) // +1 for header
+	items := make([]string, len(processes)+1)
 	items[0] = header
 	copy(items[1:], rows)
 
-	if killPending {
-		processList.Title = fmt.Sprintf("CONFIRM KILL PID %d? (y/n)", killPID)
-		processList.TitleStyle = ui.NewStyle(ui.ColorRed, CurrentBgColor, ui.ModifierBold)
-	} else {
-		processList.Title = "Process List (↑/↓ scroll, ←/→ select column, Enter/Space to sort, F9 to kill process)"
-		processList.TitleStyle = ui.NewStyle(GetThemeColorWithLightMode(currentConfig.Theme, IsLightMode), CurrentBgColor)
-	}
+	processList.Title, processList.TitleStyle = getProcessListTitle()
 	processList.Rows = items
+}
+
+func handleSearchInput(e ui.Event) {
+	switch e.ID {
+	case "<Escape>":
+		searchMode = false
+		searchText = ""
+		filteredProcesses = nil
+		updateProcessList()
+	case "<Enter>":
+		searchMode = false
+		updateProcessList()
+	case "<Backspace>":
+		if len(searchText) > 0 {
+			runes := []rune(searchText)
+			searchText = string(runes[:len(runes)-1])
+		}
+		updateFilteredProcesses()
+		updateProcessList()
+	case "<Space>":
+		searchText += " "
+		updateFilteredProcesses()
+		updateProcessList()
+	default:
+		// Only append printable characters (simple check)
+		if len(e.ID) == 1 {
+			searchText += e.ID
+			updateFilteredProcesses()
+			updateProcessList()
+		}
+	}
+}
+
+func refreshFilteredProcesses() {
+	if searchText == "" {
+		filteredProcesses = nil
+		return
+	}
+	filteredProcesses = nil
+	lowerText := strings.ToLower(searchText)
+	for _, p := range lastProcesses {
+		if strings.Contains(strings.ToLower(p.Command), lowerText) {
+			filteredProcesses = append(filteredProcesses, p)
+		}
+	}
+}
+
+func updateFilteredProcesses() {
+	refreshFilteredProcesses()
+	if len(filteredProcesses) > 0 {
+		processList.SelectedRow = 1
+	} else {
+		processList.SelectedRow = 0
+	}
+}
+
+func updateKillModal() {
+	termWidth, termHeight := ui.TerminalDimensions()
+	modalWidth := 50
+	modalHeight := 10 // Slightly taller for the buttons provided by widget
+
+	x := (termWidth - modalWidth) / 2
+	y := (termHeight - modalHeight) / 2
+	if x < 0 {
+		x = 0
+	}
+	if y < 0 {
+		y = 0
+	}
+	confirmModal.SetRect(x, y, x+modalWidth, y+modalHeight)
+
+	// Theme colors
+	var primaryColor ui.Color
+	var bg ui.Color = CurrentBgColor
+	// Ensure opacity
+	if GetCurrentBgName() == "clear" {
+		bg = ui.ColorBlack
+	}
+
+	if IsCatppuccinTheme(currentConfig.Theme) {
+		primaryColor = processList.TitleStyle.Fg
+	} else if IsLightMode && currentConfig.Theme == "white" {
+		primaryColor = ui.ColorBlack
+	} else if color, ok := colorMap[currentConfig.Theme]; ok {
+		primaryColor = color
+	} else {
+		primaryColor = ui.ColorGreen
+	}
+
+	confirmModal.BackgroundColor = bg
+	confirmModal.TextStyle = ui.NewStyle(ui.ColorWhite, bg)
+	if IsLightMode {
+		confirmModal.TextStyle = ui.NewStyle(ui.ColorBlack, bg)
+	}
+	confirmModal.BorderStyle = ui.NewStyle(primaryColor, bg)
+	confirmModal.TitleStyle = ui.NewStyle(primaryColor, bg, ui.ModifierBold)
+	// Style buttons
+	for _, btn := range confirmModal.Buttons {
+		btn.TextStyle = ui.NewStyle(primaryColor, bg)
+		btn.ActiveStyle = ui.NewStyle(bg, primaryColor)
+		btn.BorderStyle = ui.NewStyle(primaryColor, bg)
+	}
+}
+
+func showKillModal(pid int) {
+	killPending = true
+	killPID = pid
+	confirmModal.ActiveButtonIndex = 1
+
+	if len(confirmModal.Buttons) >= 2 {
+		confirmModal.Buttons[0].OnClick = func() {
+			executeKill()
+		}
+		confirmModal.Buttons[1].OnClick = func() {
+			hideKillModal()
+			updateProcessList()
+		}
+	}
+
+	confirmModal.Title = fmt.Sprintf(" CONFIRM KILL PID %d ", pid)
+	updateKillModal()
+}
+
+func hideKillModal() {
+	killPending = false
 }
 
 func handleKillPending(e ui.Event) {
 	switch e.ID {
-	case "y", "Y":
-		if err := syscall.Kill(killPID, syscall.SIGTERM); err == nil {
-			stderrLogger.Printf("Sent SIGTERM to PID %d\n", killPID)
-		} else {
-			stderrLogger.Printf("Failed to kill PID %d: %v\n", killPID, err)
+	case "y", "Y": // Quick confirm
+		executeKill()
+	case "n", "N", "<Escape>": // Quick cancel
+		hideKillModal()
+		updateProcessList()
+	case "<Left>", "h":
+		confirmModal.ActiveButtonIndex = 0
+		updateKillModal()
+	case "<Right>", "l":
+		confirmModal.ActiveButtonIndex = 1
+		updateKillModal()
+	case "<Enter>", "<Space>":
+		if confirmModal.ActiveButtonIndex >= 0 && confirmModal.ActiveButtonIndex < len(confirmModal.Buttons) {
+			if confirmModal.Buttons[confirmModal.ActiveButtonIndex].OnClick != nil {
+				confirmModal.Buttons[confirmModal.ActiveButtonIndex].OnClick()
+			}
 		}
-		killPending = false
-		updateProcessList()
-	case "n", "N", "<Escape>":
-		killPending = false
-		updateProcessList()
 	}
 }
 
-func handleNavigation(e ui.Event) {
-	switch e.ID {
-	case "<Up>", "k", "<MouseWheelUp>":
-		if processList.SelectedRow > 0 {
-			processList.SelectedRow--
-		}
-	case "<Down>", "j", "<MouseWheelDown>":
-		if processList.SelectedRow < len(processList.Rows)-1 {
-			processList.SelectedRow++
-		}
-	case "<Left>":
-		if selectedColumn > 0 {
-			selectedColumn--
-			currentConfig.SortColumn = &selectedColumn
-			saveConfig()
-			updateProcessList()
-		}
-	case "<Right>":
-		if selectedColumn < len(columns)-1 {
-			selectedColumn++
-			currentConfig.SortColumn = &selectedColumn
-			saveConfig()
-			updateProcessList()
-		}
-	case "<Enter>", "<Space>":
-		sortReverse = !sortReverse
-		currentConfig.SortReverse = sortReverse
-		saveConfig()
-		updateProcessList()
-	case "<F9>":
-		if len(processList.Rows) > 0 && processList.SelectedRow > 0 {
-			processIndex := processList.SelectedRow - 1
-			if processIndex < len(lastProcesses) {
-				pid := lastProcesses[processIndex].PID
-				killPending = true
-				killPID = pid
-				updateProcessList()
+func executeKill() {
+	if err := syscall.Kill(killPID, syscall.SIGTERM); err == nil {
+		stderrLogger.Printf("Sent SIGTERM to PID %d\n", killPID)
+		// Immediately refresh process list to reflect changes
+		if procs, err := getProcessList(); err == nil {
+			lastProcesses = procs
+			// If searching, re-filter against new list
+			if searchMode || searchText != "" {
+				updateFilteredProcesses()
 			}
 		}
+	} else {
+		stderrLogger.Printf("Failed to kill PID %d: %v\n", killPID, err)
+	}
+	hideKillModal()
+	updateProcessList()
+}
+
+func handleNavigation(e ui.Event) {
+	if searchMode {
+		return
+	}
+
+	switch e.ID {
+	case "/":
+		handleSearchToggle()
+	case "<Escape>":
+		handleSearchClear()
+	case "<Up>", "k", "<MouseWheelUp>", "<Down>", "j", "<MouseWheelDown>", "g", "<Home>", "G", "<End>":
+		handleVerticalNavigation(e)
+	case "<Left>", "<Right>":
+		handleColumnNavigation(e)
+	case "<Enter>", "<Space>":
+		handleSortToggle()
+	case "<F9>":
+		attemptKillProcess()
 	}
 }
 
@@ -536,6 +662,10 @@ func handleProcessListEvents(e ui.Event) {
 	}
 	if killPending {
 		handleKillPending(e)
+		return
+	}
+	if searchMode {
+		handleSearchInput(e)
 		return
 	}
 	handleNavigation(e)

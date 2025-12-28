@@ -1,7 +1,7 @@
 package app
 
 import (
-	ui "github.com/metaspartan/gotui/v4"
+	ui "github.com/metaspartan/gotui/v5"
 )
 
 type CatppuccinPalette struct {

@@ -3,10 +3,12 @@ module github.com/metaspartan/mactop/v2
 go 1.25.4
 
 require (
-	github.com/metaspartan/gotui/v4 v4.2.4
+	github.com/metaspartan/gotui/v5 v5.0.0
 	github.com/prometheus/client_golang v1.23.2
 	github.com/shirou/gopsutil/v4 v4.25.11
+	github.com/toon-format/toon-go v0.0.0-20251202084852-7ca0e27c4e8c
 	golang.org/x/term v0.38.0
+	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
@@ -15,7 +17,7 @@ require (
 	github.com/clipperhouse/uax29/v2 v2.2.0 // indirect
 	github.com/ebitengine/purego v0.9.1 // indirect
 	github.com/gdamore/encoding v1.0.1 // indirect
-	github.com/gdamore/tcell/v2 v2.13.4 // indirect
+	github.com/gdamore/tcell/v3 v3.0.5 // indirect
 	github.com/go-ole/go-ole v1.2.6 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/lucasb-eyer/go-colorful v1.3.0 // indirect

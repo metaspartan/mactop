@@ -5,7 +5,7 @@ import (
 	"image"
 	"time"
 
-	ui "github.com/metaspartan/gotui/v4"
+	ui "github.com/metaspartan/gotui/v5"
 )
 
 type CPUUsage struct {

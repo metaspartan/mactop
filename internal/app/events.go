@@ -4,7 +4,7 @@ import (
 	"os"
 	"time"
 
-	ui "github.com/metaspartan/gotui/v4"
+	ui "github.com/metaspartan/gotui/v5"
 )
 
 func startBackgroundUpdates(done chan struct{}) {
@@ -53,8 +53,11 @@ func startBackgroundUpdates(done chan struct{}) {
 				select {
 				case processes := <-processMetricsChan:
 					renderMutex.Lock()
-					if processList.SelectedRow == 0 {
+					if !isFrozen && !killPending {
 						lastProcesses = processes
+						if searchText != "" {
+							refreshFilteredProcesses()
+						}
 						updateProcessList()
 					}
 					renderMutex.Unlock()
@@ -85,7 +88,11 @@ func updateLayout(w, h int) {
 func drawScreen(w, h int) {
 	ui.Clear()
 	if w > 2 && h > 2 {
-		ui.Render(mainBlock, grid)
+		if killPending {
+			ui.Render(mainBlock, grid, confirmModal)
+		} else {
+			ui.Render(mainBlock, grid)
+		}
 	} else {
 		ui.Render(mainBlock)
 	}
@@ -115,62 +122,17 @@ func handleModeKeys(key string, done chan struct{}) {
 	case "p":
 		togglePartyMode()
 	case "c":
-		renderMutex.Lock()
-		w, h := ui.TerminalDimensions()
-		updateLayout(w, h)
-		cycleTheme()
-		renderMutex.Unlock()
-		renderMutex.Lock()
-		updateProcessList()
-		w, h = ui.TerminalDimensions()
-		drawScreen(w, h)
-		renderMutex.Unlock()
+		handleThemeCycle()
 	case "l":
-		renderMutex.Lock()
-		cycleLayout()
-		renderMutex.Unlock()
-		saveConfig()
-		renderMutex.Lock()
-		w, h := ui.TerminalDimensions()
-		drawScreen(w, h)
-		renderMutex.Unlock()
+		handleLayoutCycle()
 	case "h", "?":
 		toggleHelpMenu()
 	case "i":
-
-		renderMutex.Lock()
-		if currentConfig.DefaultLayout == LayoutInfo {
-			if lastActiveLayout != "" {
-				currentConfig.DefaultLayout = lastActiveLayout
-			} else {
-				currentConfig.DefaultLayout = LayoutDefault
-			}
-			for i, layout := range layoutOrder {
-				if layout == currentConfig.DefaultLayout {
-					currentLayoutNum = i
-					break
-				}
-			}
-		} else {
-			lastActiveLayout = currentConfig.DefaultLayout
-			currentConfig.DefaultLayout = LayoutInfo
-			for i, layout := range layoutOrder {
-				if layout == LayoutInfo {
-					currentLayoutNum = i
-					break
-				}
-			}
-		}
-		applyLayout(currentConfig.DefaultLayout)
-		w, h := ui.TerminalDimensions()
-		drawScreen(w, h)
-		renderMutex.Unlock()
+		toggleInfoLayout()
 	case "b":
-		renderMutex.Lock()
-		cycleBackground()
-		w, h := ui.TerminalDimensions()
-		drawScreen(w, h)
-		renderMutex.Unlock()
+		handleBackgroundCycle()
+	case "f":
+		toggleFreeze()
 	}
 }
 
@@ -206,20 +168,25 @@ func handleIntervalKeys(key string) {
 
 func handleKeyboardEvent(e ui.Event, done chan struct{}) {
 	key := e.ID
-	fakeEvent := ui.Event{Type: ui.KeyboardEvent, ID: key}
+
+	// Delegate to process list events (handles search/modal/navigation)
 	renderMutex.Lock()
-	handleProcessListEvents(fakeEvent)
+	handleProcessListEvents(e)
+
+	if killPending || searchMode {
+		w, h := ui.TerminalDimensions()
+		drawScreen(w, h)
+		renderMutex.Unlock()
+		return
+	}
+
 	ui.Clear()
 	w, h := ui.TerminalDimensions()
-	if w > 2 && h > 2 {
-		ui.Render(mainBlock, grid)
-	} else {
-		ui.Render(mainBlock)
-	}
+	drawScreen(w, h)
 	renderMutex.Unlock()
 
 	switch key {
-	case "q", "<C-c>", "r", "p", "c", "l", "h", "?", "i", "b":
+	case "q", "<C-c>", "r", "p", "c", "l", "h", "?", "i", "b", "f":
 		handleModeKeys(key, done)
 	case "-", "_", "+", "=":
 		handleIntervalKeys(key)
