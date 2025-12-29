@@ -41,6 +41,7 @@ var (
 	memoryUsedHistory                                                       = make([]float64, 100)
 	swapUsedHistory                                                         = make([]float64, 100)
 	cpuUsageHistory                                                         = make([]float64, 100)
+	powerUsageHistory                                                       = make([]float64, 100)
 
 	cpuCoreWidget                 *CPUCoreWidget
 	powerValues                   = make([]float64, 35)

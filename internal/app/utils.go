@@ -19,8 +19,9 @@ func UpdateCachedTerminalDimensions(w, h int) {
 func GetCachedTerminalDimensions() (int, int) {
 	cachedTermMutex.RLock()
 	if cachedTermWidth != 0 && cachedTermHeight != 0 {
-		defer cachedTermMutex.RUnlock()
-		return cachedTermWidth, cachedTermHeight
+		width, height := cachedTermWidth, cachedTermHeight
+		cachedTermMutex.RUnlock()
+		return width, height
 	}
 	cachedTermMutex.RUnlock()
 
