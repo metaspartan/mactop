@@ -9,8 +9,6 @@ import (
 	ui "github.com/metaspartan/gotui/v5"
 	w "github.com/metaspartan/gotui/v5/widgets"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/shirou/gopsutil/v4/disk"
-	"github.com/shirou/gopsutil/v4/net"
 )
 
 var (
@@ -72,8 +70,8 @@ var (
 	cachedTermWidth    int
 	cachedTermHeight   int
 	cachedTermMutex    sync.RWMutex
-	lastNetStats       net.IOCountersStat
-	lastDiskStats      disk.IOCountersStat
+	lastNetStats       NativeNetMetric
+	lastDiskStats      NativeDiskMetric
 	lastNetDiskTime    time.Time
 	netDiskMutex       sync.Mutex
 	killPending        bool

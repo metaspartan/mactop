@@ -6,8 +6,6 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/shirou/gopsutil/v4/disk"
-	"github.com/shirou/gopsutil/v4/net"
 )
 
 func startPrometheusServer(port string) {
@@ -87,41 +85,46 @@ func getNetDiskMetrics() NetDiskMetrics {
 		elapsed = 1
 	}
 
-	netStats, err := net.IOCounters(false)
-	if err == nil && len(netStats) > 0 {
-		current := netStats[0]
-		if lastNetDiskTime.IsZero() {
-			lastNetStats = current
-		} else {
-			metrics.InBytesPerSec = float64(current.BytesRecv-lastNetStats.BytesRecv) / elapsed
-			metrics.OutBytesPerSec = float64(current.BytesSent-lastNetStats.BytesSent) / elapsed
-			metrics.InPacketsPerSec = float64(current.PacketsRecv-lastNetStats.PacketsRecv) / elapsed
-			metrics.OutPacketsPerSec = float64(current.PacketsSent-lastNetStats.PacketsSent) / elapsed
+	// Native Network Metrics
+	netMap, err := GetNativeNetworkMetrics()
+	if err == nil {
+		var totalNet NativeNetMetric
+		for _, iface := range netMap {
+			totalNet.BytesRecv += iface.BytesRecv
+			totalNet.BytesSent += iface.BytesSent
+			totalNet.PacketsRecv += iface.PacketsRecv
+			totalNet.PacketsSent += iface.PacketsSent
 		}
-		lastNetStats = current
+
+		if lastNetDiskTime.IsZero() {
+			lastNetStats = totalNet
+		} else {
+			metrics.InBytesPerSec = float64(totalNet.BytesRecv-lastNetStats.BytesRecv) / elapsed
+			metrics.OutBytesPerSec = float64(totalNet.BytesSent-lastNetStats.BytesSent) / elapsed
+			metrics.InPacketsPerSec = float64(totalNet.PacketsRecv-lastNetStats.PacketsRecv) / elapsed
+			metrics.OutPacketsPerSec = float64(totalNet.PacketsSent-lastNetStats.PacketsSent) / elapsed
+		}
+		lastNetStats = totalNet
 	}
 
-	diskStats, err := disk.IOCounters()
+	// Native Disk Metrics
+	diskMap, err := GetNativeDiskMetrics()
 	if err == nil {
-		var totalReadBytes, totalWriteBytes, totalReadOps, totalWriteOps uint64
-		for _, d := range diskStats {
-			totalReadBytes += d.ReadBytes
-			totalWriteBytes += d.WriteBytes
-			totalReadOps += d.ReadCount
-			totalWriteOps += d.WriteCount
+		var totalDisk NativeDiskMetric
+		for _, d := range diskMap {
+			totalDisk.ReadBytes += d.ReadBytes
+			totalDisk.WriteBytes += d.WriteBytes
+			totalDisk.ReadOps += d.ReadOps
+			totalDisk.WriteOps += d.WriteOps
 		}
+
 		if !lastNetDiskTime.IsZero() {
-			metrics.ReadKBytesPerSec = float64(totalReadBytes-lastDiskStats.ReadBytes) / elapsed / 1024
-			metrics.WriteKBytesPerSec = float64(totalWriteBytes-lastDiskStats.WriteBytes) / elapsed / 1024
-			metrics.ReadOpsPerSec = float64(totalReadOps-lastDiskStats.ReadCount) / elapsed
-			metrics.WriteOpsPerSec = float64(totalWriteOps-lastDiskStats.WriteCount) / elapsed
+			metrics.ReadKBytesPerSec = float64(totalDisk.ReadBytes-lastDiskStats.ReadBytes) / elapsed / 1024
+			metrics.WriteKBytesPerSec = float64(totalDisk.WriteBytes-lastDiskStats.WriteBytes) / elapsed / 1024
+			metrics.ReadOpsPerSec = float64(totalDisk.ReadOps-lastDiskStats.ReadOps) / elapsed
+			metrics.WriteOpsPerSec = float64(totalDisk.WriteOps-lastDiskStats.WriteOps) / elapsed
 		}
-		lastDiskStats = disk.IOCountersStat{
-			ReadBytes:  totalReadBytes,
-			WriteBytes: totalWriteBytes,
-			ReadCount:  totalReadOps,
-			WriteCount: totalWriteOps,
-		}
+		lastDiskStats = totalDisk
 	}
 
 	networkSpeed.With(prometheus.Labels{"direction": "upload"}).Set(metrics.OutBytesPerSec)

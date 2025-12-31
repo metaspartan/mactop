@@ -13,8 +13,6 @@ import (
 	"strings"
 	"syscall"
 	"unsafe"
-
-	"github.com/shirou/gopsutil/v4/disk"
 )
 
 type VolumeInfo struct {
@@ -27,7 +25,7 @@ type VolumeInfo struct {
 
 func getVolumes() []VolumeInfo {
 	var volumes []VolumeInfo
-	partitions, err := disk.Partitions(false)
+	partitions, err := GetNativePartitions(false)
 	if err != nil {
 		return volumes
 	}
@@ -61,7 +59,7 @@ func getVolumes() []VolumeInfo {
 		if excluded {
 			continue
 		}
-		usage, err := disk.Usage(p.Mountpoint)
+		usage, err := GetNativeDiskUsage(p.Mountpoint)
 		if err != nil || usage.Total == 0 {
 			continue
 		}

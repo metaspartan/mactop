@@ -6,11 +6,10 @@ import (
 	"strings"
 
 	ui "github.com/metaspartan/gotui/v5"
-	"github.com/shirou/gopsutil/v4/host"
 )
 
 func buildInfoLines(themeColor string) []string {
-	uptimeSeconds, _ := host.Uptime()
+	uptimeSeconds, _ := GetNativeUptime()
 	uptimeStr := formatTime(float64(uptimeSeconds))
 
 	appleSiliconModel := cachedSystemInfo
