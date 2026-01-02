@@ -246,7 +246,11 @@ func collectProcessMetrics(done chan struct{}, processMetricsChan chan []Process
 		case <-done:
 			return
 		case <-triggerChan:
-			if processes, err := getProcessList(); err == nil {
+			renderMutex.Lock()
+			sysPct := lastGPUMetrics.ActivePercent
+			renderMutex.Unlock()
+
+			if processes, err := getProcessList(sysPct); err == nil {
 				processMetricsChan <- processes
 			} else {
 				stderrLogger.Printf("Error getting process list: %v\n", err)

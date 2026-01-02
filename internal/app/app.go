@@ -502,7 +502,7 @@ func Run() {
 	cpuMetricsChan <- cpuMetrics
 	gpuMetricsChan <- gpuMetrics
 
-	if processes, err := getProcessList(); err == nil {
+	if processes, err := getProcessList(0.0); err == nil {
 		processMetricsChan <- processes
 	}
 

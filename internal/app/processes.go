@@ -154,7 +154,7 @@ func processOsProc(kp C.struct_kinfo_proc, now time.Time, prevProcessTimes map[i
 	return pm, pid, newState, true
 }
 
-func getProcessList() ([]ProcessMetrics, error) {
+func getProcessList(systemGpuPercent float64) ([]ProcessMetrics, error) {
 	mib := []C.int{C.CTL_KERN, C.KERN_PROC, C.KERN_PROC_ALL}
 	var size C.size_t
 
@@ -203,7 +203,7 @@ func getProcessList() ([]ProcessMetrics, error) {
 
 	prevProcessTimes = nextProcessTimes
 
-	updateProcessGPUMetrics(processes, now)
+	updateProcessGPUMetrics(processes, now, systemGpuPercent)
 
 	sort.Slice(processes, func(i, j int) bool {
 		return processes[i].CPU > processes[j].CPU
@@ -217,7 +217,7 @@ func getProcessList() ([]ProcessMetrics, error) {
 }
 
 // updateProcessGPUMetrics calculates per-process GPU usage and updates process metrics
-func updateProcessGPUMetrics(processes []ProcessMetrics, now time.Time) {
+func updateProcessGPUMetrics(processes []ProcessMetrics, now time.Time, systemGpuPercent float64) {
 	gpuProcessStatsMutex.Lock()
 	defer gpuProcessStatsMutex.Unlock()
 
@@ -239,10 +239,6 @@ func updateProcessGPUMetrics(processes []ProcessMetrics, now time.Time) {
 			}
 		}
 	}
-
-	renderMutex.Lock()
-	systemGpuPercent := lastGPUMetrics.ActivePercent
-	renderMutex.Unlock()
 
 	rawTotalPercent := totalRawGpuMs / 10.0
 
@@ -679,10 +675,9 @@ func handleKillPending(e ui.Event) {
 func executeKill() {
 	if err := syscall.Kill(killPID, syscall.SIGTERM); err == nil {
 		stderrLogger.Printf("Sent SIGTERM to PID %d\n", killPID)
-		// Immediately refresh process list to reflect changes
-		if procs, err := getProcessList(); err == nil {
+
+		if procs, err := getProcessList(lastGPUMetrics.ActivePercent); err == nil {
 			lastProcesses = procs
-			// If searching, re-filter against new list
 			if searchMode || searchText != "" {
 				updateFilteredProcesses()
 			}
