@@ -5,7 +5,34 @@ import (
 	"os"
 	"strings"
 	"syscall"
+
+	ui "github.com/metaspartan/gotui/v5"
 )
+
+func UpdateCachedTerminalDimensions(w, h int) {
+	cachedTermMutex.Lock()
+	defer cachedTermMutex.Unlock()
+	cachedTermWidth = w
+	cachedTermHeight = h
+}
+
+func GetCachedTerminalDimensions() (int, int) {
+	cachedTermMutex.RLock()
+	if cachedTermWidth != 0 && cachedTermHeight != 0 {
+		width, height := cachedTermWidth, cachedTermHeight
+		cachedTermMutex.RUnlock()
+		return width, height
+	}
+	cachedTermMutex.RUnlock()
+
+	// Fallback or lazy init
+	w, h := ui.TerminalDimensions()
+	cachedTermMutex.Lock()
+	cachedTermWidth = w
+	cachedTermHeight = h
+	cachedTermMutex.Unlock()
+	return w, h
+}
 
 func StderrToLogfile(logfile *os.File) {
 	syscall.Dup2(int(logfile.Fd()), 2)

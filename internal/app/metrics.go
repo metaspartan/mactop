@@ -6,9 +6,6 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/shirou/gopsutil/v4/disk"
-	"github.com/shirou/gopsutil/v4/mem"
-	"github.com/shirou/gopsutil/v4/net"
 )
 
 func startPrometheusServer(port string) {
@@ -88,41 +85,46 @@ func getNetDiskMetrics() NetDiskMetrics {
 		elapsed = 1
 	}
 
-	netStats, err := net.IOCounters(false)
-	if err == nil && len(netStats) > 0 {
-		current := netStats[0]
-		if lastNetDiskTime.IsZero() {
-			lastNetStats = current
-		} else {
-			metrics.InBytesPerSec = float64(current.BytesRecv-lastNetStats.BytesRecv) / elapsed
-			metrics.OutBytesPerSec = float64(current.BytesSent-lastNetStats.BytesSent) / elapsed
-			metrics.InPacketsPerSec = float64(current.PacketsRecv-lastNetStats.PacketsRecv) / elapsed
-			metrics.OutPacketsPerSec = float64(current.PacketsSent-lastNetStats.PacketsSent) / elapsed
+	// Native Network Metrics
+	netMap, err := GetNativeNetworkMetrics()
+	if err == nil {
+		var totalNet NativeNetMetric
+		for _, iface := range netMap {
+			totalNet.BytesRecv += iface.BytesRecv
+			totalNet.BytesSent += iface.BytesSent
+			totalNet.PacketsRecv += iface.PacketsRecv
+			totalNet.PacketsSent += iface.PacketsSent
 		}
-		lastNetStats = current
+
+		if lastNetDiskTime.IsZero() {
+			lastNetStats = totalNet
+		} else {
+			metrics.InBytesPerSec = float64(totalNet.BytesRecv-lastNetStats.BytesRecv) / elapsed
+			metrics.OutBytesPerSec = float64(totalNet.BytesSent-lastNetStats.BytesSent) / elapsed
+			metrics.InPacketsPerSec = float64(totalNet.PacketsRecv-lastNetStats.PacketsRecv) / elapsed
+			metrics.OutPacketsPerSec = float64(totalNet.PacketsSent-lastNetStats.PacketsSent) / elapsed
+		}
+		lastNetStats = totalNet
 	}
 
-	diskStats, err := disk.IOCounters()
+	// Native Disk Metrics
+	diskMap, err := GetNativeDiskMetrics()
 	if err == nil {
-		var totalReadBytes, totalWriteBytes, totalReadOps, totalWriteOps uint64
-		for _, d := range diskStats {
-			totalReadBytes += d.ReadBytes
-			totalWriteBytes += d.WriteBytes
-			totalReadOps += d.ReadCount
-			totalWriteOps += d.WriteCount
+		var totalDisk NativeDiskMetric
+		for _, d := range diskMap {
+			totalDisk.ReadBytes += d.ReadBytes
+			totalDisk.WriteBytes += d.WriteBytes
+			totalDisk.ReadOps += d.ReadOps
+			totalDisk.WriteOps += d.WriteOps
 		}
+
 		if !lastNetDiskTime.IsZero() {
-			metrics.ReadKBytesPerSec = float64(totalReadBytes-lastDiskStats.ReadBytes) / elapsed / 1024
-			metrics.WriteKBytesPerSec = float64(totalWriteBytes-lastDiskStats.WriteBytes) / elapsed / 1024
-			metrics.ReadOpsPerSec = float64(totalReadOps-lastDiskStats.ReadCount) / elapsed
-			metrics.WriteOpsPerSec = float64(totalWriteOps-lastDiskStats.WriteCount) / elapsed
+			metrics.ReadKBytesPerSec = float64(totalDisk.ReadBytes-lastDiskStats.ReadBytes) / elapsed / 1024
+			metrics.WriteKBytesPerSec = float64(totalDisk.WriteBytes-lastDiskStats.WriteBytes) / elapsed / 1024
+			metrics.ReadOpsPerSec = float64(totalDisk.ReadOps-lastDiskStats.ReadOps) / elapsed
+			metrics.WriteOpsPerSec = float64(totalDisk.WriteOps-lastDiskStats.WriteOps) / elapsed
 		}
-		lastDiskStats = disk.IOCountersStat{
-			ReadBytes:  totalReadBytes,
-			WriteBytes: totalWriteBytes,
-			ReadCount:  totalReadOps,
-			WriteCount: totalWriteOps,
-		}
+		lastDiskStats = totalDisk
 	}
 
 	networkSpeed.With(prometheus.Labels{"direction": "upload"}).Set(metrics.OutBytesPerSec)
@@ -159,7 +161,7 @@ func collectNetDiskMetrics(done chan struct{}, netdiskMetricsChan chan NetDiskMe
 	}
 }
 
-func collectMetrics(done chan struct{}, cpumetricsChan chan CPUMetrics, gpumetricsChan chan GPUMetrics, tbNetStatsChan chan []ThunderboltNetStats) {
+func collectMetrics(done chan struct{}, cpumetricsChan chan CPUMetrics, gpumetricsChan chan GPUMetrics, tbNetStatsChan chan []ThunderboltNetStats, triggerProcessCollectionChan chan struct{}) {
 	for {
 		start := time.Now()
 
@@ -182,16 +184,20 @@ func collectMetrics(done chan struct{}, cpumetricsChan chan CPUMetrics, gpumetri
 		}
 
 		cpuMetrics := CPUMetrics{
-			CPUW:      m.CPUPower,
-			GPUW:      m.GPUPower,
-			ANEW:      m.ANEPower,
-			DRAMW:     m.DRAMPower,
-			GPUSRAMW:  m.GPUSRAMPower,
-			SystemW:   systemResidual,
-			PackageW:  totalPower,
-			Throttled: throttled,
-			CPUTemp:   float64(m.CPUTemp),
-			GPUTemp:   float64(m.GPUTemp),
+			CPUW:            m.CPUPower,
+			GPUW:            m.GPUPower,
+			ANEW:            m.ANEPower,
+			DRAMW:           m.DRAMPower,
+			GPUSRAMW:        m.GPUSRAMPower,
+			SystemW:         systemResidual,
+			PackageW:        totalPower,
+			Throttled:       throttled,
+			CPUTemp:         float64(m.CPUTemp),
+			GPUTemp:         float64(m.GPUTemp),
+			EClusterActive:  int(m.EClusterActive),
+			PClusterActive:  int(m.PClusterActive),
+			EClusterFreqMHz: int(m.EClusterFreqMHz),
+			PClusterFreqMHz: int(m.PClusterFreqMHz),
 		}
 
 		gpuMetrics := GPUMetrics{
@@ -218,6 +224,11 @@ func collectMetrics(done chan struct{}, cpumetricsChan chan CPUMetrics, gpumetri
 		default:
 		}
 
+		select {
+		case triggerProcessCollectionChan <- struct{}{}:
+		default:
+		}
+
 		elapsed := time.Since(start)
 		sleepTime := time.Duration(updateInterval)*time.Millisecond - elapsed
 		if sleepTime > 0 {
@@ -229,42 +240,36 @@ func collectMetrics(done chan struct{}, cpumetricsChan chan CPUMetrics, gpumetri
 	}
 }
 
-func collectProcessMetrics(done chan struct{}, processMetricsChan chan []ProcessMetrics) {
+func collectProcessMetrics(done chan struct{}, processMetricsChan chan []ProcessMetrics, triggerChan chan struct{}) {
 	for {
-		start := time.Now()
-
 		select {
 		case <-done:
 			return
-		default:
-			if processes, err := getProcessList(); err == nil {
+		case <-triggerChan:
+			renderMutex.Lock()
+			sysPct := lastGPUMetrics.ActivePercent
+			renderMutex.Unlock()
+
+			if processes, err := getProcessList(sysPct); err == nil {
 				processMetricsChan <- processes
 			} else {
 				stderrLogger.Printf("Error getting process list: %v\n", err)
 			}
 		}
-
-		elapsed := time.Since(start)
-		sleepTime := time.Duration(updateInterval)*time.Millisecond - elapsed
-		if sleepTime > 0 {
-			time.Sleep(sleepTime)
-		}
 	}
 }
 
 func getMemoryMetrics() MemoryMetrics {
-	v, _ := mem.VirtualMemory()
-	s, _ := mem.SwapMemory()
-	totalMemory := v.Total
-	usedMemory := v.Used
-	availableMemory := v.Available
-	swapTotal := s.Total
-	swapUsed := s.Used
+	native, err := GetNativeMemoryMetrics()
+	if err != nil {
+		stderrLogger.Printf("Error getting native memory metrics: %v\n", err)
+		return MemoryMetrics{}
+	}
 	return MemoryMetrics{
-		Total:     totalMemory,
-		Used:      usedMemory,
-		Available: availableMemory,
-		SwapTotal: swapTotal,
-		SwapUsed:  swapUsed,
+		Total:     native.Total,
+		Used:      native.Used,
+		Available: native.Available,
+		SwapTotal: native.SwapTotal,
+		SwapUsed:  native.SwapUsed,
 	}
 }

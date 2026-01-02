@@ -293,11 +293,24 @@ func applyThemeToSparklines(color ui.Color) {
 	}
 }
 
+func applyThemeToStepCharts(color ui.Color) {
+	stepCharts := []*w.StepChart{gpuHistoryChart, powerHistoryChart, memoryHistoryChart, cpuHistoryChart}
+	for _, sc := range stepCharts {
+		if sc != nil {
+			sc.BorderStyle.Fg = color
+			sc.BorderStyle.Bg = CurrentBgColor
+			sc.TitleStyle.Fg = color
+			sc.TitleStyle.Bg = CurrentBgColor
+			sc.LineColors = []ui.Color{color}
+		}
+	}
+}
+
 func applyThemeToWidgets(color ui.Color, lightMode bool) {
 	if processList != nil {
 		processList.TextStyle = ui.NewStyle(color, CurrentBgColor)
-		selectedFg := ui.ColorBlack
-		if lightMode && color == ui.ColorBlack {
+		selectedFg := ui.NewRGBColor(2, 2, 2)
+		if lightMode && color == ui.NewRGBColor(2, 2, 2) {
 			selectedFg = ui.ColorWhite
 		}
 		processList.SelectedStyle = ui.NewStyle(selectedFg, color)
@@ -377,10 +390,10 @@ func applyTheme(colorName string, lightMode bool) {
 	currentConfig.Theme = colorName
 
 	if lightMode {
-		BracketColor = ui.ColorBlack
-		SecondaryTextColor = ui.ColorBlack
+		BracketColor = ui.NewRGBColor(2, 2, 2)
+		SecondaryTextColor = ui.NewRGBColor(2, 2, 2)
 		if color == ui.ColorWhite {
-			color = ui.ColorBlack
+			color = ui.NewRGBColor(2, 2, 2)
 		}
 	} else {
 		BracketColor = ui.ColorWhite
@@ -418,6 +431,7 @@ func applyTheme(colorName string, lightMode bool) {
 
 		applyCatppuccinThemeToGauges(catppuccinPalette)
 		applyThemeToSparklines(primaryColor)
+		applyThemeToStepCharts(primaryColor)
 		applyThemeToWidgets(primaryColor, lightMode)
 
 		if mainBlock != nil {
@@ -439,6 +453,7 @@ func applyTheme(colorName string, lightMode bool) {
 		applyThemeToGauges(color)
 	}
 	applyThemeToSparklines(color)
+	applyThemeToStepCharts(color)
 	applyThemeToWidgets(color, lightMode)
 }
 
@@ -453,7 +468,7 @@ func GetThemeColor(colorName string) ui.Color {
 func GetThemeColorWithLightMode(colorName string, lightMode bool) ui.Color {
 	color := GetThemeColor(colorName)
 	if lightMode && color == ui.ColorWhite {
-		return ui.ColorBlack
+		return ui.NewRGBColor(2, 2, 2)
 	}
 	return color
 }
@@ -491,8 +506,8 @@ func GetProcessTextColor(isCurrentUser bool) string {
 	if IsLightMode {
 		if isCurrentUser {
 			color := GetThemeColorWithLightMode(currentConfig.Theme, true)
-			if color == ui.ColorBlack {
-				return "black"
+			if color == ui.NewRGBColor(2, 2, 2) {
+				return "#020202"
 			}
 			if IsCatppuccinTheme(currentConfig.Theme) {
 				return GetCatppuccinHex(currentConfig.Theme, "Text")
@@ -583,6 +598,7 @@ func applyBackground(bgName string) {
 	applyBackgroundToGauges(bgColor)
 	applyBackgroundToParagraphs(bgColor)
 	applyBackgroundToSparklines(bgColor)
+	applyBackgroundToStepCharts(bgColor)
 }
 
 func applyBackgroundToBlocks(bgColor ui.Color) {
@@ -645,6 +661,17 @@ func applyBackgroundToSparklines(bgColor ui.Color) {
 			g.BackgroundColor = bgColor
 			g.BorderStyle.Bg = bgColor
 			g.TitleStyle.Bg = bgColor
+		}
+	}
+}
+
+func applyBackgroundToStepCharts(bgColor ui.Color) {
+	stepCharts := []*w.StepChart{gpuHistoryChart, powerHistoryChart, memoryHistoryChart, cpuHistoryChart}
+	for _, sc := range stepCharts {
+		if sc != nil {
+			sc.BackgroundColor = bgColor
+			sc.BorderStyle.Bg = bgColor
+			sc.TitleStyle.Bg = bgColor
 		}
 	}
 }

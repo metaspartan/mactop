@@ -19,13 +19,15 @@ const (
 	LayoutSmall           = "small"
 	LayoutNetworkIO       = "network_io"
 	LayoutInfo            = "info"
-	LayoutTiny            = "tiny"  // Compact layout with abbreviated stats + mini process list
-	LayoutMicro           = "micro" // Ultra-compact gauges + sparklines, no process list
-	LayoutNano            = "nano"  // Dense info panel + small gauges + mini process list
-	LayoutPico            = "pico"  // Maximum density with 2x2 gauges + sparklines
+	LayoutTiny            = "tiny"         // Compact layout with abbreviated stats + mini process list
+	LayoutMicro           = "micro"        // Ultra-compact gauges + sparklines, no process list
+	LayoutNano            = "nano"         // Dense info panel + small gauges + mini process list
+	LayoutPico            = "pico"         // Maximum density with 2x2 gauges + sparklines
+	LayoutHistory         = "history"      // StepChart history for GPU, Power, and Memory
+	LayoutHistoryFull     = "history_full" // StepChart history including CPU
 )
 
-var layoutOrder = []string{LayoutDefault, LayoutAlternative, LayoutAlternativeFull, LayoutVertical, LayoutCompact, LayoutDashboard, LayoutGaugesOnly, LayoutGPUFocus, LayoutCPUFocus, LayoutNetworkIO, LayoutSmall, LayoutTiny, LayoutMicro, LayoutNano, LayoutPico}
+var layoutOrder = []string{LayoutDefault, LayoutAlternative, LayoutAlternativeFull, LayoutVertical, LayoutCompact, LayoutDashboard, LayoutGaugesOnly, LayoutGPUFocus, LayoutCPUFocus, LayoutNetworkIO, LayoutSmall, LayoutTiny, LayoutMicro, LayoutNano, LayoutPico, LayoutHistory, LayoutHistoryFull}
 
 func setupGrid() {
 	totalLayouts = len(layoutOrder)
@@ -252,6 +254,33 @@ func setLayoutGrid(layoutName string) {
 		grid.Set(
 			ui.NewRow(1.0,
 				ui.NewCol(1.0, infoParagraph),
+			),
+		)
+	case LayoutHistory:
+		grid.Set(
+			ui.NewRow(1.0/3,
+				ui.NewCol(1.0, gpuHistoryChart),
+			),
+			ui.NewRow(1.0/3,
+				ui.NewCol(1.0/2, powerHistoryChart),
+				ui.NewCol(1.0/2, memoryHistoryChart),
+			),
+			ui.NewRow(1.0/3,
+				ui.NewCol(1.0, processList),
+			),
+		)
+	case LayoutHistoryFull:
+		grid.Set(
+			ui.NewRow(1.0/3,
+				ui.NewCol(1.0/2, cpuHistoryChart),
+				ui.NewCol(1.0/2, gpuHistoryChart),
+			),
+			ui.NewRow(1.0/3,
+				ui.NewCol(1.0/2, powerHistoryChart),
+				ui.NewCol(1.0/2, memoryHistoryChart),
+			),
+			ui.NewRow(1.0/3,
+				ui.NewCol(1.0, processList),
 			),
 		)
 	default: // LayoutDefault

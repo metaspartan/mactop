@@ -20,7 +20,6 @@ func startBackgroundUpdates(done chan struct{}) {
 					lastCPUMetrics = cpuMetrics
 					updateCPUUI(cpuMetrics)
 					updateTotalPowerChart(cpuMetrics.PackageW)
-					updateInfoUI()
 					renderMutex.Unlock()
 				default:
 				}
@@ -29,7 +28,6 @@ func startBackgroundUpdates(done chan struct{}) {
 					renderMutex.Lock()
 					lastGPUMetrics = gpuMetrics
 					updateGPUUI(gpuMetrics)
-					updateInfoUI()
 					renderMutex.Unlock()
 				default:
 				}
@@ -37,7 +35,6 @@ func startBackgroundUpdates(done chan struct{}) {
 				case tbNetStats := <-tbNetStatsChan:
 					renderMutex.Lock()
 					updateTBNetUI(tbNetStats)
-					updateInfoUI()
 					renderMutex.Unlock()
 				default:
 				}
@@ -46,7 +43,6 @@ func startBackgroundUpdates(done chan struct{}) {
 					renderMutex.Lock()
 					lastNetDiskMetrics = netdiskMetrics
 					updateNetDiskUI(netdiskMetrics)
-					updateInfoUI()
 					renderMutex.Unlock()
 				default:
 				}
@@ -63,6 +59,10 @@ func startBackgroundUpdates(done chan struct{}) {
 					renderMutex.Unlock()
 				default:
 				}
+				// Update info UI once per cycle instead of multiple times
+				renderMutex.Lock()
+				updateInfoUI()
+				renderMutex.Unlock()
 				renderUI()
 
 			}
@@ -101,6 +101,7 @@ func drawScreen(w, h int) {
 func handleResizeEvent(e ui.Event) {
 	payload := e.Payload.(ui.Resize)
 	w, h := payload.Width, payload.Height
+	UpdateCachedTerminalDimensions(w, h)
 	renderMutex.Lock()
 	updateLayout(w, h)
 	drawScreen(w, h)
@@ -115,6 +116,7 @@ func handleModeKeys(key string, done chan struct{}) {
 		os.Exit(0)
 	case "r":
 		w, h := ui.TerminalDimensions()
+		UpdateCachedTerminalDimensions(w, h)
 		renderMutex.Lock()
 		updateLayout(w, h)
 		drawScreen(w, h)
@@ -174,14 +176,14 @@ func handleKeyboardEvent(e ui.Event, done chan struct{}) {
 	handleProcessListEvents(e)
 
 	if killPending || searchMode {
-		w, h := ui.TerminalDimensions()
+		w, h := GetCachedTerminalDimensions()
 		drawScreen(w, h)
 		renderMutex.Unlock()
 		return
 	}
 
 	ui.Clear()
-	w, h := ui.TerminalDimensions()
+	w, h := GetCachedTerminalDimensions()
 	drawScreen(w, h)
 	renderMutex.Unlock()
 
@@ -233,7 +235,7 @@ func handleGenericMouseEvent(e ui.Event) {
 	}
 
 	handleProcessListEvents(e)
-	w, h := ui.TerminalDimensions()
+	w, h := GetCachedTerminalDimensions()
 	drawScreen(w, h)
 	renderMutex.Unlock()
 }

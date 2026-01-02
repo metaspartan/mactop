@@ -68,9 +68,82 @@ static CFMutableDictionaryRef g_channels = NULL;
 static io_connect_t g_smcConn = 0;
 static uint32_t g_gpu_freqs[64];
 static int g_gpu_freq_count = 0;
+static uint32_t g_ecpu_freqs[64];
+static int g_ecpu_freq_count = 0;
+static uint32_t g_pcpu_freqs[64];
+static int g_pcpu_freq_count = 0;
 
 static int cfStringStartsWith(CFStringRef str, const char *prefix);
 static void loadSMCTempKeys();
+
+static void parseFreqData(CFDataRef data, uint32_t *outFreqs, int *outCount) {
+  if (data == NULL)
+    return;
+  CFIndex len = CFDataGetLength(data);
+  const uint8_t *bytes = CFDataGetBytePtr(data);
+  int totalEntries = (int)(len / 8);
+
+  *outCount = 0;
+  for (int i = 0; i < totalEntries; i++) {
+    uint32_t freq = 0;
+    memcpy(&freq, bytes + (i * 8), 4);
+    uint32_t freqMHz = freq / 1000000;
+    if (freqMHz > 0 && *outCount < 64) {
+      outFreqs[(*outCount)++] = freqMHz;
+    }
+  }
+}
+
+static void loadCpuFrequencies() {
+  if (g_ecpu_freq_count > 0 && g_pcpu_freq_count > 0)
+    return;
+
+  io_iterator_t iterator;
+  io_object_t entry;
+
+  CFMutableDictionaryRef matching = IOServiceMatching("AppleARMIODevice");
+  if (IOServiceGetMatchingServices(kIOMainPortDefault, matching, &iterator) !=
+      kIOReturnSuccess)
+    return;
+
+  while ((entry = IOIteratorNext(iterator)) != 0) {
+    io_name_t name;
+    IORegistryEntryGetName(entry, name);
+
+    if (strcmp(name, "pmgr") == 0) {
+      CFMutableDictionaryRef properties = NULL;
+      if (IORegistryEntryCreateCFProperties(
+              entry, &properties, kCFAllocatorDefault, 0) == kIOReturnSuccess) {
+
+        CFDataRef eData = (CFDataRef)CFDictionaryGetValue(
+            properties, CFSTR("voltage-states1-sram"));
+        if (eData != NULL) {
+          parseFreqData(eData, g_ecpu_freqs, &g_ecpu_freq_count);
+        }
+
+        CFDataRef pData = (CFDataRef)CFDictionaryGetValue(
+            properties, CFSTR("voltage-states5-sram"));
+        if (pData != NULL) {
+          parseFreqData(pData, g_pcpu_freqs, &g_pcpu_freq_count);
+        } else {
+          // Try alternate for P-Cluster if 5 is missing (unlikely on M1/M2, but
+          // safe)
+          pData = (CFDataRef)CFDictionaryGetValue(
+              properties, CFSTR("voltage-states-sram")); // fallback?
+          if (pData != NULL) {
+            parseFreqData(pData, g_pcpu_freqs, &g_pcpu_freq_count);
+          }
+        }
+
+        CFRelease(properties);
+      }
+    }
+    IOObjectRelease(entry);
+    if (g_ecpu_freq_count > 0 && g_pcpu_freq_count > 0)
+      break;
+  }
+  IOObjectRelease(iterator);
+}
 
 static void loadGpuFrequencies() {
   if (g_gpu_freq_count > 0)
@@ -197,6 +270,13 @@ int initIOReport() {
     CFRelease(gpuChan);
   }
 
+  CFDictionaryRef cpuChan =
+      IOReportCopyChannelsInGroup(cpuGroup, NULL, 0, 0, 0);
+  if (cpuChan != NULL) {
+    IOReportMergeChannels(energyChan, cpuChan, NULL);
+    CFRelease(cpuChan);
+  }
+
   CFIndex size = CFDictionaryGetCount(energyChan);
   g_channels =
       CFDictionaryCreateMutableCopy(kCFAllocatorDefault, size, energyChan);
@@ -217,6 +297,7 @@ int initIOReport() {
   }
 
   loadGpuFrequencies();
+  loadCpuFrequencies();
 
   g_smcConn = SMCOpen();
   loadSMCTempKeys();
@@ -343,6 +424,10 @@ typedef struct {
   double systemPower;
   int gpuFreqMHz;
   double gpuActive;
+  double eClusterActive;
+  double pClusterActive;
+  int eClusterFreqMHz;
+  int pClusterFreqMHz;
   float socTemp;
   float cpuTemp;
   float gpuTemp;
@@ -569,7 +654,7 @@ static float readSocTemperature(float *outCpuTemp, float *outGpuTemp) {
 }
 
 PowerMetrics samplePowerMetrics(int durationMs) {
-  PowerMetrics metrics = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+  PowerMetrics metrics = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
   if (g_subscription == NULL || g_channels == NULL) {
     if (initIOReport() != 0) {
@@ -669,6 +754,92 @@ PowerMetrics samplePowerMetrics(int durationMs) {
           }
         }
       }
+    } else if (cfStringMatch(groupRef, "CPU Stats")) {
+      CFStringRef subgroupRef = IOReportChannelGetSubGroup(item);
+      if (subgroupRef != NULL &&
+          cfStringMatch(subgroupRef, "CPU Complex Performance States")) {
+
+        // E-Cluster (usually CPU0 or ECPU)
+        int isECluster = cfStringContains(channelRef, "ECPU") ||
+                         cfStringContains(channelRef, "CPU0");
+        int isPCluster = cfStringContains(channelRef, "PCPU") ||
+                         cfStringContains(channelRef, "CPU1");
+
+        if (isECluster || isPCluster) {
+          int32_t stateCount = IOReportStateGetCount(item);
+          int64_t totalTime = 0;
+          int64_t activeTime = 0;
+          double weightedFreq = 0;
+
+          for (int32_t s = 0; s < stateCount; s++) {
+            int64_t residency = IOReportStateGetResidency(item, s);
+            CFStringRef stateName = IOReportStateGetNameForIndex(item, s);
+            totalTime += residency;
+
+            if (stateName != NULL && !cfStringMatch(stateName, "OFF") &&
+                !cfStringMatch(stateName, "IDLE")) {
+
+              activeTime += residency;
+
+              char nameBuf[64] = {0};
+              CFStringGetCString(stateName, nameBuf, sizeof(nameBuf),
+                                 kCFStringEncodingUTF8);
+              // printf("Debug: Cluster State: %s\n", nameBuf);
+
+              int freq = 0;
+
+              // Heuristic for "V#..." format
+              if (nameBuf[0] == 'V') {
+                int vIdx = -1;
+                // Parse index after 'V'
+                if (sscanf(nameBuf, "V%d", &vIdx) == 1 && vIdx >= 0) {
+                  if (isECluster && vIdx < g_ecpu_freq_count) {
+                    freq = g_ecpu_freqs[vIdx];
+                  } else if (isPCluster && vIdx < g_pcpu_freq_count) {
+                    freq = g_pcpu_freqs[vIdx];
+                  }
+                }
+              }
+
+              // Fallback to searching for explicit number in string
+              if (freq == 0) {
+                char *numStart = NULL;
+                for (int c = 0; nameBuf[c]; c++) {
+                  if (nameBuf[c] >= '0' && nameBuf[c] <= '9') {
+                    numStart = &nameBuf[c];
+                    break;
+                  }
+                }
+                if (numStart) {
+                  freq = atoi(numStart);
+                }
+              }
+
+              // Sanity check freq (usually > 300MHz)
+              if (freq > 0) {
+                weightedFreq += (double)freq * residency;
+              }
+            }
+          }
+
+          if (totalTime > 0) {
+            double activePercent =
+                (double)activeTime / (double)totalTime * 100.0;
+            int avgFreq = 0;
+            if (activeTime > 0) {
+              avgFreq = (int)(weightedFreq / activeTime);
+            }
+
+            if (isECluster) {
+              metrics.eClusterActive = activePercent;
+              metrics.eClusterFreqMHz = avgFreq;
+            } else {
+              metrics.pClusterActive = activePercent;
+              metrics.pClusterFreqMHz = avgFreq;
+            }
+          }
+        }
+      }
     }
   }
 
@@ -700,6 +871,4 @@ int getThermalState() {
   return (int)[info thermalState];
 }
 
-void debugMonitorChannels(int durationMs) {
-  (void)durationMs; // Stub for CGO compatibility
-}
+void debugMonitorChannels(int durationMs) { (void)durationMs; }

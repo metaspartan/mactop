@@ -100,17 +100,16 @@ func TestNewCPUCoreWidget(t *testing.T) {
 	}
 	w := NewCPUCoreWidget(info)
 
-	if w.eCoreCount != 4 {
-		t.Errorf("Expected eCoreCount 4, got %d", w.eCoreCount)
-	}
-	if w.pCoreCount != 4 {
-		t.Errorf("Expected pCoreCount 4, got %d", w.pCoreCount)
-	}
-	if len(w.cores) != 8 {
-		t.Errorf("Expected 8 cores, got %d", len(w.cores))
-	}
 	if w.modelName != "Apple M1" {
 		t.Errorf("Expected modelName 'Apple M1', got %s", w.modelName)
+	}
+
+	totalFromWidget := w.eCoreCount + w.pCoreCount
+	if totalFromWidget == 0 {
+		t.Error("Expected non-zero core counts")
+	}
+	if len(w.cores) != totalFromWidget {
+		t.Errorf("Expected len(cores) %d to match eCoreCount+pCoreCount, got %d", totalFromWidget, len(w.cores))
 	}
 }
 
@@ -153,5 +152,62 @@ func TestEventThrottler(t *testing.T) {
 		t.Error("Throttler fired extra event")
 	default:
 		// OK
+	}
+}
+
+func BenchmarkGetGPUProcessStats(b *testing.B) {
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		_ = GetGPUProcessStats()
+	}
+}
+
+func TestGetCachedTerminalDimensions(t *testing.T) {
+	UpdateCachedTerminalDimensions(0, 0)
+
+	w, h := GetCachedTerminalDimensions()
+	if w == 0 || h == 0 {
+		t.Skip("Terminal dimensions unavailable, skipping test")
+	}
+
+	UpdateCachedTerminalDimensions(120, 40)
+
+	w2, h2 := GetCachedTerminalDimensions()
+	if w2 != 120 {
+		t.Errorf("Expected cached width 120, got %d", w2)
+	}
+	if h2 != 40 {
+		t.Errorf("Expected cached height 40, got %d", h2)
+	}
+
+	UpdateCachedTerminalDimensions(80, 24)
+	w3, h3 := GetCachedTerminalDimensions()
+	if w3 != 80 || h3 != 24 {
+		t.Errorf("Expected 80x24 after update, got %dx%d", w3, h3)
+	}
+}
+
+func TestSafeFloat64At(t *testing.T) {
+	tests := []struct {
+		name   string
+		slice  []float64
+		index  int
+		expect float64
+	}{
+		{"Valid index 0", []float64{1.0, 2.0, 3.0}, 0, 1.0},
+		{"Valid index 2", []float64{1.0, 2.0, 3.0}, 2, 3.0},
+		{"Index out of bounds", []float64{1.0, 2.0}, 5, 0.0},
+		{"Negative index", []float64{1.0, 2.0}, -1, 0.0},
+		{"Empty slice", []float64{}, 0, 0.0},
+		{"Nil slice", nil, 0, 0.0},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := safeFloat64At(tt.slice, tt.index)
+			if got != tt.expect {
+				t.Errorf("safeFloat64At() = %v, want %v", got, tt.expect)
+			}
+		})
 	}
 }

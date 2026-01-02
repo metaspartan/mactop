@@ -8,8 +8,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/shirou/gopsutil/v4/net"
 )
 
 // ThunderboltNetStats holds per-interface stats for a Thunderbolt network interface
@@ -25,7 +23,7 @@ type ThunderboltNetStats struct {
 
 var (
 	tbNetMutex          sync.Mutex
-	lastTBNetStats      map[string]net.IOCountersStat
+	lastTBNetStats      map[string]NativeNetMetric
 	lastTBNetUpdateTime time.Time
 	tbBridgeMembers     map[string]bool // Cached bridge member interfaces
 	tbBridgeMembersInit bool
@@ -101,24 +99,24 @@ func GetThunderboltNetStats() []ThunderboltNetStats {
 		elapsed = 1
 	}
 
-	// Get per-interface stats (true = per-interface)
-	stats, err := net.IOCounters(true)
+	// Get per-interface stats
+	statsMap, err := GetNativeNetworkMetrics()
 	if err != nil {
 		return nil
 	}
 
 	var result []ThunderboltNetStats
 
-	currentStats := make(map[string]net.IOCountersStat)
-	for _, stat := range stats {
-		if !isThunderboltInterface(stat.Name) {
+	currentStats := make(map[string]NativeNetMetric)
+	for name, stat := range statsMap {
+		if !isThunderboltInterface(name) {
 			continue
 		}
 
-		currentStats[stat.Name] = stat
+		currentStats[name] = stat
 
 		tbStat := ThunderboltNetStats{
-			InterfaceName: stat.Name,
+			InterfaceName: name,
 			BytesIn:       stat.BytesRecv,
 			BytesOut:      stat.BytesSent,
 			PacketsIn:     stat.PacketsRecv,
@@ -126,7 +124,7 @@ func GetThunderboltNetStats() []ThunderboltNetStats {
 		}
 
 		// Calculate per-second rates if we have previous data
-		if prev, ok := lastTBNetStats[stat.Name]; ok && !lastTBNetUpdateTime.IsZero() {
+		if prev, ok := lastTBNetStats[name]; ok && !lastTBNetUpdateTime.IsZero() {
 			// Check for counter wrap/reset
 			if stat.BytesRecv >= prev.BytesRecv {
 				tbStat.BytesInPerSec = float64(stat.BytesRecv-prev.BytesRecv) / elapsed

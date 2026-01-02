@@ -154,7 +154,7 @@ func processOsProc(kp C.struct_kinfo_proc, now time.Time, prevProcessTimes map[i
 	return pm, pid, newState, true
 }
 
-func getProcessList() ([]ProcessMetrics, error) {
+func getProcessList(systemGpuPercent float64) ([]ProcessMetrics, error) {
 	mib := []C.int{C.CTL_KERN, C.KERN_PROC, C.KERN_PROC_ALL}
 	var size C.size_t
 
@@ -201,8 +201,9 @@ func getProcessList() ([]ProcessMetrics, error) {
 		}
 	}
 
-	// Swap map
 	prevProcessTimes = nextProcessTimes
+
+	updateProcessGPUMetrics(processes, now, systemGpuPercent)
 
 	sort.Slice(processes, func(i, j int) bool {
 		return processes[i].CPU > processes[j].CPU
@@ -213,6 +214,47 @@ func getProcessList() ([]ProcessMetrics, error) {
 	}
 
 	return processes, nil
+}
+
+// updateProcessGPUMetrics calculates per-process GPU usage and updates process metrics
+func updateProcessGPUMetrics(processes []ProcessMetrics, now time.Time, systemGpuPercent float64) {
+	gpuProcessStatsMutex.Lock()
+	defer gpuProcessStatsMutex.Unlock()
+
+	currentGPUStats := GetGPUProcessStats()
+	gpuElapsed := now.Sub(lastGPUProcessStatsTime).Seconds()
+	if gpuElapsed <= 0 {
+		gpuElapsed = 1
+	}
+
+	gpuMsPerSec := make(map[int]float64)
+	var totalRawGpuMs float64
+	if currentGPUStats != nil && lastGPUProcessStats != nil {
+		for pid, currentTime := range currentGPUStats {
+			if prevTime, ok := lastGPUProcessStats[pid]; ok && currentTime >= prevTime {
+				deltaNs := currentTime - prevTime
+				gpuMs := float64(deltaNs) / gpuElapsed / 1_000_000
+				gpuMsPerSec[pid] = gpuMs
+				totalRawGpuMs += gpuMs
+			}
+		}
+	}
+
+	rawTotalPercent := totalRawGpuMs / 10.0
+
+	scaleFactor := 1.0
+	if rawTotalPercent > 0.01 && systemGpuPercent > 0.01 {
+		scaleFactor = systemGpuPercent / rawTotalPercent
+	}
+
+	for i := range processes {
+		if gpuMs, ok := gpuMsPerSec[processes[i].PID]; ok {
+			processes[i].GPU = gpuMs * scaleFactor
+		}
+	}
+
+	lastGPUProcessStats = currentGPUStats
+	lastGPUProcessStatsTime = now
 }
 
 func GetCPUUsage() ([]CPUUsage, error) {
@@ -305,6 +347,9 @@ func sortProcesses(processes []ProcessMetrics) {
 		case "CPU":
 			less = processes[i].CPU > processes[j].CPU // Descending default
 			equal = processes[i].CPU == processes[j].CPU
+		case "GPU":
+			less = processes[i].GPU > processes[j].GPU // Descending default
+			equal = processes[i].GPU == processes[j].GPU
 		case "MEM":
 			less = processes[i].Memory > processes[j].Memory // Descending default
 			equal = processes[i].Memory == processes[j].Memory
@@ -341,6 +386,7 @@ func calculateMaxWidths(availableWidth int) map[string]int {
 		"VIRT": 6,
 		"RES":  6,
 		"CPU":  6,
+		"GPU":  6,
 		"MEM":  5,
 		"TIME": 8,
 		"CMD":  15,
@@ -364,6 +410,19 @@ func buildHeader(maxWidths map[string]int, themeColorStr, selectedHeaderFg strin
 	header := ""
 	for i, col := range columns {
 		width := maxWidths[col]
+
+		// Determine arrow for selected column
+		arrow := ""
+		if i == selectedColumn {
+			arrow = "↓"
+			if sortReverse {
+				arrow = "↑"
+			}
+		}
+
+		// Build column text with arrow included in width
+		colWithArrow := col + arrow
+
 		format := ""
 		switch col {
 		case "PID":
@@ -372,7 +431,7 @@ func buildHeader(maxWidths map[string]int, themeColorStr, selectedHeaderFg strin
 			format = fmt.Sprintf("%%-%ds", width) // Left-align
 		case "VIRT", "RES":
 			format = fmt.Sprintf("%%%ds", width) // Right-align
-		case "CPU", "MEM":
+		case "CPU", "GPU", "MEM":
 			format = fmt.Sprintf("%%%ds", width) // Right-align
 		case "TIME":
 			format = fmt.Sprintf("%%%ds", width) // Right-align
@@ -380,19 +439,11 @@ func buildHeader(maxWidths map[string]int, themeColorStr, selectedHeaderFg strin
 			format = fmt.Sprintf("%%-%ds", width) // Left-align
 		}
 
-		colText := fmt.Sprintf(format, col)
-		if i == selectedColumn {
-			arrow := "↓"
-			if sortReverse {
-				arrow = "↑"
-			}
-			header += fmt.Sprintf("[%s%s](fg:%s,bg:%s,mod:bold)", colText, arrow, selectedHeaderFg, themeColorStr)
-		} else {
-			header += fmt.Sprintf("[%s](fg:%s,bg:%s,mod:bold)", colText, selectedHeaderFg, themeColorStr)
-		}
+		colText := fmt.Sprintf(format, colWithArrow)
+		header += fmt.Sprintf("[%s](fg:%s,bg:%s)", colText, selectedHeaderFg, themeColorStr)
 
 		if i < len(columns)-1 {
-			header += fmt.Sprintf("[%s](fg:%s,bg:%s,mod:bold)", "|", selectedHeaderFg, themeColorStr)
+			header += fmt.Sprintf("[%s](fg:%s,bg:%s)", "|", selectedHeaderFg, themeColorStr)
 		}
 	}
 	return header
@@ -409,13 +460,18 @@ func buildProcessRows(processes []ProcessMetrics, maxWidths map[string]int) []st
 
 		cmdName := p.Command // Already simplified by ps -c
 
-		line := fmt.Sprintf("%*d %-*s %*s %*s %*.1f%% %*.1f%% %*s %-s",
+		// Convert GPU from ms/s to percentage (ms/s / 10 = %)
+		// 1000 ms/s = 100% GPU utilization
+		gpuPercent := p.GPU / 10.0
+
+		line := fmt.Sprintf("%*d %-*s %*s %*s %*.1f%% %*.1f%% %*.1f%% %*s %-s",
 			maxWidths["PID"], p.PID,
 			maxWidths["USER"], username,
 			maxWidths["VIRT"], virtStr,
 			maxWidths["RES"], resStr,
-			maxWidths["CPU"]-1, p.CPU, // -1 for % symbol
-			maxWidths["MEM"]-1, p.Memory, // -1 for % symbol
+			maxWidths["CPU"]-1, p.CPU,
+			maxWidths["GPU"]-1, gpuPercent,
+			maxWidths["MEM"]-1, p.Memory,
 			maxWidths["TIME"], timeStr,
 			truncateWithEllipsis(cmdName, maxWidths["CMD"]),
 		)
@@ -449,7 +505,7 @@ func updateProcessList() {
 
 	themeColorStr, selectedHeaderFg := resolveProcessThemeColor()
 
-	termWidth, _ := ui.TerminalDimensions()
+	termWidth, _ := GetCachedTerminalDimensions()
 	availableWidth := termWidth - 2
 	if availableWidth < 1 {
 		availableWidth = 1
@@ -524,7 +580,7 @@ func updateFilteredProcesses() {
 }
 
 func updateKillModal() {
-	termWidth, termHeight := ui.TerminalDimensions()
+	termWidth, termHeight := GetCachedTerminalDimensions()
 	modalWidth := 50
 	modalHeight := 10 // Slightly taller for the buttons provided by widget
 
@@ -619,10 +675,9 @@ func handleKillPending(e ui.Event) {
 func executeKill() {
 	if err := syscall.Kill(killPID, syscall.SIGTERM); err == nil {
 		stderrLogger.Printf("Sent SIGTERM to PID %d\n", killPID)
-		// Immediately refresh process list to reflect changes
-		if procs, err := getProcessList(); err == nil {
+
+		if procs, err := getProcessList(lastGPUMetrics.ActivePercent); err == nil {
 			lastProcesses = procs
-			// If searching, re-filter against new list
 			if searchMode || searchText != "" {
 				updateFilteredProcesses()
 			}

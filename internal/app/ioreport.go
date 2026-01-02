@@ -50,6 +50,10 @@ typedef struct {
     double systemPower;
     int gpuFreqMHz;
     double gpuActive;
+    double eClusterActive;
+    double pClusterActive;
+    int eClusterFreqMHz;
+    int pClusterFreqMHz;
     float socTemp;
     float cpuTemp;
     float gpuTemp;
@@ -66,18 +70,22 @@ extern void debugMonitorChannels(int durationMs);
 import "C"
 
 type SocMetrics struct {
-	CPUPower     float64 `json:"cpu_power"`
-	GPUPower     float64 `json:"gpu_power"`
-	ANEPower     float64 `json:"ane_power"`
-	DRAMPower    float64 `json:"dram_power"`
-	GPUSRAMPower float64 `json:"gpu_sram_power"`
-	SystemPower  float64 `json:"system_power"`
-	TotalPower   float64 `json:"total_power"`
-	GPUFreqMHz   int32   `json:"gpu_freq_mhz"`
-	GPUActive    float64 `json:"-"`
-	SocTemp      float32 `json:"soc_temp"`
-	CPUTemp      float32 `json:"cpu_temp"`
-	GPUTemp      float32 `json:"gpu_temp"`
+	CPUPower        float64 `json:"cpu_power"`
+	GPUPower        float64 `json:"gpu_power"`
+	ANEPower        float64 `json:"ane_power"`
+	DRAMPower       float64 `json:"dram_power"`
+	GPUSRAMPower    float64 `json:"gpu_sram_power"`
+	SystemPower     float64 `json:"system_power"`
+	TotalPower      float64 `json:"total_power"`
+	GPUFreqMHz      int32   `json:"gpu_freq_mhz"`
+	GPUActive       float64 `json:"-"`
+	EClusterActive  float64 `json:"e_cluster_active"`
+	PClusterActive  float64 `json:"p_cluster_active"`
+	EClusterFreqMHz int32   `json:"e_cluster_freq_mhz"`
+	PClusterFreqMHz int32   `json:"p_cluster_freq_mhz"`
+	SocTemp         float32 `json:"soc_temp"`
+	CPUTemp         float32 `json:"cpu_temp"`
+	GPUTemp         float32 `json:"gpu_temp"`
 }
 
 func initSocMetrics() error {
@@ -90,18 +98,22 @@ func initSocMetrics() error {
 func sampleSocMetrics(durationMs int) SocMetrics {
 	pm := C.samplePowerMetrics(C.int(durationMs))
 	return SocMetrics{
-		CPUPower:     float64(pm.cpuPower),
-		GPUPower:     float64(pm.gpuPower),
-		ANEPower:     float64(pm.anePower),
-		DRAMPower:    float64(pm.dramPower),
-		GPUSRAMPower: float64(pm.gpuSramPower),
-		SystemPower:  float64(pm.systemPower),
-		TotalPower:   float64(pm.cpuPower) + float64(pm.gpuPower) + float64(pm.anePower) + float64(pm.dramPower) + float64(pm.gpuSramPower),
-		GPUFreqMHz:   int32(pm.gpuFreqMHz),
-		GPUActive:    float64(pm.gpuActive),
-		SocTemp:      float32(pm.socTemp),
-		CPUTemp:      float32(pm.cpuTemp),
-		GPUTemp:      float32(pm.gpuTemp),
+		CPUPower:        float64(pm.cpuPower),
+		GPUPower:        float64(pm.gpuPower),
+		ANEPower:        float64(pm.anePower),
+		DRAMPower:       float64(pm.dramPower),
+		GPUSRAMPower:    float64(pm.gpuSramPower),
+		SystemPower:     float64(pm.systemPower),
+		TotalPower:      float64(pm.cpuPower) + float64(pm.gpuPower) + float64(pm.anePower) + float64(pm.dramPower) + float64(pm.gpuSramPower),
+		GPUFreqMHz:      int32(pm.gpuFreqMHz),
+		GPUActive:       float64(pm.gpuActive),
+		EClusterActive:  float64(pm.eClusterActive),
+		PClusterActive:  float64(pm.pClusterActive),
+		EClusterFreqMHz: int32(pm.eClusterFreqMHz),
+		PClusterFreqMHz: int32(pm.pClusterFreqMHz),
+		SocTemp:         float32(pm.socTemp),
+		CPUTemp:         float32(pm.cpuTemp),
+		GPUTemp:         float32(pm.gpuTemp),
 	}
 }
 

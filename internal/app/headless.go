@@ -19,12 +19,21 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+func safeFloat64At(slice []float64, index int) float64 {
+	if index >= 0 && index < len(slice) {
+		return slice[index]
+	}
+	return 0.0
+}
+
 type HeadlessOutput struct {
 	Timestamp             string             `json:"timestamp" yaml:"timestamp" xml:"Timestamp" toon:"timestamp"`
 	SocMetrics            SocMetrics         `json:"soc_metrics" yaml:"soc_metrics" xml:"SocMetrics" toon:"soc_metrics"`
 	Memory                MemoryMetrics      `json:"memory" yaml:"memory" xml:"Memory" toon:"memory"`
 	NetDisk               NetDiskMetrics     `json:"net_disk" yaml:"net_disk" xml:"NetDisk" toon:"net_disk"`
 	CPUUsage              float64            `json:"cpu_usage" yaml:"cpu_usage" xml:"CPUUsage" toon:"cpu_usage"`
+	ECPUUsage             []float64          `json:"ecpu_usage" yaml:"ecpu_usage" xml:"ECPUUsage" toon:"ecpu_usage"`
+	PCPUUsage             []float64          `json:"pcpu_usage" yaml:"pcpu_usage" xml:"PCPUUsage" toon:"pcpu_usage"`
 	GPUUsage              float64            `json:"gpu_usage" yaml:"gpu_usage" xml:"GPUUsage" toon:"gpu_usage"`
 	CoreUsages            []float64          `json:"core_usages" yaml:"core_usages" xml:"CoreUsages" toon:"core_usages"`
 	SystemInfo            SystemInfo         `json:"system_info" yaml:"system_info" xml:"SystemInfo" toon:"system_info"`
@@ -33,8 +42,6 @@ type HeadlessOutput struct {
 	TBNetTotalBytesInSec  float64            `json:"tb_net_total_bytes_in_per_sec" yaml:"tb_net_total_bytes_in_per_sec" xml:"TBNetTotalBytesInSec" toon:"tb_net_total_bytes_in_per_sec"`
 	TBNetTotalBytesOutSec float64            `json:"tb_net_total_bytes_out_per_sec" yaml:"tb_net_total_bytes_out_per_sec" xml:"TBNetTotalBytesOutSec" toon:"tb_net_total_bytes_out_per_sec"`
 	RDMAStatus            RDMAStatus         `json:"rdma_status" yaml:"rdma_status" xml:"RDMAStatus" toon:"rdma_status"`
-	CPUTemp               float32            `json:"cpu_temp" yaml:"cpu_temp" xml:"CPUTemp" toon:"cpu_temp"`
-	GPUTemp               float32            `json:"gpu_temp" yaml:"gpu_temp" xml:"GPUTemp" toon:"gpu_temp"`
 }
 
 func runHeadless(count int) {
@@ -65,8 +72,11 @@ func runHeadless(count int) {
 
 	samplesCollected := 0
 
+	// Cache SystemInfo since it doesn't change
+	cachedHeadlessSysInfo := getSOCInfo()
+
 	// First manual collection
-	if err := processHeadlessSample(format, tbInfo); err != nil {
+	if err := processHeadlessSample(format, tbInfo, cachedHeadlessSysInfo); err != nil {
 		fmt.Fprintf(os.Stderr, "Error formatting output: %v\n", err)
 	}
 	samplesCollected++
@@ -87,7 +97,7 @@ func runHeadless(count int) {
 		case <-ticker.C:
 			printHeadlessSeparator(format, count, samplesCollected)
 
-			if err := processHeadlessSample(format, tbInfo); err != nil {
+			if err := processHeadlessSample(format, tbInfo, cachedHeadlessSysInfo); err != nil {
 				fmt.Fprintf(os.Stderr, "Error formatting output: %v\n", err)
 			}
 
@@ -125,7 +135,7 @@ func printCSVHeader() {
 	headers := []string{
 		"Timestamp",
 		"System_Name", "Core_Count", "E_Core_Count", "P_Core_Count", "GPU_Core_Count",
-		"CPU_Usage", "GPU_Usage",
+		"CPU_Usage", "ECPU_Freq_MHz", "ECPU_Active", "PCPU_Freq_MHz", "PCPU_Active", "GPU_Usage",
 		"Mem_Used", "Mem_Total", "Swap_Used",
 		"Disk_Read_KB", "Disk_Write_KB",
 		"Net_In_Bytes", "Net_Out_Bytes",
@@ -202,8 +212,8 @@ func performHeadlessWarmup() *ThunderboltOutput {
 	return tbInfo
 }
 
-func processHeadlessSample(format string, tbInfo *ThunderboltOutput) error {
-	output := collectHeadlessData(tbInfo)
+func processHeadlessSample(format string, tbInfo *ThunderboltOutput, sysInfo SystemInfo) error {
+	output := collectHeadlessData(tbInfo, sysInfo)
 	var data []byte
 	var err error
 
@@ -239,6 +249,10 @@ func processHeadlessSample(format string, tbInfo *ThunderboltOutput) error {
 			fmt.Sprintf("%d", output.SystemInfo.PCoreCount),
 			fmt.Sprintf("%d", output.SystemInfo.GPUCoreCount),
 			fmt.Sprintf("%.2f", output.CPUUsage),
+			fmt.Sprintf("%.2f", safeFloat64At(output.ECPUUsage, 0)),
+			fmt.Sprintf("%.2f", safeFloat64At(output.ECPUUsage, 1)),
+			fmt.Sprintf("%.2f", safeFloat64At(output.PCPUUsage, 0)),
+			fmt.Sprintf("%.2f", safeFloat64At(output.PCPUUsage, 1)),
 			fmt.Sprintf("%.2f", output.GPUUsage),
 			fmt.Sprintf("%d", output.Memory.Used),
 			fmt.Sprintf("%d", output.Memory.Total),
@@ -251,8 +265,8 @@ func processHeadlessSample(format string, tbInfo *ThunderboltOutput) error {
 			fmt.Sprintf("%.2f", output.TBNetTotalBytesOutSec),
 			fmt.Sprintf("%.2f", output.SocMetrics.TotalPower),
 			fmt.Sprintf("%.2f", output.SocMetrics.SystemPower),
-			fmt.Sprintf("%.2f", output.CPUTemp),
-			fmt.Sprintf("%.2f", output.GPUTemp),
+			fmt.Sprintf("%.2f", output.SocMetrics.CPUTemp),
+			fmt.Sprintf("%.2f", output.SocMetrics.GPUTemp),
 			output.ThermalState,
 			fmt.Sprintf("%t", output.RDMAStatus.Available),
 			output.RDMAStatus.Status,
@@ -282,7 +296,7 @@ func processHeadlessSample(format string, tbInfo *ThunderboltOutput) error {
 	return nil
 }
 
-func collectHeadlessData(tbInfo *ThunderboltOutput) HeadlessOutput {
+func collectHeadlessData(tbInfo *ThunderboltOutput, sysInfo SystemInfo) HeadlessOutput {
 	m := sampleSocMetrics(updateInterval)
 	mem := getMemoryMetrics()
 	netDisk := getNetDiskMetrics()
@@ -326,16 +340,16 @@ func collectHeadlessData(tbInfo *ThunderboltOutput) HeadlessOutput {
 		Memory:                mem,
 		NetDisk:               netDisk,
 		CPUUsage:              cpuUsage,
+		ECPUUsage:             []float64{float64(m.EClusterFreqMHz), m.EClusterActive},
+		PCPUUsage:             []float64{float64(m.PClusterFreqMHz), m.PClusterActive},
 		GPUUsage:              m.GPUActive,
 		CoreUsages:            percentages,
-		SystemInfo:            getSOCInfo(),
+		SystemInfo:            sysInfo,
 		ThunderboltInfo:       tbInfo,
 		TBNetTotalBytesInSec:  tbNetTotalIn,
 		TBNetTotalBytesOutSec: tbNetTotalOut,
 		RDMAStatus:            CheckRDMAAvailable(),
 		ThermalState:          thermalStr,
-		CPUTemp:               m.CPUTemp,
-		GPUTemp:               m.GPUTemp,
 	}
 }
 

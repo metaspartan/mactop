@@ -26,9 +26,9 @@ func resolveProcessThemeColor() (string, string) {
 		themeColorStr = getThemeColorName(themeColor)
 	}
 
-	selectedHeaderFg := "black"
-	if themeColorStr == "black" {
-		selectedHeaderFg = "white"
+	selectedHeaderFg := "#020202"
+	if themeColorStr == "black" || themeColorStr == "#000000" || themeColorStr == "#020202" {
+		selectedHeaderFg = "#ffffff"
 	} else if IsCatppuccinTheme(currentConfig.Theme) {
 		selectedHeaderFg = GetCatppuccinHex(currentConfig.Theme, "Base")
 	}

@@ -1,12 +1,18 @@
 package app
 
+/*
+#include <sys/types.h>
+#include <sys/sysctl.h>
+#include <stdlib.h>
+*/
+import "C"
+
 import (
 	"os/exec"
 	"strconv"
 	"strings"
 	"syscall"
-
-	"github.com/shirou/gopsutil/v4/disk"
+	"unsafe"
 )
 
 type VolumeInfo struct {
@@ -19,7 +25,7 @@ type VolumeInfo struct {
 
 func getVolumes() []VolumeInfo {
 	var volumes []VolumeInfo
-	partitions, err := disk.Partitions(false)
+	partitions, err := GetNativePartitions(false)
 	if err != nil {
 		return volumes
 	}
@@ -53,7 +59,7 @@ func getVolumes() []VolumeInfo {
 		if excluded {
 			continue
 		}
-		usage, err := disk.Usage(p.Mountpoint)
+		usage, err := GetNativeDiskUsage(p.Mountpoint)
 		if err != nil || usage.Total == 0 {
 			continue
 		}
@@ -162,18 +168,17 @@ func getGPUCores() string {
 }
 
 func getThermalStateString() (string, bool) {
-	cmd := exec.Command("sysctl", "-n", "machdep.xcpm.cpu_thermal_level")
-	out, err := cmd.Output()
-	if err != nil {
-		return "Normal", false
-	}
-	levelStr := strings.TrimSpace(string(out))
-	level, err := strconv.Atoi(levelStr)
-	if err != nil {
+	name := C.CString("machdep.xcpm.cpu_thermal_level")
+	defer C.free(unsafe.Pointer(name))
+
+	var val int32
+	size := C.size_t(unsafe.Sizeof(val))
+
+	if C.sysctlbyname(name, unsafe.Pointer(&val), &size, nil, 0) != 0 {
 		return "Normal", false
 	}
 
-	switch level {
+	switch val {
 	case 0:
 		return "Normal", false
 	case 1:
