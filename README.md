@@ -4,6 +4,7 @@
 [![GoDoc](https://godoc.org/github.com/metaspartan/mactop?status.svg)](https://godoc.org/github.com/metaspartan/mactop/v2)
 ![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/metaspartan/mactop/total) ![GitHub Release](https://img.shields.io/github/v/release/metaspartan/mactop)
 
+
 [![Homebrew Badge](https://img.shields.io/badge/homebrew-%23FBB040.svg?style=for-the-badge&logo=homebrew&logoColor=black)](https://formulae.brew.sh/formula/mactop)
 
 `mactop` is a terminal-based monitoring tool "top" designed to display real-time metrics for Apple Silicon chips written by Carsen Klock. It provides a simple and efficient way to monitor CPU and GPU usage, E-Cores and P-Cores, power consumption, GPU frequency, temperatures, and other system metrics directly from your terminal
@@ -29,9 +30,10 @@
 - **Thunderbolt Device Tree**: Visual tree of connected Thunderbolt/USB4 devices and their speeds
 - **RDMA Support**: Detection of RDMA over Thunderbolt 5 availability
 - Disk I/O activity (read/write speeds)
+- Proportional per process GPU usage (experimental)
 - Multiple volume display (shows Mac HD + mounted external volumes)
 - Easy-to-read terminal UI
-- **15 Layouts**: (`L` to cycle layouts)
+- **17 Layouts**: (`l` to cycle layouts)
 - **Persistent Settings**: Remembers your Layout and Theme choice across restarts
 - Customizable UI color (green, red, blue, skyblue, magenta, yellow, gold, silver, white, lime, orange, violet, pink, and more) (`c` to cycle colors)
 - Customizable background color (`b` to cycle colors)
