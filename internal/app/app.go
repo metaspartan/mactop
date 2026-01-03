@@ -306,30 +306,24 @@ func updateHelpText() {
 	lines := strings.Split(fullText, "\n")
 	_, termHeight := GetCachedTerminalDimensions()
 
-	availableHeight := termHeight - 2
-	if availableHeight < 1 {
-		availableHeight = 1
+	// Determine if we need scrolling
+	// First calculate raw available height minus borders
+	rawHeight := termHeight - 2
+	if rawHeight < 1 {
+		rawHeight = 1
 	}
 
-	maxOffset := len(lines) - availableHeight
-	if maxOffset < 0 {
-		maxOffset = 0
-	}
+	availableHeight := rawHeight
+	maxOffset := 0
 
-	if maxOffset > 0 {
-
-		if helpScrollOffset > 0 {
-			availableHeight--
-		}
-
-		availableHeight -= 2
+	// If content doesn't fit, we need to reserve space for indicators
+	if len(lines) > rawHeight {
+		// Reserve 2 lines (1 for top indicator/spacer, 1 for bottom indicator/spacer)
+		availableHeight = rawHeight - 2
 		if availableHeight < 1 {
 			availableHeight = 1
 		}
 		maxOffset = len(lines) - availableHeight
-		if maxOffset < 0 {
-			maxOffset = 0
-		}
 	}
 
 	if helpScrollOffset > maxOffset {
@@ -348,22 +342,26 @@ func updateHelpText() {
 	visibleLines := lines[start:end]
 
 	var finalBuilder strings.Builder
-
 	tc := getThemeColor()
 
+	// Top indicator (only if scrolling is active)
 	if maxOffset > 0 {
 		if helpScrollOffset > 0 {
 			fmt.Fprintf(&finalBuilder, "[↑ Scroll up (k/↑)](fg:%s)\n", tc)
 		} else {
-			finalBuilder.WriteString("\n")
+			finalBuilder.WriteString("\n") // Spacer
 		}
 	}
 
+	// Content
 	finalBuilder.WriteString(strings.Join(visibleLines, "\n"))
 
+	// Bottom indicator (only if scrolling is active)
 	if maxOffset > 0 {
 		if helpScrollOffset < maxOffset {
 			fmt.Fprintf(&finalBuilder, "\n[↓ Scroll down (j/↓)](fg:%s)", tc)
+		} else {
+			finalBuilder.WriteString("\n") // Spacer
 		}
 	}
 
