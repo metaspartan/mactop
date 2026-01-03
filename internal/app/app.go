@@ -267,8 +267,9 @@ func updateHelpText() {
 			"Controls:\n"+
 			"- r: Refresh the UI data manually\n"+
 			"- c: Cycle through UI color themes\n"+
+			"- b: Cycle through UI background colors\n"+
 			"- p: Toggle party mode (color cycling)\n"+
-			"- l: Cycle through the 6 available layouts\n"+
+			"- l: Cycle through the 17 available layouts\n"+
 			"- F9: Kill selected process (y/n confirm)\n"+ // Updated text
 			"- /: Search process list\n"+ // Added help
 			"- g/G: Jump to top/bottom of process list\n"+ // Added help

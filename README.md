@@ -145,7 +145,7 @@ Use the following keys to interact with the application while its running:
 - `b`: Cycle through the background colors.
 - `p`: Party Mode (Randomly cycles through colors)
 - `i`: Toggle Info layout (displays system info)
-- `l`: Cycle through the 10 available layouts.
+- `l`: Cycle through the 17 available layouts.
 - `+` or `=`: Increase update interval (slower updates).
 - `-`: Decrease update interval (faster updates).
 - `F9`: Kill the currently selected process (pauses updates while selecting).
