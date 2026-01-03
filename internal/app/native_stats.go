@@ -535,7 +535,6 @@ int get_storage_devices(storage_device_info_t *devices, int max_devices) {
                 IORegistryEntryGetName(entry, name);
                 strncpy(devices[count].name, name, sizeof(devices[count].name) - 1);
 
-                // Check "Protocol Characteristics" -> "Physical Interconnect Location" == "Internal"
                 CFDictionaryRef protoDict = (CFDictionaryRef)CFDictionaryGetValue(props, CFSTR("Protocol Characteristics"));
                 if (protoDict && CFGetTypeID(protoDict) == CFDictionaryGetTypeID()) {
                     CFStringRef locRef = (CFStringRef)CFDictionaryGetValue(protoDict, CFSTR("Physical Interconnect Location"));
@@ -546,6 +545,10 @@ int get_storage_devices(storage_device_info_t *devices, int max_devices) {
                                 devices[count].is_internal = 1;
                             }
                         }
+                    }
+                    CFStringRef protoRef = (CFStringRef)CFDictionaryGetValue(protoDict, CFSTR("Physical Interconnect"));
+                    if (protoRef && CFGetTypeID(protoRef) == CFStringGetTypeID()) {
+                        CFStringGetCString(protoRef, devices[count].protocol, sizeof(devices[count].protocol), kCFStringEncodingUTF8);
                     }
                 }
 
