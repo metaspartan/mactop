@@ -260,21 +260,27 @@ func updateHelpText() {
 	if prometheusPort != "" {
 		prometheusStatus = fmt.Sprintf("Enabled (Port: %s)", prometheusPort)
 	}
-	helpText.Text = fmt.Sprintf(
+	fullText := fmt.Sprintf(
 		"mactop is open source monitoring tool for Apple Silicon authored by Carsen Klock in Go Lang!\n\n"+
 			"Repo: github.com/metaspartan/mactop\n\n"+
-			"Prometheus Metrics: %s\n\n"+
+			"---Current Settings---\n"+
+			"Prometheus Metrics: %s\n"+
+			"Version: %s\n"+
+			"Layout: %s\n"+
+			"Theme: %s\n"+
+			"Update Interval: %dms\n\n"+
 			"Controls:\n"+
 			"- r: Refresh the UI data manually\n"+
 			"- c: Cycle through UI color themes\n"+
 			"- b: Cycle through UI background colors\n"+
 			"- p: Toggle party mode (color cycling)\n"+
 			"- l: Cycle through the 17 available layouts\n"+
-			"- F9: Kill selected process (y/n confirm)\n"+ // Updated text
-			"- /: Search process list\n"+ // Added help
-			"- g/G: Jump to top/bottom of process list\n"+ // Added help
+			"- F9: Kill selected process (y/n confirm)\n"+
+			"- /: Search process list\n"+
+			"- g/G: Jump to top/bottom of process list\n"+
 			"- + or -: Adjust update interval (faster/slower)\n"+
 			"- h or ?: Toggle this help menu\n"+
+			"- j/k or ↓/↑: Scroll help text\n"+ // Added scroll help
 			"- q or <C-c>: Quit the application\n\n"+
 			"Start Flags:\n"+
 			"--help, -h: Show this help menu\n"+
@@ -289,23 +295,87 @@ func updateHelpText() {
 			"--unit-network: Network unit: auto, byte, kb, mb, gb (default: auto)\n"+
 			"--unit-disk: Disk unit: auto, byte, kb, mb, gb (default: auto)\n"+
 			"--unit-temp: Temperature unit: celsius, fahrenheit (default: celsius)\n"+
-			"--color, -c: Set the UI color. Default is none. Options are 'green', 'red', 'blue', 'skyblue', 'magenta', 'yellow', 'gold', 'silver', and 'white'.\n\n"+
-			"Version: %s\n\n"+
-			"Current Settings:\n"+
-			"Layout: %s\n"+
-			"Theme: %s\n"+
-			"Update Interval: %dms",
+			"--color, -c: Set the UI color. Default is none. Options are 'green', 'red', 'blue', 'skyblue', 'magenta', 'yellow', 'gold', 'silver', and more.\n\n",
 		prometheusStatus,
 		version,
 		currentConfig.DefaultLayout,
 		currentConfig.Theme,
 		updateInterval,
 	)
+
+	lines := strings.Split(fullText, "\n")
+	_, termHeight := GetCachedTerminalDimensions()
+
+	availableHeight := termHeight - 2
+	if availableHeight < 1 {
+		availableHeight = 1
+	}
+
+	maxOffset := len(lines) - availableHeight
+	if maxOffset < 0 {
+		maxOffset = 0
+	}
+
+	if maxOffset > 0 {
+
+		if helpScrollOffset > 0 {
+			availableHeight--
+		}
+
+		availableHeight -= 2
+		if availableHeight < 1 {
+			availableHeight = 1
+		}
+		maxOffset = len(lines) - availableHeight
+		if maxOffset < 0 {
+			maxOffset = 0
+		}
+	}
+
+	if helpScrollOffset > maxOffset {
+		helpScrollOffset = maxOffset
+	}
+	if helpScrollOffset < 0 {
+		helpScrollOffset = 0
+	}
+
+	start := helpScrollOffset
+	end := start + availableHeight
+	if end > len(lines) {
+		end = len(lines)
+	}
+
+	visibleLines := lines[start:end]
+
+	var finalBuilder strings.Builder
+
+	tc := getThemeColor()
+
+	if maxOffset > 0 {
+		if helpScrollOffset > 0 {
+			fmt.Fprintf(&finalBuilder, "[↑ Scroll up (k/↑)](fg:%s)\n", tc)
+		} else {
+			finalBuilder.WriteString("\n")
+		}
+	}
+
+	finalBuilder.WriteString(strings.Join(visibleLines, "\n"))
+
+	if maxOffset > 0 {
+		if helpScrollOffset < maxOffset {
+			fmt.Fprintf(&finalBuilder, "\n[↓ Scroll down (j/↓)](fg:%s)", tc)
+		}
+	}
+
+	helpText.Text = finalBuilder.String()
 }
 
 func toggleHelpMenu() {
-	updateHelpText()
 	showHelp = !showHelp
+	if showHelp {
+		helpScrollOffset = 0
+	}
+	updateHelpText()
 
 	renderMutex.Lock()
 	defer renderMutex.Unlock()

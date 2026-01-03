@@ -110,6 +110,7 @@ var (
 	tbDeviceInfo     string
 	tbInfoMutex      sync.Mutex
 	infoScrollOffset int
+	helpScrollOffset int
 	currentBgIndex   int // Index for background color cycling
 )
 

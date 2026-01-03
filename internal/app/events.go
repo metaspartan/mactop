@@ -173,7 +173,27 @@ func handleKeyboardEvent(e ui.Event, done chan struct{}) {
 
 	// Delegate to process list events (handles search/modal/navigation)
 	renderMutex.Lock()
-	handleProcessListEvents(e)
+
+	if showHelp {
+		switch key {
+		case "j", "<Down>":
+			helpScrollOffset++
+			updateHelpText()
+			drawScreen(GetCachedTerminalDimensions())
+			renderMutex.Unlock()
+			return
+		case "k", "<Up>":
+			if helpScrollOffset > 0 {
+				helpScrollOffset--
+			}
+			updateHelpText()
+			drawScreen(GetCachedTerminalDimensions())
+			renderMutex.Unlock()
+			return
+		}
+	} else {
+		handleProcessListEvents(e)
+	}
 
 	if killPending || searchMode {
 		w, h := GetCachedTerminalDimensions()
@@ -219,6 +239,22 @@ func handleKeyboardEvent(e ui.Event, done chan struct{}) {
 
 func handleGenericMouseEvent(e ui.Event) {
 	renderMutex.Lock()
+
+	if showHelp {
+		switch e.ID {
+		case "<MouseWheelUp>":
+			if helpScrollOffset > 0 {
+				helpScrollOffset--
+			}
+			updateHelpText()
+		case "<MouseWheelDown>":
+			helpScrollOffset++
+			updateHelpText()
+		}
+		drawScreen(GetCachedTerminalDimensions())
+		renderMutex.Unlock()
+		return
+	}
 
 	// Handle mouse wheel scrolling in Info layout
 	if currentConfig.DefaultLayout == LayoutInfo {
