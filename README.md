@@ -145,7 +145,7 @@ Use the following keys to interact with the application while its running:
 - `b`: Cycle through the background colors.
 - `p`: Party Mode (Randomly cycles through colors)
 - `i`: Toggle Info layout (displays system info)
-- `l`: Cycle through the 10 available layouts.
+- `l`: Cycle through the 17 available layouts.
 - `+` or `=`: Increase update interval (slower updates).
 - `-`: Decrease update interval (faster updates).
 - `F9`: Kill the currently selected process (pauses updates while selecting).
@@ -407,10 +407,6 @@ Contributions are what make the open-source community such an amazing place to l
 - **IOHIDEventSystemClient**: Fallback for SoC temperature sensors
 - **NSProcessInfo.thermalState**: For system thermal state (Nominal/Fair/Serious/Critical)
 - **Mach Kernel API** (`host_processor_info`): For CPU metrics (E and P cores) via CGO
-- **gopsutil**: For memory, swap, network, and disk I/O metrics
-- **ps**: For process list information
-- `sysctl`: For CPU model information
-- `system_profiler`: For GPU Core Count
 
 ## License
 
@@ -429,7 +425,5 @@ This tool is not officially supported by Apple. It is provided as is, and may no
 ## Acknowledgements
 
 - [gotui](https://github.com/metaspartan/gotui) for the modern terminal UI framework.
-- [termui](https://github.com/gizak/termui) for the original terminal UI framework.
-- [gopsutil](https://github.com/shirou/gopsutil) for system memory, network, and disk monitoring.
 - [asitop](https://github.com/tlkh/asitop) for the original inspiration!
 - [htop](https://github.com/htop-dev/htop) for the process list and CPU cores inspiration!

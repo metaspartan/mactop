@@ -312,6 +312,270 @@ int get_gpu_process_stats(gpu_process_stat_t *stats, int max_stats) {
 
     return count;
 }
+
+int get_gpu_core_count() {
+    CFMutableDictionaryRef match = IOServiceMatching("AGXAccelerator");
+    io_service_t service = IOServiceGetMatchingService(kIOMainPortDefault, match);
+    if (service == 0) {
+        return 0;
+    }
+
+    int core_count = 0;
+
+    CFNumberRef coreCountRef = (CFNumberRef)IORegistryEntrySearchCFProperty(
+        service,
+        kIOServicePlane,
+        CFSTR("gpu-core-count"),
+        kCFAllocatorDefault,
+        kIORegistryIterateRecursively
+    );
+
+    if (coreCountRef != NULL) {
+        CFNumberGetValue(coreCountRef, kCFNumberIntType, &core_count);
+        CFRelease(coreCountRef);
+    }
+
+    IOObjectRelease(service);
+    return core_count;
+}
+
+typedef struct {
+    uint64_t uid;
+    uint64_t parent_uid;
+    int router_id;
+    int vendor_id;
+    int device_id;
+    char vendor_name[64];
+    char device_name[128];
+    int port_count;
+    int depth;
+    int thunderbolt_version;
+} tb_switch_info_t;
+
+static void get_cf_string(CFTypeRef ref, char *buf, size_t bufsize) {
+    buf[0] = '\0';
+    if (ref == NULL) return;
+    if (CFGetTypeID(ref) == CFStringGetTypeID()) {
+        CFStringGetCString((CFStringRef)ref, buf, bufsize, kCFStringEncodingUTF8);
+    }
+}
+
+static int get_cf_int(CFTypeRef ref) {
+    if (ref == NULL) return 0;
+    if (CFGetTypeID(ref) == CFNumberGetTypeID()) {
+        int val = 0;
+        CFNumberGetValue((CFNumberRef)ref, kCFNumberIntType, &val);
+        return val;
+    }
+    return 0;
+}
+
+static uint64_t get_cf_uint64(CFTypeRef ref) {
+    if (ref == NULL) return 0;
+    if (CFGetTypeID(ref) == CFNumberGetTypeID()) {
+        uint64_t val = 0;
+        CFNumberGetValue((CFNumberRef)ref, kCFNumberSInt64Type, &val);
+        return val;
+    }
+    return 0;
+}
+
+// Helper to find the UID of the root switch (Bus) for a given device entry
+static uint64_t find_root_switch_uid(io_registry_entry_t entry) {
+    io_registry_entry_t current = entry;
+    IOObjectRetain(current);
+
+    uint64_t root_uid = 0;
+
+    while (current) {
+        io_registry_entry_t parent;
+        kern_return_t kr = IORegistryEntryGetParentEntry(current, kIOServicePlane, &parent);
+
+        IOObjectRelease(current); // Release current as we move up
+        if (kr != kIOReturnSuccess) {
+            break;
+        }
+
+        current = parent; // Parent is now current
+
+        // Check if this parent is a Thunderbolt Switch with Depth == 0
+        io_name_t className;
+        IOObjectGetClass(current, className);
+
+        // We are looking for the host controller (Depth 0)
+        // Checking class name is a loose check, checking properties is better
+        CFMutableDictionaryRef props = NULL;
+        if (IORegistryEntryCreateCFProperties(current, &props, kCFAllocatorDefault, 0) == kIOReturnSuccess && props) {
+            int depth = get_cf_int(CFDictionaryGetValue(props, CFSTR("Depth")));
+            uint64_t uid = get_cf_uint64(CFDictionaryGetValue(props, CFSTR("UID")));
+
+            // Check if it's a switch (has UID and Depth property)
+            // Note: Depth 0 is the host
+            if (CFDictionaryContainsKey(props, CFSTR("UID")) && depth == 0) {
+                 root_uid = uid;
+                 CFRelease(props);
+                 IOObjectRelease(current); // Release final ref
+                 return root_uid;
+            }
+            CFRelease(props);
+        }
+    }
+    return 0;
+}
+
+int get_thunderbolt_switches(tb_switch_info_t *switches, int max_switches) {
+    // Match generic IOThunderboltSwitch to get both Type5 (host) and Type3 (device)
+    CFMutableDictionaryRef match = IOServiceMatching("IOThunderboltSwitch");
+    io_iterator_t iter;
+    kern_return_t kr = IOServiceGetMatchingServices(kIOMainPortDefault, match, &iter);
+    if (kr != kIOReturnSuccess) {
+        return 0;
+    }
+
+    int count = 0;
+    io_registry_entry_t entry;
+    while ((entry = IOIteratorNext(iter)) != 0 && count < max_switches) {
+        CFMutableDictionaryRef props = NULL;
+        if (IORegistryEntryCreateCFProperties(entry, &props, kCFAllocatorDefault, 0) == kIOReturnSuccess && props) {
+            switches[count].uid = get_cf_uint64(CFDictionaryGetValue(props, CFSTR("UID")));
+            switches[count].router_id = get_cf_int(CFDictionaryGetValue(props, CFSTR("Router ID")));
+            switches[count].vendor_id = get_cf_int(CFDictionaryGetValue(props, CFSTR("Vendor ID")));
+            switches[count].device_id = get_cf_int(CFDictionaryGetValue(props, CFSTR("Device ID")));
+            switches[count].port_count = get_cf_int(CFDictionaryGetValue(props, CFSTR("Max Port Number")));
+            switches[count].depth = get_cf_int(CFDictionaryGetValue(props, CFSTR("Depth")));
+            switches[count].thunderbolt_version = get_cf_int(CFDictionaryGetValue(props, CFSTR("Thunderbolt Version")));
+            get_cf_string(CFDictionaryGetValue(props, CFSTR("Device Vendor Name")), switches[count].vendor_name, sizeof(switches[count].vendor_name));
+            get_cf_string(CFDictionaryGetValue(props, CFSTR("Device Model Name")), switches[count].device_name, sizeof(switches[count].device_name));
+
+            // If depth > 0, find parent UID
+            if (switches[count].depth > 0) {
+                switches[count].parent_uid = find_root_switch_uid(entry);
+            } else {
+                switches[count].parent_uid = 0;
+            }
+
+            count++;
+            CFRelease(props);
+        }
+        IOObjectRelease(entry);
+    }
+    IOObjectRelease(iter);
+    return count;
+}
+
+typedef struct {
+    int vendor_id;
+    int product_id;
+    uint32_t location_id;
+    char vendor_name[64];
+    char product_name[128];
+    char serial[64];
+} usb_device_info_t;
+
+int get_usb_devices(usb_device_info_t *devices, int max_devices) {
+    CFMutableDictionaryRef match = IOServiceMatching("IOUSBHostDevice");
+    io_iterator_t iter;
+    kern_return_t kr = IOServiceGetMatchingServices(kIOMainPortDefault, match, &iter);
+    if (kr != kIOReturnSuccess) {
+        return 0;
+    }
+
+    int count = 0;
+    io_registry_entry_t entry;
+    while ((entry = IOIteratorNext(iter)) != 0 && count < max_devices) {
+        CFMutableDictionaryRef props = NULL;
+        if (IORegistryEntryCreateCFProperties(entry, &props, kCFAllocatorDefault, 0) == kIOReturnSuccess && props) {
+            devices[count].vendor_id = get_cf_int(CFDictionaryGetValue(props, CFSTR("idVendor")));
+            devices[count].product_id = get_cf_int(CFDictionaryGetValue(props, CFSTR("idProduct")));
+            devices[count].location_id = (uint32_t)get_cf_int(CFDictionaryGetValue(props, CFSTR("locationID")));
+            get_cf_string(CFDictionaryGetValue(props, CFSTR("USB Vendor Name")), devices[count].vendor_name, sizeof(devices[count].vendor_name));
+            get_cf_string(CFDictionaryGetValue(props, CFSTR("USB Product Name")), devices[count].product_name, sizeof(devices[count].product_name));
+            get_cf_string(CFDictionaryGetValue(props, CFSTR("USB Serial Number")), devices[count].serial, sizeof(devices[count].serial));
+            count++;
+            CFRelease(props);
+        }
+        IOObjectRelease(entry);
+    }
+    IOObjectRelease(iter);
+    return count;
+}
+
+typedef struct {
+    char name[128];
+    char bsd_name[32];
+    char protocol[32];
+    char medium_type[32];
+    int is_internal;
+    int is_whole;
+    uint64_t size_bytes;
+} storage_device_info_t;
+
+int get_storage_devices(storage_device_info_t *devices, int max_devices) {
+    CFMutableDictionaryRef match = IOServiceMatching("IOMedia");
+    io_iterator_t iter;
+    kern_return_t kr = IOServiceGetMatchingServices(kIOMainPortDefault, match, &iter);
+    if (kr != kIOReturnSuccess) {
+        return 0;
+    }
+
+    int count = 0;
+    io_registry_entry_t entry;
+    while ((entry = IOIteratorNext(iter)) != 0 && count < max_devices) {
+        CFMutableDictionaryRef props = NULL;
+        if (IORegistryEntryCreateCFProperties(entry, &props, kCFAllocatorDefault, 0) == kIOReturnSuccess && props) {
+            CFBooleanRef wholeRef = CFDictionaryGetValue(props, CFSTR("Whole"));
+            int is_whole = (wholeRef && CFBooleanGetValue(wholeRef)) ? 1 : 0;
+
+            if (is_whole) {
+                devices[count].is_whole = 1;
+                devices[count].size_bytes = get_cf_uint64(CFDictionaryGetValue(props, CFSTR("Size")));
+                get_cf_string(CFDictionaryGetValue(props, CFSTR("BSD Name")), devices[count].bsd_name, sizeof(devices[count].bsd_name));
+
+                io_name_t name;
+                IORegistryEntryGetName(entry, name);
+                strncpy(devices[count].name, name, sizeof(devices[count].name) - 1);
+
+                CFDictionaryRef protoDict = (CFDictionaryRef)CFDictionaryGetValue(props, CFSTR("Protocol Characteristics"));
+                if (protoDict && CFGetTypeID(protoDict) == CFDictionaryGetTypeID()) {
+                    CFStringRef locRef = (CFStringRef)CFDictionaryGetValue(protoDict, CFSTR("Physical Interconnect Location"));
+                    if (locRef && CFGetTypeID(locRef) == CFStringGetTypeID()) {
+                        char locBuf[32];
+                        if (CFStringGetCString(locRef, locBuf, sizeof(locBuf), kCFStringEncodingUTF8)) {
+                            if (strncmp(locBuf, "Internal", 8) == 0) {
+                                devices[count].is_internal = 1;
+                            }
+                        }
+                    }
+                    CFStringRef protoRef = (CFStringRef)CFDictionaryGetValue(protoDict, CFSTR("Physical Interconnect"));
+                    if (protoRef && CFGetTypeID(protoRef) == CFStringGetTypeID()) {
+                        CFStringGetCString(protoRef, devices[count].protocol, sizeof(devices[count].protocol), kCFStringEncodingUTF8);
+                    }
+                }
+
+                // Fallback: Check direct boolean properties "Internal" or "OSInternal"
+                if (devices[count].is_internal == 0) {
+                     CFBooleanRef internalRef = CFDictionaryGetValue(props, CFSTR("Internal"));
+                     if (internalRef && CFBooleanGetValue(internalRef)) {
+                         devices[count].is_internal = 1;
+                     }
+                }
+
+                if (devices[count].is_internal == 0) {
+                     CFBooleanRef osInternalRef = CFDictionaryGetValue(props, CFSTR("OSInternal"));
+                     if (osInternalRef && CFBooleanGetValue(osInternalRef)) {
+                         devices[count].is_internal = 1;
+                     }
+                }
+
+                count++;
+            }
+            CFRelease(props);
+        }
+        IOObjectRelease(entry);
+    }
+    IOObjectRelease(iter);
+    return count;
+}
 */
 import "C"
 import (
@@ -746,5 +1010,112 @@ func GetGPUProcessStats() map[int]uint64 {
 		result[pid] = gpuTime
 	}
 
+	return result
+}
+
+func GetGPUCoreCountFast() int {
+	return int(C.get_gpu_core_count())
+}
+
+type ThunderboltSwitchInfo struct {
+	UID                uint64
+	ParentUID          uint64
+	RouterID           int
+	VendorID           int
+	DeviceID           int
+	VendorName         string
+	DeviceName         string
+	PortCount          int
+	Depth              int
+	ThunderboltVersion int
+}
+
+func GetThunderboltSwitchesIOKit() []ThunderboltSwitchInfo {
+	maxSwitches := 32
+	switches := make([]C.tb_switch_info_t, maxSwitches)
+	count := C.get_thunderbolt_switches(&switches[0], C.int(maxSwitches))
+	if count <= 0 {
+		return nil
+	}
+
+	result := make([]ThunderboltSwitchInfo, int(count))
+	for i := 0; i < int(count); i++ {
+		result[i] = ThunderboltSwitchInfo{
+			UID:                uint64(switches[i].uid),
+			ParentUID:          uint64(switches[i].parent_uid),
+			RouterID:           int(switches[i].router_id),
+			VendorID:           int(switches[i].vendor_id),
+			DeviceID:           int(switches[i].device_id),
+			VendorName:         C.GoString(&switches[i].vendor_name[0]),
+			DeviceName:         C.GoString(&switches[i].device_name[0]),
+			PortCount:          int(switches[i].port_count),
+			Depth:              int(switches[i].depth),
+			ThunderboltVersion: int(switches[i].thunderbolt_version),
+		}
+	}
+	return result
+}
+
+type USBDeviceInfo struct {
+	VendorID    int
+	ProductID   int
+	LocationID  uint32
+	VendorName  string
+	ProductName string
+	Serial      string
+}
+
+func GetUSBDevicesIOKit() []USBDeviceInfo {
+	maxDevices := 64
+	devices := make([]C.usb_device_info_t, maxDevices)
+	count := C.get_usb_devices(&devices[0], C.int(maxDevices))
+	if count <= 0 {
+		return nil
+	}
+
+	result := make([]USBDeviceInfo, int(count))
+	for i := 0; i < int(count); i++ {
+		result[i] = USBDeviceInfo{
+			VendorID:    int(devices[i].vendor_id),
+			ProductID:   int(devices[i].product_id),
+			LocationID:  uint32(devices[i].location_id),
+			VendorName:  C.GoString(&devices[i].vendor_name[0]),
+			ProductName: C.GoString(&devices[i].product_name[0]),
+			Serial:      C.GoString(&devices[i].serial[0]),
+		}
+	}
+	return result
+}
+
+type StorageDeviceInfo struct {
+	Name       string
+	BSDName    string
+	Protocol   string
+	MediumType string
+	IsInternal bool
+	IsWhole    bool
+	SizeBytes  uint64
+}
+
+func GetStorageDevicesIOKit() []StorageDeviceInfo {
+	maxDevices := 32
+	devices := make([]C.storage_device_info_t, maxDevices)
+	count := C.get_storage_devices(&devices[0], C.int(maxDevices))
+	if count <= 0 {
+		return nil
+	}
+
+	result := make([]StorageDeviceInfo, int(count))
+	for i := 0; i < int(count); i++ {
+		result[i] = StorageDeviceInfo{
+			Name:       C.GoString(&devices[i].name[0]),
+			BSDName:    C.GoString(&devices[i].bsd_name[0]),
+			Protocol:   C.GoString(&devices[i].protocol[0]),
+			MediumType: C.GoString(&devices[i].medium_type[0]),
+			IsInternal: devices[i].is_internal != 0,
+			IsWhole:    devices[i].is_whole != 0,
+			SizeBytes:  uint64(devices[i].size_bytes),
+		}
+	}
 	return result
 }

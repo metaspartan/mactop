@@ -153,6 +153,11 @@ func getCoreCounts() map[string]int {
 }
 
 func getGPUCores() string {
+	count := GetGPUCoreCountFast()
+	if count > 0 {
+		return strconv.Itoa(count)
+	}
+
 	data, err := GetGlobalProfilerData()
 	if err != nil {
 		stderrLogger.Printf("failed to get global profiler data: %v", err)

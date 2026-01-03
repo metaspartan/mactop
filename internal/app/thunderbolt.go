@@ -234,14 +234,19 @@ func getMaxPortCapability(items []ThunderboltBus) string {
 }
 
 func getBusNumber(busName string) string {
-	busNum := ""
 	if strings.Contains(busName, "_bus_") {
 		parts := strings.Split(busName, "_bus_")
 		if len(parts) > 1 {
-			busNum = parts[1]
+			return parts[1]
 		}
 	}
-	return busNum
+	if strings.Contains(busName, " Bus ") {
+		parts := strings.Split(busName, " Bus ")
+		if len(parts) > 1 {
+			return parts[1]
+		}
+	}
+	return ""
 }
 
 func getBusActivityInfo(bus ThunderboltBus) (bool, string, string) {

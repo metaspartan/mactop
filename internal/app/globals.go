@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	version                                                     = "v2.0.5"
+	version                                                     = "v2.0.6"
 	cpuGauge, gpuGauge, memoryGauge, aneGauge                   *w.Gauge
 	mainBlock                                                   *ui.Block
 	modelText, PowerChart, NetworkInfo, helpText, infoParagraph *w.Paragraph
@@ -110,6 +110,7 @@ var (
 	tbDeviceInfo     string
 	tbInfoMutex      sync.Mutex
 	infoScrollOffset int
+	helpScrollOffset int
 	currentBgIndex   int // Index for background color cycling
 )
 
