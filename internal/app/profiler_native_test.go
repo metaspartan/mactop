@@ -38,9 +38,6 @@ func TestNativeProfilerIntegration(t *testing.T) {
 	} else {
 		bus := data.USBItems[0]
 		t.Logf("Found USB Bus with %d devices", len(bus.USBDevices))
-		if len(bus.USBDevices) == 0 {
-
-		}
 	}
 
 	if len(data.StorageItems) == 0 {
