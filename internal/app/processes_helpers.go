@@ -9,7 +9,11 @@ import (
 func resolveProcessThemeColor() (string, string) {
 	themeColor := processList.TextStyle.Fg
 	var themeColorStr string
-	if IsCatppuccinTheme(currentConfig.Theme) {
+
+	// Check if the theme is a hex color
+	if IsHexColor(currentConfig.Theme) {
+		themeColorStr = currentConfig.Theme
+	} else if IsCatppuccinTheme(currentConfig.Theme) {
 		themeColorStr = GetCatppuccinHex(currentConfig.Theme, "Primary")
 	} else if IsLightMode && currentConfig.Theme == "white" {
 		themeColorStr = "black"
@@ -26,12 +30,16 @@ func resolveProcessThemeColor() (string, string) {
 		themeColorStr = getThemeColorName(themeColor)
 	}
 
-	selectedHeaderFg := "#020202"
+	// Determine selected header foreground color (text on colored background)
+	selectedHeaderFg := "#ffffff" // Default to white for most themes
 	if themeColorStr == "black" || themeColorStr == "#000000" || themeColorStr == "#020202" {
 		selectedHeaderFg = "#ffffff"
+	} else if IsLightMode {
+		selectedHeaderFg = "#020202"
 	} else if IsCatppuccinTheme(currentConfig.Theme) {
 		selectedHeaderFg = GetCatppuccinHex(currentConfig.Theme, "Base")
 	}
+	// For hex colors on dark backgrounds, white text looks best
 	return themeColorStr, selectedHeaderFg
 }
 

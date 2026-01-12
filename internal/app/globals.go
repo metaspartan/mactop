@@ -65,6 +65,7 @@ var (
 	headlessPretty bool
 	headlessCount  int
 	headlessFormat string
+	cliBgColor     string // Background color from --bg flag
 	interruptChan  = make(chan struct{}, 10)
 
 	cachedTermWidth    int

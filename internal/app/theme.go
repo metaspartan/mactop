@@ -377,87 +377,126 @@ func applyThemeToWidgets(color ui.Color, lightMode bool) {
 	}
 }
 
-func applyTheme(colorName string, lightMode bool) {
+// resolveThemeColor resolves a color name (named, hex, or special) to a ui.Color
+func resolveThemeColor(colorName string) (ui.Color, string) {
 	is1977 := colorName == "1977"
-	color, ok := colorMap[colorName]
-	if !ok && !is1977 {
-		color = ui.ColorGreen
-		colorName = "green"
-	} else if is1977 {
-		color = ui.ColorGreen
+
+	// Check if colorName is a hex color (e.g., "#9580FF")
+	if IsHexColor(colorName) {
+		if parsedColor, err := ParseHexColor(colorName); err == nil {
+			return parsedColor, colorName
+		}
 	}
 
-	currentConfig.Theme = colorName
+	// Try named color lookup
+	if color, ok := colorMap[colorName]; ok {
+		return color, colorName
+	}
 
+	// Special 1977 theme or default to green
+	if is1977 {
+		return ui.ColorGreen, colorName
+	}
+	return ui.ColorGreen, "green"
+}
+
+// setLightModeColors adjusts colors for light/dark mode
+func setLightModeColors(lightMode bool, color ui.Color) ui.Color {
 	if lightMode {
 		BracketColor = ui.NewRGBColor(2, 2, 2)
 		SecondaryTextColor = ui.NewRGBColor(2, 2, 2)
 		if color == ui.ColorWhite {
-			color = ui.NewRGBColor(2, 2, 2)
+			return ui.NewRGBColor(2, 2, 2)
 		}
 	} else {
 		BracketColor = ui.ColorWhite
 		SecondaryTextColor = 245
 	}
+	return color
+}
 
+// setGlobalTheme sets the global UI theme colors
+func setGlobalTheme(color ui.Color) {
 	ui.Theme.Block.Title.Fg = color
 	ui.Theme.Block.Border.Fg = color
 	ui.Theme.Paragraph.Text.Fg = color
 	ui.Theme.Gauge.Label.Fg = color
 	ui.Theme.Gauge.Bar = color
 	ui.Theme.BarChart.Bars = []ui.Color{color}
+}
 
-	if is1977 {
-		update1977GaugeColors()
-	} else if catppuccinPalette := GetCatppuccinPalette(colorName); catppuccinPalette != nil {
-		// Use distinct accent colors for each Catppuccin flavor
-		var primaryColor ui.Color
-		switch colorName {
-		case "frappe":
-			primaryColor = catppuccinPalette.Mauve // Purple
-		case "macchiato":
-			primaryColor = catppuccinPalette.Sapphire // Blue
-		case "mocha":
-			primaryColor = catppuccinPalette.Peach // Peach (orange)
-		default:
-			primaryColor = catppuccinPalette.Lavender
-		}
-
-		ui.Theme.Block.Title.Fg = primaryColor
-		ui.Theme.Block.Border.Fg = primaryColor
-		ui.Theme.Paragraph.Text.Fg = catppuccinPalette.Text
-		ui.Theme.Gauge.Label.Fg = catppuccinPalette.Subtext1
-		ui.Theme.BarChart.Bars = []ui.Color{catppuccinPalette.Blue}
-
-		applyCatppuccinThemeToGauges(catppuccinPalette)
-		applyThemeToSparklines(primaryColor)
-		applyThemeToStepCharts(primaryColor)
-		applyThemeToWidgets(primaryColor, lightMode)
-
-		if mainBlock != nil {
-			mainBlock.BorderStyle.Fg = primaryColor
-			mainBlock.TitleStyle.Fg = primaryColor
-			mainBlock.TitleBottomStyle.Fg = primaryColor
-		}
-		if processList != nil {
-			processList.TextStyle = ui.NewStyle(primaryColor, CurrentBgColor)
-			selectedFg := catppuccinPalette.Base
-			processList.SelectedStyle = ui.NewStyle(selectedFg, primaryColor)
-			processList.BorderStyle.Fg = primaryColor
-			processList.BorderStyle.Bg = CurrentBgColor
-			processList.TitleStyle.Fg = primaryColor
-			processList.TitleStyle.Bg = CurrentBgColor
-		}
-		return
-	} else {
-		applyThemeToGauges(color)
+// applyCatppuccinFullTheme applies Catppuccin theme with all widgets
+func applyCatppuccinFullTheme(colorName string, palette *CatppuccinPalette, lightMode bool) {
+	var primaryColor ui.Color
+	switch colorName {
+	case "frappe":
+		primaryColor = palette.Mauve
+	case "macchiato":
+		primaryColor = palette.Sapphire
+	case "mocha":
+		primaryColor = palette.Peach
+	default:
+		primaryColor = palette.Lavender
 	}
+
+	ui.Theme.Block.Title.Fg = primaryColor
+	ui.Theme.Block.Border.Fg = primaryColor
+	ui.Theme.Paragraph.Text.Fg = palette.Text
+	ui.Theme.Gauge.Label.Fg = palette.Subtext1
+	ui.Theme.BarChart.Bars = []ui.Color{palette.Blue}
+
+	applyCatppuccinThemeToGauges(palette)
+	applyThemeToSparklines(primaryColor)
+	applyThemeToStepCharts(primaryColor)
+	applyThemeToWidgets(primaryColor, lightMode)
+
+	if mainBlock != nil {
+		mainBlock.BorderStyle.Fg = primaryColor
+		mainBlock.TitleStyle.Fg = primaryColor
+		mainBlock.TitleBottomStyle.Fg = primaryColor
+	}
+	if processList != nil {
+		processList.TextStyle = ui.NewStyle(primaryColor, CurrentBgColor)
+		processList.SelectedStyle = ui.NewStyle(palette.Base, primaryColor)
+		processList.BorderStyle.Fg = primaryColor
+		processList.BorderStyle.Bg = CurrentBgColor
+		processList.TitleStyle.Fg = primaryColor
+		processList.TitleStyle.Bg = CurrentBgColor
+	}
+}
+
+func applyTheme(colorName string, lightMode bool) {
+	color, resolvedName := resolveThemeColor(colorName)
+	currentConfig.Theme = resolvedName
+	color = setLightModeColors(lightMode, color)
+	setGlobalTheme(color)
+
+	if resolvedName == "1977" {
+		update1977GaugeColors()
+		applyThemeToSparklines(color)
+		applyThemeToStepCharts(color)
+		applyThemeToWidgets(color, lightMode)
+		return
+	}
+
+	if palette := GetCatppuccinPalette(resolvedName); palette != nil {
+		applyCatppuccinFullTheme(resolvedName, palette, lightMode)
+		return
+	}
+
+	applyThemeToGauges(color)
 	applyThemeToSparklines(color)
 	applyThemeToStepCharts(color)
 	applyThemeToWidgets(color, lightMode)
 }
 
 func GetThemeColor(colorName string) ui.Color {
+	// Check if colorName is a hex color
+	if IsHexColor(colorName) {
+		if color, err := ParseHexColor(colorName); err == nil {
+			return color
+		}
+	}
 	color, ok := colorMap[colorName]
 	if !ok {
 		return ui.ColorGreen
@@ -496,6 +535,10 @@ var themeHexMap = map[string]string{
 }
 
 func resolveThemeColorString(theme string) string {
+	// If it's already a hex color, return as-is
+	if IsHexColor(theme) {
+		return theme
+	}
 	if hex, ok := themeHexMap[theme]; ok {
 		return hex
 	}
@@ -578,8 +621,24 @@ func cycleBackground() {
 }
 
 // applyBackground sets the terminal background color
+// Accepts named backgrounds (from bgColorMap) or hex colors
 func applyBackground(bgName string) {
-	bgColor, ok := bgColorMap[bgName]
+	var bgColor ui.Color
+	var ok bool
+
+	// Check if bgName is a hex color
+	if IsHexColor(bgName) {
+		if parsed, err := ParseHexColor(bgName); err == nil {
+			bgColor = parsed
+			ok = true
+		}
+	}
+
+	// Try named background lookup if not a hex color
+	if !ok {
+		bgColor, ok = bgColorMap[bgName]
+	}
+
 	if !ok {
 		bgColor = ui.ColorClear
 	}
@@ -682,4 +741,29 @@ func GetCurrentBgName() string {
 		return bgColorOrder[currentBgIndex]
 	}
 	return "clear"
+}
+
+// applyCustomThemeFile loads and applies custom theme from ~/.mactop/theme.json
+// Returns true if a custom theme was applied
+func applyCustomThemeFile() bool {
+	theme := loadThemeFile()
+	if theme == nil {
+		return false
+	}
+
+	// Apply custom background first (so accent color applies on top)
+	if theme.Background != "" && IsHexColor(theme.Background) {
+		applyBackground(theme.Background)
+		currentConfig.Background = theme.Background
+	}
+
+	// Apply foreground color (primary UI accent)
+	if theme.Foreground != "" && IsHexColor(theme.Foreground) {
+		applyTheme(theme.Foreground, IsLightMode)
+		currentConfig.Theme = theme.Foreground
+		currentConfig.CustomTheme = theme
+		return true
+	}
+
+	return false
 }

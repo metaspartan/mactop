@@ -4,7 +4,6 @@
 [![GoDoc](https://godoc.org/github.com/metaspartan/mactop?status.svg)](https://godoc.org/github.com/metaspartan/mactop/v2)
 ![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/metaspartan/mactop/total) ![GitHub Release](https://img.shields.io/github/v/release/metaspartan/mactop)
 
-
 [![Homebrew Badge](https://img.shields.io/badge/homebrew-%23FBB040.svg?style=for-the-badge&logo=homebrew&logoColor=black)](https://formulae.brew.sh/formula/mactop)
 
 `mactop` is a terminal-based monitoring tool "top" designed to display real-time metrics for Apple Silicon chips written by Carsen Klock. It provides a simple and efficient way to monitor CPU and GPU usage, E-Cores and P-Cores, power consumption, GPU frequency, temperatures, and other system metrics directly from your terminal
@@ -54,7 +53,7 @@
 
 ## Install via Homebrew
 
-You can install [mactop](https://github.com/metaspartan/mactop) via Homebrew! https://brew.sh
+You can install [mactop](https://github.com/metaspartan/mactop) via Homebrew! <https://brew.sh>
 
 ```bash
 brew install mactop
@@ -81,17 +80,20 @@ To install `mactop`, follow these steps:
 1. Ensure you have Go installed on your machine. If not, you can install it by following the instructions here: [Go Installation Guide](https://go.dev/doc/install).
 
 2. Clone the repository:
+
    ```bash
    git clone https://github.com/metaspartan/mactop.git
    cd mactop
    ```
 
 3. Build the application:
+
    ```bash
    go build
    ```
 
 4. Run the application:
+
    ```bash
    ./mactop
    ```
@@ -99,16 +101,26 @@ To install `mactop`, follow these steps:
 ## Usage
 
 After installation, you can start `mactop` by simply running:
+
 ```bash
 ./mactop
 ```
 
 Example with flags:
+
 ```bash
-mactop --interval 1000 --color green
+mactop --interval 1000 --foreground green
+```
+
+Custom Hex Colors:
+
+```bash
+# Use Dracula theme colors
+mactop --foreground "#9580FF" --bg "#22212C"
 ```
 
 Headless Mode (JSON Output):
+
 ```bash
 # Run once and exit (great for scripts)
 mactop --headless --count 1
@@ -127,8 +139,8 @@ mactop --headless --format toon
 - `--count`: Number of samples to collect in headless mode (0 = infinite).
 - `--pretty`: Pretty print JSON output in headless mode.
 - `--interval` or `-i`: Set the update interval in milliseconds. Default is 1000.
-- `--color` or `-c`: Set the UI color. Default is white. 
-Options are 'green', 'red', 'blue', 'skyblue', 'magenta', 'yellow', 'gold', 'silver', 'white', 'lime', 'orange', 'violet', etc. (-c green)
+- `--foreground`: Set the UI foreground color. Accepts named colors (green, red, blue, etc.) or hex colors (#9580FF).
+- `--bg` or `--background`: Set the UI background color. Accepts hex colors (#22212C).
 - `--prometheus` or `-p`: Set and enable the local Prometheus metrics server on the given port. Default is disabled. (e.g. -p 2112 to enable Prometheus metrics on port 2112)
 - `--unit-network`: Network unit: auto, byte, kb, mb, gb (default: auto)
 - `--unit-disk`: Disk unit: auto, byte, kb, mb, gb (default: auto)
@@ -137,8 +149,36 @@ Options are 'green', 'red', 'blue', 'skyblue', 'magenta', 'yellow', 'gold', 'sil
 - `--version` or `-v`: Print the version of mactop.
 - `--help` or `-h`: Show a help message about these flags and how to run mactop.
 
+## Theme File Support
+
+Create `~/.mactop/theme.json` to customize colors:
+
+```json
+{
+  "foreground": "#9580FF",
+  "background": "#22212C"
+}
+```
+
+**Example: Dracula PRO Palette**
+
+| Element | Hex |
+|---------|-----|
+| Background | `#22212C` |
+| Foreground | `#F8F8F2` |
+| Purple | `#9580FF` |
+| Cyan | `#80FFEA` |
+| Green | `#8AFF80` |
+| Pink | `#FF80BF` |
+| Orange | `#FFCA80` |
+| Red | `#FF9580` |
+
+Priority order: CLI flags > theme.json > saved config.
+
 ## mactop Commands
+
 Use the following keys to interact with the application while its running:
+
 - `q`: Quit the application.
 - `r`: Refresh the UI data manually.
 - `c`: Cycle through the color themes.
