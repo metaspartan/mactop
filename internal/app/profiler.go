@@ -58,7 +58,7 @@ func buildThunderboltItemsFromIOKit() []ThunderboltBus {
 		}
 
 		tbVersion := 4
-		if sw.ThunderboltVersion >= 40 {
+		if sw.ThunderboltVersion >= 64 {
 			tbVersion = 5
 		} else if sw.ThunderboltVersion >= 32 {
 			tbVersion = 4
@@ -100,7 +100,7 @@ func buildThunderboltItemsFromIOKit() []ThunderboltBus {
 		}
 
 		var devMode string
-		if sw.ThunderboltVersion >= 40 {
+		if sw.ThunderboltVersion >= 64 {
 			devMode = "TB5"
 		} else if sw.ThunderboltVersion >= 32 {
 			devMode = "TB4"
