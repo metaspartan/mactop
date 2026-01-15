@@ -466,6 +466,7 @@ func applyInitialTheme(colorName string, setColor bool) {
 }
 
 // initializeTheme sets up all theming with priority: CLI flags > theme.json > saved config
+// Each property (foreground, background) is evaluated independently
 func initializeTheme(colorName string, setColor bool, interval int, setInterval bool) {
 	// Always apply interval if set (regardless of theme source)
 	if setInterval {
@@ -473,29 +474,28 @@ func initializeTheme(colorName string, setColor bool, interval int, setInterval 
 		updateIntervalText()
 	}
 
-	// Priority: 1) CLI --foreground flag, 2) theme.json file, 3) saved config
-	fgApplied := false
-	bgApplied := false
-	if !setColor {
-		fgApplied, bgApplied = applyCustomThemeFile()
-	}
+	// Always load theme.json to get both foreground and background values
+	// We'll selectively apply based on CLI flag priorities
+	fgFromFile, bgFromFile := applyCustomThemeFile()
 
-	// If CLI flag was set, that takes priority
+	// Foreground priority: 1) CLI --foreground, 2) theme.json, 3) saved config
 	if setColor {
 		applyTheme(colorName, IsLightMode)
-	} else if !fgApplied {
+	} else if !fgFromFile {
 		// Neither CLI nor theme.json set foreground, use saved config
 		applyInitialTheme(colorName, false)
 	}
+	// else: theme.json foreground was already applied by applyCustomThemeFile()
 
-	// Apply --bg flag if set (overrides theme.json background)
+	// Background priority: 1) CLI --bg, 2) theme.json, 3) saved config
 	if cliBgColor != "" {
 		applyBackground(cliBgColor)
 		currentConfig.Background = cliBgColor
-	} else if !bgApplied {
+	} else if !bgFromFile {
 		// Neither CLI nor theme.json set background, use saved config
 		applyInitialBackground()
 	}
+	// else: theme.json background was already applied by applyCustomThemeFile()
 
 	currentColorName = currentConfig.Theme
 }
