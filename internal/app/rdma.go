@@ -128,8 +128,8 @@ func GetRDMADevices() []RDMADevice {
 
 // finalizeRDMADevice derives the network interface from the device name
 func finalizeRDMADevice(device *RDMADevice) {
-	if devi, ok := strings.CutPrefix(device.Name, "rdma_"); ok {
-		device.Interface = devi
+	if ifaceName, ok := strings.CutPrefix(device.Name, "rdma_"); ok {
+		device.Interface = ifaceName
 	}
 }
 
