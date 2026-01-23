@@ -57,13 +57,13 @@ func buildThunderboltItemsFromIOKit() []ThunderboltBus {
 			continue
 		}
 
-		tbVersion := 4
-		if sw.ThunderboltVersion >= 64 {
-			tbVersion = 5
-		} else if sw.ThunderboltVersion >= 32 {
-			tbVersion = 4
-		} else if sw.ThunderboltVersion >= 16 {
-			tbVersion = 3
+		modeStr := determineThunderboltMode(sw)
+
+		tbVersion := 4 // Default
+		if len(modeStr) > 2 {
+			if v, err := strconv.Atoi(modeStr[2:]); err == nil {
+				tbVersion = v
+			}
 		}
 
 		busNum := int(sw.UID & 0xF)
@@ -100,14 +100,13 @@ func buildThunderboltItemsFromIOKit() []ThunderboltBus {
 		}
 
 		var devMode string
-		if sw.ThunderboltVersion >= 64 {
+
+		if sw.LinkSpeed >= 80000000000 { // 80 Gbps
 			devMode = "TB5"
-		} else if sw.ThunderboltVersion >= 32 {
+		} else if sw.LinkSpeed >= 40000000000 { // 40 Gbps
 			devMode = "TB4"
-		} else if sw.ThunderboltVersion >= 16 {
+		} else if sw.LinkSpeed >= 20000000000 { // 20 Gbps
 			devMode = "TB3"
-		} else {
-			devMode = fmt.Sprintf("TB%d", sw.ThunderboltVersion/8)
 		}
 
 		dev := ThunderboltDevice{
@@ -124,6 +123,17 @@ func buildThunderboltItemsFromIOKit() []ThunderboltBus {
 	}
 
 	return buses
+}
+
+func determineThunderboltMode(sw ThunderboltSwitchInfo) string {
+	if sw.LinkSpeed >= 80000000000 { // 80 Gbps
+		return "TB5"
+	} else if sw.LinkSpeed >= 40000000000 { // 40 Gbps
+		return "TB4"
+	} else if sw.LinkSpeed >= 20000000000 { // 20 Gbps
+		return "TB3"
+	}
+	return fmt.Sprintf("TB%d", sw.ThunderboltVersion/8)
 }
 
 func buildStorageItemsFromIOKit() []StorageItem {

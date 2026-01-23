@@ -350,6 +350,7 @@ typedef struct {
     int port_count;
     int depth;
     int thunderbolt_version;
+    uint64_t link_speed;
 } tb_switch_info_t;
 
 static void get_cf_string(CFTypeRef ref, char *buf, size_t bufsize) {
@@ -444,6 +445,14 @@ int get_thunderbolt_switches(tb_switch_info_t *switches, int max_switches) {
             switches[count].port_count = get_cf_int(CFDictionaryGetValue(props, CFSTR("Max Port Number")));
             switches[count].depth = get_cf_int(CFDictionaryGetValue(props, CFSTR("Depth")));
             switches[count].thunderbolt_version = get_cf_int(CFDictionaryGetValue(props, CFSTR("Thunderbolt Version")));
+
+            // Try to get Link Speed from various keys
+            uint64_t speed = get_cf_uint64(CFDictionaryGetValue(props, CFSTR("Link Speed")));
+            if (speed == 0) speed = get_cf_uint64(CFDictionaryGetValue(props, CFSTR("Speed")));
+            if (speed == 0) speed = get_cf_uint64(CFDictionaryGetValue(props, CFSTR("IOLinkSpeed")));
+            // Some controllers might use "CurrentLinkWidth" or similar but usually speed is what we want
+            switches[count].link_speed = speed;
+
             get_cf_string(CFDictionaryGetValue(props, CFSTR("Device Vendor Name")), switches[count].vendor_name, sizeof(switches[count].vendor_name));
             get_cf_string(CFDictionaryGetValue(props, CFSTR("Device Model Name")), switches[count].device_name, sizeof(switches[count].device_name));
 
@@ -1038,6 +1047,7 @@ type ThunderboltSwitchInfo struct {
 	PortCount          int
 	Depth              int
 	ThunderboltVersion int
+	LinkSpeed          uint64
 }
 
 func GetThunderboltSwitchesIOKit() []ThunderboltSwitchInfo {
@@ -1061,6 +1071,7 @@ func GetThunderboltSwitchesIOKit() []ThunderboltSwitchInfo {
 			PortCount:          int(switches[i].port_count),
 			Depth:              int(switches[i].depth),
 			ThunderboltVersion: int(switches[i].thunderbolt_version),
+			LinkSpeed:          uint64(switches[i].link_speed),
 		}
 	}
 	return result
