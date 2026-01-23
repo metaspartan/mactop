@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	"slices"
 
 	ui "github.com/metaspartan/gotui/v5"
 	w "github.com/metaspartan/gotui/v5/widgets"
@@ -124,12 +125,7 @@ var catppuccinThemes = []string{"frappe", "macchiato", "mocha"}
 
 // IsCatppuccinTheme returns true if the theme is a Catppuccin theme
 func IsCatppuccinTheme(theme string) bool {
-	for _, t := range catppuccinThemes {
-		if theme == t {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(catppuccinThemes, theme)
 }
 
 func getCPUColor() ui.Color {
