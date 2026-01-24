@@ -61,6 +61,16 @@ func buildInfoLines(themeColor string) []string {
 		formatLine("Shell", cachedShell),
 		formatLine("CPU", cachedModelName),
 		formatLine("GPU", fmt.Sprintf("%d Core GPU", appleSiliconModel.GPUCoreCount)),
+		formatLine("TFLOPs", func() string {
+			gpuCores := appleSiliconModel.GPUCoreCount
+			maxFreq := GetMaxGPUFrequency()
+			if maxFreq > 0 && gpuCores > 0 {
+				fp32TFLOPs := float64(gpuCores) * float64(maxFreq) * 0.000256
+				fp16TFLOPs := fp32TFLOPs * 2
+				return fmt.Sprintf("%.1f FP32 / %.1f FP16", fp32TFLOPs, fp16TFLOPs)
+			}
+			return "N/A"
+		}()),
 		formatLine("Memory", fmt.Sprintf("%.2f GB / %.2f GB", usedMem, totalMem)),
 		formatLine("Swap", fmt.Sprintf("%.2f GB / %.2f GB", swapUsed, swapTotal)),
 		"",
@@ -96,9 +106,12 @@ func buildInfoLines(themeColor string) []string {
 	tbInfo := tbDeviceInfo
 	tbInfoMutex.Unlock()
 
-	for line := range strings.Lines(tbInfo) {
-		if line != "" {
-			infoLines = append(infoLines, fmt.Sprintf("[%s](fg:%s)", line, themeColor))
+	if tbInfo != "" {
+		for line := range strings.Lines(tbInfo) {
+			line = strings.TrimSpace(line)
+			if line != "" {
+				infoLines = append(infoLines, fmt.Sprintf("[%s](fg:%s)", line, themeColor))
+			}
 		}
 	}
 

@@ -339,6 +339,57 @@ int get_gpu_core_count() {
     return core_count;
 }
 
+// Get max GPU frequency from voltage-states9 in IORegistry
+// The property contains (freq_hz:u32, voltage_mv:u32) pairs in little-endian format
+// Returns max frequency in MHz, 0 on error
+int get_max_gpu_freq() {
+    CFMutableDictionaryRef match = IOServiceMatching("AppleARMIODevice");
+    io_iterator_t iter;
+    kern_return_t kr = IOServiceGetMatchingServices(kIOMainPortDefault, match, &iter);
+    if (kr != kIOReturnSuccess) {
+        return 0;
+    }
+
+    int max_freq_mhz = 0;
+    io_registry_entry_t entry;
+
+    while ((entry = IOIteratorNext(iter))) {
+        CFDataRef voltageStates = (CFDataRef)IORegistryEntryCreateCFProperty(
+            entry,
+            CFSTR("voltage-states9"),
+            kCFAllocatorDefault,
+            0
+        );
+
+        if (voltageStates != NULL && CFGetTypeID(voltageStates) == CFDataGetTypeID()) {
+            CFIndex len = CFDataGetLength(voltageStates);
+            if (len >= 8) {
+                const uint8_t *bytes = CFDataGetBytePtr(voltageStates);
+                // Get the last (freq_hz, voltage_mv) pair - this is the max frequency
+                // Each pair is 8 bytes: 4 bytes freq_hz + 4 bytes voltage_mv
+                int pairs = (int)(len / 8);
+                if (pairs > 0) {
+                    int offset = (pairs - 1) * 8;
+                    // Read little-endian uint32 for frequency in Hz
+                    uint32_t freq_hz = bytes[offset] |
+                                       (bytes[offset + 1] << 8) |
+                                       (bytes[offset + 2] << 16) |
+                                       (bytes[offset + 3] << 24);
+                    max_freq_mhz = (int)(freq_hz / 1000000);
+                }
+            }
+            CFRelease(voltageStates);
+            IOObjectRelease(entry);
+            break; // Found what we need
+        }
+
+        IOObjectRelease(entry);
+    }
+
+    IOObjectRelease(iter);
+    return max_freq_mhz;
+}
+
 typedef struct {
     uint64_t uid;
     uint64_t parent_uid;
@@ -1059,6 +1110,11 @@ func GetGPUProcessStats() map[int]uint64 {
 
 func GetGPUCoreCountFast() int {
 	return int(C.get_gpu_core_count())
+}
+
+// GetMaxGPUFrequency returns the maximum GPU frequency in MHz from voltage-states9
+func GetMaxGPUFrequency() int {
+	return int(C.get_max_gpu_freq())
 }
 
 type ThunderboltSwitchInfo struct {
