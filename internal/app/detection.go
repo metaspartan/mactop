@@ -81,12 +81,11 @@ func checkTerminalColorOSC11() (bool, error) {
 }
 
 func parseOSC11Response(resp string) (bool, error) {
-	start := strings.Index(resp, "rgb:")
-	if start == -1 {
+	_, colorStr, ok := strings.Cut(resp, "rgb:")
+	if !ok {
 		return false, fmt.Errorf("invalid response format")
 	}
 
-	colorStr := resp[start+4:]
 	parts := strings.Split(colorStr, "/")
 	if len(parts) < 3 {
 		return false, fmt.Errorf("invalid color format")
@@ -148,7 +147,6 @@ func checkCOLORFGBG() (bool, error) {
 func checkSystemTheme() (bool, error) {
 	cmd := exec.Command("defaults", "read", "-g", "AppleInterfaceStyle")
 	out, err := cmd.Output()
-
 	if err != nil {
 		return true, nil
 	}

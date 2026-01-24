@@ -341,10 +341,7 @@ func updateHelpText() {
 	}
 
 	start := helpScrollOffset
-	end := start + availableHeight
-	if end > len(lines) {
-		end = len(lines)
-	}
+	end := min(start+availableHeight, len(lines))
 
 	visibleLines := lines[start:end]
 

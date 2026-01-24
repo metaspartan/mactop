@@ -5,12 +5,12 @@
 class Mactop < Formula
   desc "Apple Silicon Monitor Top written in Go Lang"
   homepage "https://github.com/metaspartan/mactop"
-  version "2.0.5"
+  version "2.0.7"
   depends_on :macos
 
   if Hardware::CPU.arm?
-    url "https://github.com/metaspartan/mactop/releases/download/v2.0.5/mactop_2.0.5_darwin_arm64.tar.gz"
-    sha256 "cc1ec8422da1c24e9850e2d4659152dfc89a62ec6fe132d9cf625aedfc2c8172"
+    url "https://github.com/metaspartan/mactop/releases/download/v2.0.7/mactop_2.0.7_darwin_arm64.tar.gz"
+    sha256 "0374aa0f80fa5e2ace6581f62ca6838e3dbd8e7dbe1beaa8f6d249ec87e58633"
 
     def install
       bin.install "mactop"

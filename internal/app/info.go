@@ -96,12 +96,9 @@ func buildInfoLines(themeColor string) []string {
 	tbInfo := tbDeviceInfo
 	tbInfoMutex.Unlock()
 
-	if tbInfo != "" {
-		tbLines := strings.Split(tbInfo, "\n")
-		for _, line := range tbLines {
-			if line != "" {
-				infoLines = append(infoLines, fmt.Sprintf("[%s](fg:%s)", line, themeColor))
-			}
+	for line := range strings.Lines(tbInfo) {
+		if line != "" {
+			infoLines = append(infoLines, fmt.Sprintf("[%s](fg:%s)", line, themeColor))
 		}
 	}
 
@@ -204,10 +201,7 @@ func calculateInfoLayout(infoLinesCount, asciiLinesCount int) infoLayout {
 
 	// Calculate visible range
 	startLine := infoScrollOffset
-	endLine := startLine + availableHeight
-	if endLine > totalLines {
-		endLine = totalLines
-	}
+	endLine := min(startLine+availableHeight, totalLines)
 
 	// Determine padding based on whether content needs scrolling
 	paddingTop := 0

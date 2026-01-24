@@ -140,8 +140,7 @@ func parseIOUSBHostDeviceGrep() map[string]string {
 	// Use grep-like extraction
 	cmd2 := exec.Command("bash", "-c", `ioreg -r -c IOUSBHostDevice 2>/dev/null | grep -E "USB Product Name|UsbCPortNumber" | paste - - 2>/dev/null`)
 	out2, _ := cmd2.Output()
-	lines2 := strings.Split(string(out2), "\n")
-	for _, line := range lines2 {
+	for line := range strings.Lines(string(out2)) {
 		// Parse paired lines like: "USB Product Name" = "ASM236X series" ... "UsbCPortNumber" = 5
 		if strings.Contains(line, "USB Product Name") && strings.Contains(line, "UsbCPortNumber") {
 			// Extract product name
