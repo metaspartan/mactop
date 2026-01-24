@@ -118,21 +118,23 @@ func buildThunderboltItemsFromIOKit() []ThunderboltBus {
 }
 
 func determineThunderboltMode(sw ThunderboltSwitchInfo) string {
-	if sw.LinkSpeed >= 80000000000 { // 80 Gbps
-		return "TB5"
-	} else if sw.LinkSpeed >= 40000000000 { // 40 Gbps
-		return "TB4"
-	} else if sw.LinkSpeed >= 20000000000 { // 20 Gbps
-		return "TB3"
+	// For host buses (Depth=0): Use Supported Link Speed (port capability)
+	// For connected devices (Depth>0): Use Current Link Speed (negotiated speed)
+	// Values from IOThunderboltPort: 14 = TB5 (80Gb/s), 12 = TB4 (40Gb/s), 8 = TB3 (20Gb/s)
+
+	speed := sw.LinkSpeed // Default to supported speed
+	if sw.Depth > 0 && sw.CurrentSpeed > 0 {
+		speed = sw.CurrentSpeed // Use negotiated speed for connected devices
 	}
 
-	// Fallback to version-based detection when LinkSpeed is unavailable
-	if sw.ThunderboltVersion >= 32 {
+	if speed >= 14 {
+		return "TB5"
+	} else if speed >= 12 {
 		return "TB4"
-	} else if sw.ThunderboltVersion >= 16 {
+	} else if speed > 0 {
 		return "TB3"
 	}
-	return "TB4" // Safe default
+	return "TB4" // Default when no speed data available
 }
 
 func buildStorageItemsFromIOKit() []StorageItem {

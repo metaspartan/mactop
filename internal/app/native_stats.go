@@ -350,7 +350,9 @@ typedef struct {
     int port_count;
     int depth;
     int thunderbolt_version;
-    uint64_t link_speed;
+    uint64_t link_speed;       // Supported Link Speed (capability)
+    uint64_t current_speed;    // Current Link Speed (negotiated)
+    int link_width;
 } tb_switch_info_t;
 
 static void get_cf_string(CFTypeRef ref, char *buf, size_t bufsize) {
@@ -445,11 +447,36 @@ int get_thunderbolt_switches(tb_switch_info_t *switches, int max_switches) {
             switches[count].port_count = get_cf_int(CFDictionaryGetValue(props, CFSTR("Max Port Number")));
             switches[count].depth = get_cf_int(CFDictionaryGetValue(props, CFSTR("Depth")));
             switches[count].thunderbolt_version = get_cf_int(CFDictionaryGetValue(props, CFSTR("Thunderbolt Version")));
-
-            uint64_t speed = get_cf_uint64(CFDictionaryGetValue(props, CFSTR("Link Speed")));
-            if (speed == 0) speed = get_cf_uint64(CFDictionaryGetValue(props, CFSTR("Speed")));
-            if (speed == 0) speed = get_cf_uint64(CFDictionaryGetValue(props, CFSTR("IOLinkSpeed")));
-            switches[count].link_speed = speed;
+            io_iterator_t child_iter;
+            if (IORegistryEntryGetChildIterator(entry, kIOServicePlane, &child_iter) == kIOReturnSuccess) {
+                io_registry_entry_t child;
+                while ((child = IOIteratorNext(child_iter)) != 0) {
+                    io_name_t childClass;
+                    IOObjectGetClass(child, childClass);
+                    if (strstr(childClass, "IOThunderboltPort") != NULL) {
+                        CFMutableDictionaryRef childProps = NULL;
+                        if (IORegistryEntryCreateCFProperties(child, &childProps, kCFAllocatorDefault, 0) == kIOReturnSuccess && childProps) {
+                            int supportedSpeed = get_cf_int(CFDictionaryGetValue(childProps, CFSTR("Supported Link Speed")));
+                            int currentSpeed = get_cf_int(CFDictionaryGetValue(childProps, CFSTR("Current Link Speed")));
+                            int supportedWidth = get_cf_int(CFDictionaryGetValue(childProps, CFSTR("Supported Link Width")));
+                            if (supportedSpeed > 0) {
+                                switches[count].link_speed = (uint64_t)supportedSpeed;
+                            }
+                            if (currentSpeed > 0) {
+                                switches[count].current_speed = (uint64_t)currentSpeed;
+                            }
+                            if (supportedWidth > 0) {
+                                switches[count].link_width = supportedWidth;
+                            }
+                            CFRelease(childProps);
+                        }
+                        IOObjectRelease(child);
+                        break;
+                    }
+                    IOObjectRelease(child);
+                }
+                IOObjectRelease(child_iter);
+            }
 
             get_cf_string(CFDictionaryGetValue(props, CFSTR("Device Vendor Name")), switches[count].vendor_name, sizeof(switches[count].vendor_name));
             get_cf_string(CFDictionaryGetValue(props, CFSTR("Device Model Name")), switches[count].device_name, sizeof(switches[count].device_name));
@@ -1045,7 +1072,9 @@ type ThunderboltSwitchInfo struct {
 	PortCount          int
 	Depth              int
 	ThunderboltVersion int
-	LinkSpeed          uint64
+	LinkSpeed          uint64 // Supported Link Speed (capability)
+	CurrentSpeed       uint64 // Current Link Speed (negotiated)
+	LinkWidth          int
 }
 
 func GetThunderboltSwitchesIOKit() []ThunderboltSwitchInfo {
@@ -1070,6 +1099,8 @@ func GetThunderboltSwitchesIOKit() []ThunderboltSwitchInfo {
 			Depth:              int(switches[i].depth),
 			ThunderboltVersion: int(switches[i].thunderbolt_version),
 			LinkSpeed:          uint64(switches[i].link_speed),
+			CurrentSpeed:       uint64(switches[i].current_speed),
+			LinkWidth:          int(switches[i].link_width),
 		}
 	}
 	return result
