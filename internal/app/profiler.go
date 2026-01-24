@@ -99,15 +99,7 @@ func buildThunderboltItemsFromIOKit() []ThunderboltBus {
 			continue
 		}
 
-		var devMode string
-
-		if sw.LinkSpeed >= 80000000000 { // 80 Gbps
-			devMode = "TB5"
-		} else if sw.LinkSpeed >= 40000000000 { // 40 Gbps
-			devMode = "TB4"
-		} else if sw.LinkSpeed >= 20000000000 { // 20 Gbps
-			devMode = "TB3"
-		}
+		devMode := determineThunderboltMode(sw)
 
 		dev := ThunderboltDevice{
 			Name:      sw.DeviceName,
@@ -133,7 +125,14 @@ func determineThunderboltMode(sw ThunderboltSwitchInfo) string {
 	} else if sw.LinkSpeed >= 20000000000 { // 20 Gbps
 		return "TB3"
 	}
-	return fmt.Sprintf("TB%d", sw.ThunderboltVersion/8)
+
+	// Fallback to version-based detection when LinkSpeed is unavailable
+	if sw.ThunderboltVersion >= 32 {
+		return "TB4"
+	} else if sw.ThunderboltVersion >= 16 {
+		return "TB3"
+	}
+	return "TB4" // Safe default
 }
 
 func buildStorageItemsFromIOKit() []StorageItem {

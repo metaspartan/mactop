@@ -446,11 +446,9 @@ int get_thunderbolt_switches(tb_switch_info_t *switches, int max_switches) {
             switches[count].depth = get_cf_int(CFDictionaryGetValue(props, CFSTR("Depth")));
             switches[count].thunderbolt_version = get_cf_int(CFDictionaryGetValue(props, CFSTR("Thunderbolt Version")));
 
-            // Try to get Link Speed from various keys
             uint64_t speed = get_cf_uint64(CFDictionaryGetValue(props, CFSTR("Link Speed")));
             if (speed == 0) speed = get_cf_uint64(CFDictionaryGetValue(props, CFSTR("Speed")));
             if (speed == 0) speed = get_cf_uint64(CFDictionaryGetValue(props, CFSTR("IOLinkSpeed")));
-            // Some controllers might use "CurrentLinkWidth" or similar but usually speed is what we want
             switches[count].link_speed = speed;
 
             get_cf_string(CFDictionaryGetValue(props, CFSTR("Device Vendor Name")), switches[count].vendor_name, sizeof(switches[count].vendor_name));
