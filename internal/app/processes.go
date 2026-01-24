@@ -535,6 +535,8 @@ func handleSearchInput(e ui.Event) {
 	case "<Enter>":
 		searchMode = false
 		updateProcessList()
+	case "<F9>":
+		attemptKillProcess()
 	case "<Backspace>":
 		if len(searchText) > 0 {
 			runes := []rune(searchText)
