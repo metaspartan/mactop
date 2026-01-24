@@ -35,6 +35,8 @@ type HeadlessOutput struct {
 	ECPUUsage             []float64          `json:"ecpu_usage" yaml:"ecpu_usage" xml:"ECPUUsage" toon:"ecpu_usage"`
 	PCPUUsage             []float64          `json:"pcpu_usage" yaml:"pcpu_usage" xml:"PCPUUsage" toon:"pcpu_usage"`
 	GPUUsage              float64            `json:"gpu_usage" yaml:"gpu_usage" xml:"GPUUsage" toon:"gpu_usage"`
+	TFLOPsFP32            float64            `json:"tflops_fp32" yaml:"tflops_fp32" xml:"TFLOPsFP32" toon:"tflops_fp32"`
+	TFLOPsFP16            float64            `json:"tflops_fp16" yaml:"tflops_fp16" xml:"TFLOPsFP16" toon:"tflops_fp16"`
 	CoreUsages            []float64          `json:"core_usages" yaml:"core_usages" xml:"CoreUsages" toon:"core_usages"`
 	SystemInfo            SystemInfo         `json:"system_info" yaml:"system_info" xml:"SystemInfo" toon:"system_info"`
 	ThermalState          string             `json:"thermal_state" yaml:"thermal_state" xml:"ThermalState" toon:"thermal_state"`
@@ -339,6 +341,14 @@ func collectHeadlessData(tbInfo *ThunderboltOutput, sysInfo SystemInfo) Headless
 	rdmaStatus := CheckRDMAAvailable()
 	mapRDMADevicesToBuses(rdmaStatus.Devices, tbInfo)
 
+	// Calculate TFLOPs
+	var fp32TFLOPs, fp16TFLOPs float64
+	maxGPUFreq := GetMaxGPUFrequency()
+	if maxGPUFreq > 0 && sysInfo.GPUCoreCount > 0 {
+		fp32TFLOPs = float64(sysInfo.GPUCoreCount) * float64(maxGPUFreq) * 0.000256
+		fp16TFLOPs = fp32TFLOPs * 2
+	}
+
 	return HeadlessOutput{
 		Timestamp:             time.Now().Format(time.RFC3339),
 		SocMetrics:            m,
@@ -348,6 +358,8 @@ func collectHeadlessData(tbInfo *ThunderboltOutput, sysInfo SystemInfo) Headless
 		ECPUUsage:             []float64{float64(m.EClusterFreqMHz), m.EClusterActive},
 		PCPUUsage:             []float64{float64(m.PClusterFreqMHz), m.PClusterActive},
 		GPUUsage:              m.GPUActive,
+		TFLOPsFP32:            fp32TFLOPs,
+		TFLOPsFP16:            fp16TFLOPs,
 		CoreUsages:            percentages,
 		SystemInfo:            sysInfo,
 		ThunderboltInfo:       tbInfo,
