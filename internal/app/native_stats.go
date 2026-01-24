@@ -354,33 +354,37 @@ int get_max_gpu_freq() {
     io_registry_entry_t entry;
 
     while ((entry = IOIteratorNext(iter))) {
-        CFDataRef voltageStates = (CFDataRef)IORegistryEntryCreateCFProperty(
+        CFTypeRef voltageStates = IORegistryEntryCreateCFProperty(
             entry,
             CFSTR("voltage-states9"),
             kCFAllocatorDefault,
             0
         );
 
-        if (voltageStates != NULL && CFGetTypeID(voltageStates) == CFDataGetTypeID()) {
-            CFIndex len = CFDataGetLength(voltageStates);
-            if (len >= 8) {
-                const uint8_t *bytes = CFDataGetBytePtr(voltageStates);
-                // Get the last (freq_hz, voltage_mv) pair - this is the max frequency
-                // Each pair is 8 bytes: 4 bytes freq_hz + 4 bytes voltage_mv
-                int pairs = (int)(len / 8);
-                if (pairs > 0) {
-                    int offset = (pairs - 1) * 8;
-                    // Read little-endian uint32 for frequency in Hz
-                    uint32_t freq_hz = bytes[offset] |
-                                       (bytes[offset + 1] << 8) |
-                                       (bytes[offset + 2] << 16) |
-                                       (bytes[offset + 3] << 24);
-                    max_freq_mhz = (int)(freq_hz / 1000000);
+        if (voltageStates != NULL) {
+            if (CFGetTypeID(voltageStates) == CFDataGetTypeID()) {
+                CFDataRef data = (CFDataRef)voltageStates;
+                CFIndex len = CFDataGetLength(data);
+                if (len >= 8) {
+                    const uint8_t *bytes = CFDataGetBytePtr(data);
+                    // Get the last (freq_hz, voltage_mv) pair - this is the max frequency
+                    // Each pair is 8 bytes: 4 bytes freq_hz + 4 bytes voltage_mv
+                    int pairs = (int)(len / 8);
+                    if (pairs > 0) {
+                        int offset = (pairs - 1) * 8;
+                        // Read little-endian uint32 for frequency in Hz
+                        uint32_t freq_hz = bytes[offset] |
+                                           (bytes[offset + 1] << 8) |
+                                           (bytes[offset + 2] << 16) |
+                                           (bytes[offset + 3] << 24);
+                        max_freq_mhz = (int)(freq_hz / 1000000);
+                    }
                 }
+                CFRelease(voltageStates);
+                IOObjectRelease(entry);
+                break; // Found what we need
             }
-            CFRelease(voltageStates);
-            IOObjectRelease(entry);
-            break; // Found what we need
+            CFRelease(voltageStates); // Release even if wrong type
         }
 
         IOObjectRelease(entry);
