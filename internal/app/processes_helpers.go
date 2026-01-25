@@ -6,6 +6,12 @@ import (
 	ui "github.com/metaspartan/gotui/v5"
 )
 
+// isLightNamedTheme returns true for named themes that need dark text on header
+// Only indigo is dark enough to need white text
+func isLightNamedTheme(theme string) bool {
+	return theme != "indigo"
+}
+
 func resolveProcessThemeColor() (string, string) {
 	themeColor := processList.TextStyle.Fg
 	var themeColorStr string
@@ -40,6 +46,9 @@ func resolveProcessThemeColor() (string, string) {
 		selectedHeaderFg = GetCatppuccinHex(currentConfig.Theme, "Base")
 	} else if IsHexColor(themeColorStr) && IsLightHexColor(themeColorStr) {
 		// Bright hex colors need dark text for contrast
+		selectedHeaderFg = "#020202"
+	} else if isLightNamedTheme(currentConfig.Theme) {
+		// Bright named colors need dark text for contrast
 		selectedHeaderFg = "#020202"
 	}
 	// For dark hex colors, white text looks best
