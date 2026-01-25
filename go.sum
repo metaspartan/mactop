@@ -25,8 +25,8 @@ github.com/lucasb-eyer/go-colorful v1.3.0 h1:2/yBRLdWBZKrf7gB40FoiKfAWYQ0lqNcbuQ
 github.com/lucasb-eyer/go-colorful v1.3.0/go.mod h1:R4dSotOR9KMtayYi1e77YzuveK+i7ruzyGqttikkLy0=
 github.com/mattn/go-runewidth v0.0.19 h1:v++JhqYnZuu5jSKrk9RbgF5v4CGUjqRfBm05byFGLdw=
 github.com/mattn/go-runewidth v0.0.19/go.mod h1:XBkDxAl56ILZc9knddidhrOlY5R/pDhgLpndooCuJAs=
-github.com/metaspartan/gotui/v5 v5.0.2 h1:x6e+L1z5YVlbrNcefLQKrh3TVjJ0kWZVLqXv+KrtakI=
-github.com/metaspartan/gotui/v5 v5.0.2/go.mod h1:PasNHuk3/HQ2vQTZOmWqnAKLQtOaP0paN4yHPqDJ4q8=
+github.com/metaspartan/gotui/v5 v5.0.3 h1:+bDpEjTEN+yh6sgdiJW73C6nZ4SnsaJCT5zpWhf9L4M=
+github.com/metaspartan/gotui/v5 v5.0.3/go.mod h1:PasNHuk3/HQ2vQTZOmWqnAKLQtOaP0paN4yHPqDJ4q8=
 github.com/mitchellh/go-wordwrap v1.0.1 h1:TLuKupo69TCn6TQSyGxwI1EblZZEsQ0vMlAFQflz0v0=
 github.com/mitchellh/go-wordwrap v1.0.1/go.mod h1:R62XHJLzvMFRBbcrT7m7WgmE1eOyTSsCt+hzestvNj0=
 github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 h1:C3w9PqII01/Oq1c1nUAm88MOHcQC9l5mIlSMApZMrHA=

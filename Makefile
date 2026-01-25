@@ -14,6 +14,9 @@ test:
 clean:
 	rm -f $(APP_NAME)
 
+modernize:
+	go run golang.org/x/tools/go/analysis/passes/modernize/cmd/modernize@latest -fix ./...
+
 sexy:
 	go fmt ./...
 	go vet ./...

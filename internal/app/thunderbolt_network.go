@@ -41,8 +41,7 @@ func getTBBridgeMembers() map[string]bool {
 	out, err := cmd.Output()
 	if err == nil {
 		tbBridgeMembers["bridge0"] = true
-		lines := strings.Split(string(out), "\n")
-		for _, line := range lines {
+		for line := range strings.Lines(string(out)) {
 			line = strings.TrimSpace(line)
 			if strings.HasPrefix(line, "member:") {
 				parts := strings.Fields(line)

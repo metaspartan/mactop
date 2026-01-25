@@ -57,13 +57,13 @@ func buildThunderboltItemsFromIOKit() []ThunderboltBus {
 			continue
 		}
 
-		tbVersion := 4
-		if sw.ThunderboltVersion >= 64 {
-			tbVersion = 5
-		} else if sw.ThunderboltVersion >= 32 {
-			tbVersion = 4
-		} else if sw.ThunderboltVersion >= 16 {
-			tbVersion = 3
+		modeStr := determineThunderboltMode(sw)
+
+		tbVersion := 4 // Default
+		if len(modeStr) > 2 {
+			if v, err := strconv.Atoi(modeStr[2:]); err == nil {
+				tbVersion = v
+			}
 		}
 
 		busNum := int(sw.UID & 0xF)
@@ -99,16 +99,7 @@ func buildThunderboltItemsFromIOKit() []ThunderboltBus {
 			continue
 		}
 
-		var devMode string
-		if sw.ThunderboltVersion >= 64 {
-			devMode = "TB5"
-		} else if sw.ThunderboltVersion >= 32 {
-			devMode = "TB4"
-		} else if sw.ThunderboltVersion >= 16 {
-			devMode = "TB3"
-		} else {
-			devMode = fmt.Sprintf("TB%d", sw.ThunderboltVersion/8)
-		}
+		devMode := determineThunderboltMode(sw)
 
 		dev := ThunderboltDevice{
 			Name:      sw.DeviceName,
@@ -124,6 +115,26 @@ func buildThunderboltItemsFromIOKit() []ThunderboltBus {
 	}
 
 	return buses
+}
+
+func determineThunderboltMode(sw ThunderboltSwitchInfo) string {
+	// For host buses (Depth=0): Use Supported Link Speed (port capability)
+	// For connected devices (Depth>0): Use Current Link Speed (negotiated speed)
+	// Values from IOThunderboltPort: 14 = TB5 (80Gb/s), 12 = TB4 (40Gb/s), 8 = TB3 (20Gb/s)
+
+	speed := sw.LinkSpeed // Default to supported speed
+	if sw.Depth > 0 && sw.CurrentSpeed > 0 {
+		speed = sw.CurrentSpeed // Use negotiated speed for connected devices
+	}
+
+	if speed >= 14 {
+		return "TB5"
+	} else if speed >= 12 {
+		return "TB4"
+	} else if speed > 0 {
+		return "TB3"
+	}
+	return "TB4" // Default when no speed data available
 }
 
 func buildStorageItemsFromIOKit() []StorageItem {

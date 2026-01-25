@@ -144,7 +144,7 @@ func handleIntervalFlag(idx int, args []string) (int, string, int, bool, bool, e
 func runTestApp() {
 	fmt.Println("Testing IOReport power metrics...")
 	initSocMetrics()
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		m := sampleSocMetrics(500)
 		thermalStr, _ := getThermalStateString()
 		fmt.Printf("Sample %d:\n", i+1)

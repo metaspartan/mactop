@@ -339,6 +339,61 @@ int get_gpu_core_count() {
     return core_count;
 }
 
+// Get max GPU frequency from voltage-states9 in IORegistry
+// The property contains (freq_hz:u32, voltage_mv:u32) pairs in little-endian format
+// Returns max frequency in MHz, 0 on error
+int get_max_gpu_freq() {
+    CFMutableDictionaryRef match = IOServiceMatching("AppleARMIODevice");
+    io_iterator_t iter;
+    kern_return_t kr = IOServiceGetMatchingServices(kIOMainPortDefault, match, &iter);
+    if (kr != kIOReturnSuccess) {
+        return 0;
+    }
+
+    int max_freq_mhz = 0;
+    io_registry_entry_t entry;
+
+    while ((entry = IOIteratorNext(iter))) {
+        CFTypeRef voltageStates = IORegistryEntryCreateCFProperty(
+            entry,
+            CFSTR("voltage-states9"),
+            kCFAllocatorDefault,
+            0
+        );
+
+        if (voltageStates != NULL) {
+            if (CFGetTypeID(voltageStates) == CFDataGetTypeID()) {
+                CFDataRef data = (CFDataRef)voltageStates;
+                CFIndex len = CFDataGetLength(data);
+                if (len >= 8) {
+                    const uint8_t *bytes = CFDataGetBytePtr(data);
+                    // Get the last (freq_hz, voltage_mv) pair - this is the max frequency
+                    // Each pair is 8 bytes: 4 bytes freq_hz + 4 bytes voltage_mv
+                    int pairs = (int)(len / 8);
+                    if (pairs > 0) {
+                        int offset = (pairs - 1) * 8;
+                        // Read little-endian uint32 for frequency in Hz
+                        uint32_t freq_hz = bytes[offset] |
+                                           (bytes[offset + 1] << 8) |
+                                           (bytes[offset + 2] << 16) |
+                                           (bytes[offset + 3] << 24);
+                        max_freq_mhz = (int)(freq_hz / 1000000);
+                    }
+                }
+                CFRelease(voltageStates);
+                IOObjectRelease(entry);
+                break; // Found what we need
+            }
+            CFRelease(voltageStates); // Release even if wrong type
+        }
+
+        IOObjectRelease(entry);
+    }
+
+    IOObjectRelease(iter);
+    return max_freq_mhz;
+}
+
 typedef struct {
     uint64_t uid;
     uint64_t parent_uid;
@@ -350,6 +405,9 @@ typedef struct {
     int port_count;
     int depth;
     int thunderbolt_version;
+    uint64_t link_speed;       // Supported Link Speed (capability)
+    uint64_t current_speed;    // Current Link Speed (negotiated)
+    int link_width;
 } tb_switch_info_t;
 
 static void get_cf_string(CFTypeRef ref, char *buf, size_t bufsize) {
@@ -444,6 +502,37 @@ int get_thunderbolt_switches(tb_switch_info_t *switches, int max_switches) {
             switches[count].port_count = get_cf_int(CFDictionaryGetValue(props, CFSTR("Max Port Number")));
             switches[count].depth = get_cf_int(CFDictionaryGetValue(props, CFSTR("Depth")));
             switches[count].thunderbolt_version = get_cf_int(CFDictionaryGetValue(props, CFSTR("Thunderbolt Version")));
+            io_iterator_t child_iter;
+            if (IORegistryEntryGetChildIterator(entry, kIOServicePlane, &child_iter) == kIOReturnSuccess) {
+                io_registry_entry_t child;
+                while ((child = IOIteratorNext(child_iter)) != 0) {
+                    io_name_t childClass;
+                    IOObjectGetClass(child, childClass);
+                    if (strstr(childClass, "IOThunderboltPort") != NULL) {
+                        CFMutableDictionaryRef childProps = NULL;
+                        if (IORegistryEntryCreateCFProperties(child, &childProps, kCFAllocatorDefault, 0) == kIOReturnSuccess && childProps) {
+                            int supportedSpeed = get_cf_int(CFDictionaryGetValue(childProps, CFSTR("Supported Link Speed")));
+                            int currentSpeed = get_cf_int(CFDictionaryGetValue(childProps, CFSTR("Current Link Speed")));
+                            int supportedWidth = get_cf_int(CFDictionaryGetValue(childProps, CFSTR("Supported Link Width")));
+                            if (supportedSpeed > 0) {
+                                switches[count].link_speed = (uint64_t)supportedSpeed;
+                            }
+                            if (currentSpeed > 0) {
+                                switches[count].current_speed = (uint64_t)currentSpeed;
+                            }
+                            if (supportedWidth > 0) {
+                                switches[count].link_width = supportedWidth;
+                            }
+                            CFRelease(childProps);
+                        }
+                        IOObjectRelease(child);
+                        break;
+                    }
+                    IOObjectRelease(child);
+                }
+                IOObjectRelease(child_iter);
+            }
+
             get_cf_string(CFDictionaryGetValue(props, CFSTR("Device Vendor Name")), switches[count].vendor_name, sizeof(switches[count].vendor_name));
             get_cf_string(CFDictionaryGetValue(props, CFSTR("Device Model Name")), switches[count].device_name, sizeof(switches[count].device_name));
 
@@ -1027,6 +1116,11 @@ func GetGPUCoreCountFast() int {
 	return int(C.get_gpu_core_count())
 }
 
+// GetMaxGPUFrequency returns the maximum GPU frequency in MHz from voltage-states9
+func GetMaxGPUFrequency() int {
+	return int(C.get_max_gpu_freq())
+}
+
 type ThunderboltSwitchInfo struct {
 	UID                uint64
 	ParentUID          uint64
@@ -1038,6 +1132,9 @@ type ThunderboltSwitchInfo struct {
 	PortCount          int
 	Depth              int
 	ThunderboltVersion int
+	LinkSpeed          uint64 // Supported Link Speed (capability)
+	CurrentSpeed       uint64 // Current Link Speed (negotiated)
+	LinkWidth          int
 }
 
 func GetThunderboltSwitchesIOKit() []ThunderboltSwitchInfo {
@@ -1061,6 +1158,9 @@ func GetThunderboltSwitchesIOKit() []ThunderboltSwitchInfo {
 			PortCount:          int(switches[i].port_count),
 			Depth:              int(switches[i].depth),
 			ThunderboltVersion: int(switches[i].thunderbolt_version),
+			LinkSpeed:          uint64(switches[i].link_speed),
+			CurrentSpeed:       uint64(switches[i].current_speed),
+			LinkWidth:          int(switches[i].link_width),
 		}
 	}
 	return result

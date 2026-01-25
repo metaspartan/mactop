@@ -3,7 +3,7 @@ module github.com/metaspartan/mactop/v2
 go 1.25.4
 
 require (
-	github.com/metaspartan/gotui/v5 v5.0.2
+	github.com/metaspartan/gotui/v5 v5.0.3
 	github.com/prometheus/client_golang v1.23.2
 	github.com/toon-format/toon-go v0.0.0-20251202084852-7ca0e27c4e8c
 	golang.org/x/term v0.38.0

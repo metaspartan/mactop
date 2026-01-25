@@ -127,11 +127,11 @@ func NewCPUCoreWidget(modelInfo SystemInfo) *CPUCoreWidget {
 
 		labels = make([]string, totalCores)
 		cpuIndexMap = make([]int, totalCores)
-		for i := 0; i < eCoreCount; i++ {
+		for i := range eCoreCount {
 			labels[i] = fmt.Sprintf("E%d", i)
 			cpuIndexMap[i] = i // 1:1 mapping for fallback
 		}
-		for i := 0; i < pCoreCount; i++ {
+		for i := range pCoreCount {
 			labels[i+eCoreCount] = fmt.Sprintf("P%d", i)
 			cpuIndexMap[i+eCoreCount] = i + eCoreCount
 		}
@@ -272,7 +272,7 @@ func (w *CPUCoreWidget) Draw(buf *ui.Buffer) {
 	cols, rows, colXs, colWidths := w.calculateLayout(availableWidth, availableHeight, totalCores)
 	fullCols := totalCores - (rows-1)*cols
 
-	for i := 0; i < totalCores; i++ {
+	for i := range totalCores {
 		col := i % cols
 		row := i / cols
 		actualIndex := col*rows + row - max(0, col-fullCols)
