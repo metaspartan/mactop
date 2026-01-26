@@ -257,8 +257,6 @@ func applyCatppuccinThemeToGauges(palette *CatppuccinPalette) {
 // applyCustomPerComponentColors applies per-component colors from custom theme
 // Falls back to foreground color if component color not specified
 func applyCustomPerComponentColors(theme *CustomThemeConfig, foregroundColor ui.Color) {
-	// Helper to get component color with strict fallback
-	// Priority: Specific Key -> Foreground
 	getColor := func(specificKey string) ui.Color {
 		if specificKey != "" && IsHexColor(specificKey) {
 			if color, err := ParseHexColor(specificKey); err == nil {

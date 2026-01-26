@@ -154,8 +154,12 @@ mactop --headless --format toon
 Create `~/.mactop/theme.json` to customize colors:
 
 #### Basic Colors
-- `foreground`: Primary UI color (borders, titles, gauges) - default if per-component colors not specified
-- `background`: Background color for all UI elements
+```json
+{
+  "foreground": "#9580FF",
+  "background": "#22212C"
+}
+```
 
 #### Per-Component Colors (Optional)
 
@@ -185,14 +189,6 @@ Individual component colors that override the foreground:
   "thunderbolt": "#E91E63",
   "processList": "#FFEB3B",
   "systemInfo": "#00BCD4"
-}
-```
-
-#### Example: Basic Theme (all components use foreground)
-```json
-{
-  "foreground": "#9580FF",
-  "background": "#22212C"
 }
 ```
 
