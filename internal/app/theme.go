@@ -716,7 +716,9 @@ func GetProcessTextColor(isCurrentUser bool) string {
 		if isCurrentUser {
 			// Check for custom ProcessList color first
 			if currentConfig.CustomTheme != nil && currentConfig.CustomTheme.ProcessList != "" {
-				return currentConfig.CustomTheme.ProcessList
+				if IsHexColor(currentConfig.CustomTheme.ProcessList) {
+					return currentConfig.CustomTheme.ProcessList
+				}
 			}
 
 			color := GetThemeColorWithLightMode(currentConfig.Theme, true)
@@ -734,7 +736,9 @@ func GetProcessTextColor(isCurrentUser bool) string {
 	if isCurrentUser {
 		// Check for custom ProcessList color first
 		if currentConfig.CustomTheme != nil && currentConfig.CustomTheme.ProcessList != "" {
-			return currentConfig.CustomTheme.ProcessList
+			if IsHexColor(currentConfig.CustomTheme.ProcessList) {
+				return currentConfig.CustomTheme.ProcessList
+			}
 		}
 
 		if IsCatppuccinTheme(currentConfig.Theme) {
@@ -743,16 +747,6 @@ func GetProcessTextColor(isCurrentUser bool) string {
 		return resolveThemeColorString(currentConfig.Theme)
 	}
 	return "#888888" // Grey for non-current-user (root/system) processes
-}
-
-// GetProcessListColor returns the resolved color for the process list elements (title, border, text)
-func GetProcessListColor() ui.Color {
-	if currentConfig.CustomTheme != nil && currentConfig.CustomTheme.ProcessList != "" {
-		if color, err := ParseHexColor(currentConfig.CustomTheme.ProcessList); err == nil {
-			return color
-		}
-	}
-	return GetThemeColorWithLightMode(currentConfig.Theme, IsLightMode)
 }
 
 func cycleTheme() {
