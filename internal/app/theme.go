@@ -254,6 +254,154 @@ func applyCatppuccinThemeToGauges(palette *CatppuccinPalette) {
 	}
 }
 
+// applyCustomPerComponentColors applies per-component colors from custom theme
+// Falls back to foreground color if component color not specified
+func applyCustomPerComponentColors(theme *CustomThemeConfig, foregroundColor ui.Color) {
+	// Helper to get component color or fall back to foreground
+	getColor := func(colorHex string) ui.Color {
+		if colorHex != "" && IsHexColor(colorHex) {
+			if color, err := ParseHexColor(colorHex); err == nil {
+				return color
+			}
+		}
+		return foregroundColor
+	}
+
+	// Apply gauge colors
+	if cpuGauge != nil {
+		color := getColor(theme.CPU)
+		cpuGauge.BarColor = color
+		cpuGauge.BorderStyle.Fg = color
+		cpuGauge.BorderStyle.Bg = CurrentBgColor
+		cpuGauge.TitleStyle.Fg = color
+		cpuGauge.TitleStyle.Bg = CurrentBgColor
+		cpuGauge.LabelStyle = ui.NewStyle(SecondaryTextColor, CurrentBgColor)
+	}
+
+	if gpuGauge != nil {
+		color := getColor(theme.GPU)
+		gpuGauge.BarColor = color
+		gpuGauge.BorderStyle.Fg = color
+		gpuGauge.BorderStyle.Bg = CurrentBgColor
+		gpuGauge.TitleStyle.Fg = color
+		gpuGauge.TitleStyle.Bg = CurrentBgColor
+		gpuGauge.LabelStyle = ui.NewStyle(SecondaryTextColor, CurrentBgColor)
+	}
+
+	if memoryGauge != nil {
+		color := getColor(theme.Memory)
+		memoryGauge.BarColor = color
+		memoryGauge.BorderStyle.Fg = color
+		memoryGauge.BorderStyle.Bg = CurrentBgColor
+		memoryGauge.TitleStyle.Fg = color
+		memoryGauge.TitleStyle.Bg = CurrentBgColor
+		memoryGauge.LabelStyle = ui.NewStyle(SecondaryTextColor, CurrentBgColor)
+	}
+
+	if aneGauge != nil {
+		color := getColor(theme.ANE)
+		aneGauge.BarColor = color
+		aneGauge.BorderStyle.Fg = color
+		aneGauge.BorderStyle.Bg = CurrentBgColor
+		aneGauge.TitleStyle.Fg = color
+		aneGauge.TitleStyle.Bg = CurrentBgColor
+		aneGauge.LabelStyle = ui.NewStyle(SecondaryTextColor, CurrentBgColor)
+	}
+
+	// Apply sparkline colors (network-specific takes precedence, then general sparklines)
+	sparklineColor := foregroundColor
+	if theme.Sparklines != "" && IsHexColor(theme.Sparklines) {
+		if color, err := ParseHexColor(theme.Sparklines); err == nil {
+			sparklineColor = color
+		}
+	}
+	networkColor := sparklineColor
+	if theme.Network != "" && IsHexColor(theme.Network) {
+		if color, err := ParseHexColor(theme.Network); err == nil {
+			networkColor = color
+		}
+	}
+
+	// Apply to all sparklines with general sparkline color
+	if sparkline != nil {
+		sparkline.LineColor = sparklineColor
+		sparkline.TitleStyle = ui.NewStyle(sparklineColor, CurrentBgColor)
+	}
+	if sparklineGroup != nil {
+		sparklineGroup.BorderStyle.Fg = sparklineColor
+		sparklineGroup.TitleStyle.Fg = sparklineColor
+		sparklineGroup.TitleStyle.Bg = CurrentBgColor
+	}
+	if gpuSparkline != nil {
+		gpuSparkline.LineColor = sparklineColor
+		gpuSparkline.TitleStyle = ui.NewStyle(sparklineColor, CurrentBgColor)
+	}
+	if gpuSparklineGroup != nil {
+		gpuSparklineGroup.BorderStyle.Fg = sparklineColor
+		gpuSparklineGroup.TitleStyle.Fg = sparklineColor
+		gpuSparklineGroup.TitleStyle.Bg = CurrentBgColor
+	}
+
+	// Apply network-specific color to network sparklines
+	if tbNetSparklineIn != nil {
+		tbNetSparklineIn.LineColor = networkColor
+		tbNetSparklineIn.TitleStyle = ui.NewStyle(networkColor, CurrentBgColor)
+	}
+	if tbNetSparklineOut != nil {
+		tbNetSparklineOut.LineColor = networkColor
+		tbNetSparklineOut.TitleStyle = ui.NewStyle(networkColor, CurrentBgColor)
+	}
+	if tbNetSparklineGroup != nil {
+		tbNetSparklineGroup.BorderStyle.Fg = networkColor
+		tbNetSparklineGroup.TitleStyle.Fg = networkColor
+		tbNetSparklineGroup.TitleStyle.Bg = CurrentBgColor
+	}
+
+	// Apply history chart colors
+	historyChartColor := foregroundColor
+	if theme.HistoryCharts != "" && IsHexColor(theme.HistoryCharts) {
+		if color, err := ParseHexColor(theme.HistoryCharts); err == nil {
+			historyChartColor = color
+		}
+	}
+	stepCharts := []*w.StepChart{gpuHistoryChart, powerHistoryChart, memoryHistoryChart, cpuHistoryChart}
+	for _, sc := range stepCharts {
+		if sc != nil {
+			sc.BorderStyle.Fg = historyChartColor
+			sc.BorderStyle.Bg = CurrentBgColor
+			sc.TitleStyle.Fg = historyChartColor
+			sc.TitleStyle.Bg = CurrentBgColor
+			sc.LineColors = []ui.Color{historyChartColor}
+		}
+	}
+
+	// Apply power chart-specific color if specified
+	if theme.Power != "" && IsHexColor(theme.Power) {
+		if powerHistoryChart != nil {
+			if color, err := ParseHexColor(theme.Power); err == nil {
+				powerHistoryChart.LineColors = []ui.Color{color}
+			}
+		}
+		if PowerChart != nil {
+			if color, err := ParseHexColor(theme.Power); err == nil {
+				PowerChart.TextStyle = ui.NewStyle(color, CurrentBgColor)
+				PowerChart.BorderStyle.Fg = color
+			}
+		}
+	}
+
+	// Apply disk-specific color if specified
+	if theme.Disk != "" && IsHexColor(theme.Disk) {
+		if infoParagraph != nil {
+			if color, err := ParseHexColor(theme.Disk); err == nil {
+				infoParagraph.BorderStyle.Fg = color
+				infoParagraph.TitleStyle.Fg = color
+				infoParagraph.TextStyle = ui.NewStyle(color, CurrentBgColor)
+			}
+		}
+	}
+}
+
 func applyThemeToSparklines(color ui.Color) {
 	if sparkline != nil {
 		sparkline.LineColor = color
@@ -763,6 +911,14 @@ func applyCustomThemeFile() (bool, bool) {
 		currentConfig.Theme = theme.Foreground
 		currentConfig.CustomTheme = theme
 		appliedFg = true
+
+		// Apply per-component colors if any are specified
+		if theme.CPU != "" || theme.GPU != "" || theme.Memory != "" || theme.ANE != "" ||
+			theme.Network != "" || theme.Disk != "" || theme.Power != "" ||
+			theme.Sparklines != "" || theme.HistoryCharts != "" {
+			foregroundColor, _ := ParseHexColor(theme.Foreground)
+			applyCustomPerComponentColors(theme, foregroundColor)
+		}
 	}
 
 	return appliedFg, appliedBg

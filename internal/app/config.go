@@ -11,6 +11,17 @@ import (
 type CustomThemeConfig struct {
 	Foreground string `json:"foreground,omitempty"` // Primary UI color (borders, titles, gauges)
 	Background string `json:"background,omitempty"` // Background color
+
+	// Per-gauge colors (override foreground if specified)
+	CPU    			string `json:"cpu,omitempty"`    		// CPU gauge color
+	GPU    			string `json:"gpu,omitempty"`    		// GPU gauge color
+	Memory 			string `json:"memory,omitempty"` 		// Memory gauge color
+	ANE    			string `json:"ane,omitempty"`    		// ANE (Apple Neural Engine) gauge color
+	Network       	string `json:"network,omitempty"`       // Network sparklines color
+	Disk          	string `json:"disk,omitempty"`          // Disk info text/border color
+	Power         	string `json:"power,omitempty"`         // Power chart color
+	Sparklines    	string `json:"sparklines,omitempty"`    // All sparklines color (overrides network if specified)
+	HistoryCharts 	string `json:"historyCharts,omitempty"` // History charts color
 }
 
 type AppConfig struct {
