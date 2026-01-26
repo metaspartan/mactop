@@ -13,15 +13,30 @@ type CustomThemeConfig struct {
 	Background string `json:"background,omitempty"` // Background color
 
 	// Per-gauge colors (override foreground if specified)
-	CPU    			string `json:"cpu,omitempty"`    		// CPU gauge color
-	GPU    			string `json:"gpu,omitempty"`    		// GPU gauge color
-	Memory 			string `json:"memory,omitempty"` 		// Memory gauge color
-	ANE    			string `json:"ane,omitempty"`    		// ANE (Apple Neural Engine) gauge color
-	Network       	string `json:"network,omitempty"`       // Network sparklines color
-	Disk          	string `json:"disk,omitempty"`          // Disk info text/border color
-	Power         	string `json:"power,omitempty"`         // Power chart color
-	Sparklines    	string `json:"sparklines,omitempty"`    // All sparklines color (overrides network if specified)
-	HistoryCharts 	string `json:"historyCharts,omitempty"` // History charts color
+	CPU    string `json:"cpu,omitempty"`    // CPU gauge color
+	GPU    string `json:"gpu,omitempty"`    // GPU gauge color
+	Memory string `json:"memory,omitempty"` // Memory gauge color
+	ANE    string `json:"ane,omitempty"`    // ANE (Apple Neural Engine) gauge color
+
+	Network     string `json:"network,omitempty"`     // Network & Disk box color
+	Power       string `json:"power,omitempty"`       // Power chart box color
+	Thunderbolt string `json:"thunderbolt,omitempty"` // Thunderbolt/RDMA box color
+
+	ProcessList string `json:"processList,omitempty"` // Process list color
+	SystemInfo  string `json:"systemInfo,omitempty"`  // Apple Silicon system info box color
+	InfoBox     string `json:"infoBox,omitempty"`     // Info screen text/border color (replaces disk)
+	CPUCores    string `json:"cpuCores,omitempty"`    // CPU Cores widget color
+
+	// Sparklines
+	PowerSparkline   string `json:"powerSparkline,omitempty"`
+	GPUSparkline     string `json:"gpuSparkline,omitempty"`
+	NetworkSparkline string `json:"networkSparkline,omitempty"` // Thunderbolt network sparklines
+
+	// History Charts
+	CPUHistory    string `json:"cpuHistory,omitempty"`
+	GPUHistory    string `json:"gpuHistory,omitempty"`
+	MemoryHistory string `json:"memoryHistory,omitempty"`
+	PowerHistory  string `json:"powerHistory,omitempty"`
 }
 
 type AppConfig struct {
