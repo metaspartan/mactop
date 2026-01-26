@@ -13,30 +13,17 @@ type CustomThemeConfig struct {
 	Background string `json:"background,omitempty"` // Background color
 
 	// Per-gauge colors (override foreground if specified)
-	CPU    string `json:"cpu,omitempty"`    // CPU gauge color
-	GPU    string `json:"gpu,omitempty"`    // GPU gauge color
-	Memory string `json:"memory,omitempty"` // Memory gauge color
+	CPU    string `json:"cpu,omitempty"`    // CPU gauge color (also affects cores, history)
+	GPU    string `json:"gpu,omitempty"`    // GPU gauge color (also affects sparkline, history)
+	Memory string `json:"memory,omitempty"` // Memory gauge color (also affects history)
 	ANE    string `json:"ane,omitempty"`    // ANE (Apple Neural Engine) gauge color
 
-	Network     string `json:"network,omitempty"`     // Network & Disk box color
-	Power       string `json:"power,omitempty"`       // Power chart box color
+	Network     string `json:"network,omitempty"`     // Network & Disk box color (also affects network sparklines)
+	Power       string `json:"power,omitempty"`       // Power chart box color (also affects power sparkline, history)
 	Thunderbolt string `json:"thunderbolt,omitempty"` // Thunderbolt/RDMA box color
 
 	ProcessList string `json:"processList,omitempty"` // Process list color
 	SystemInfo  string `json:"systemInfo,omitempty"`  // Apple Silicon system info box color
-	InfoBox     string `json:"infoBox,omitempty"`     // Info screen text/border color (replaces disk)
-	CPUCores    string `json:"cpuCores,omitempty"`    // CPU Cores widget color
-
-	// Sparklines
-	PowerSparkline   string `json:"powerSparkline,omitempty"`
-	GPUSparkline     string `json:"gpuSparkline,omitempty"`
-	NetworkSparkline string `json:"networkSparkline,omitempty"` // Thunderbolt network sparklines
-
-	// History Charts
-	CPUHistory    string `json:"cpuHistory,omitempty"`
-	GPUHistory    string `json:"gpuHistory,omitempty"`
-	MemoryHistory string `json:"memoryHistory,omitempty"`
-	PowerHistory  string `json:"powerHistory,omitempty"`
 }
 
 type AppConfig struct {

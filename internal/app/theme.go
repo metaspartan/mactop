@@ -257,7 +257,8 @@ func applyCatppuccinThemeToGauges(palette *CatppuccinPalette) {
 // applyCustomPerComponentColors applies per-component colors from custom theme
 // Falls back to foreground color if component color not specified
 func applyCustomPerComponentColors(theme *CustomThemeConfig, foregroundColor ui.Color) {
-	// Helper to get component color or fall back to foreground
+	// Helper to get component color with strict fallback
+	// Priority: Specific Key -> Foreground
 	getColor := func(specificKey string) ui.Color {
 		if specificKey != "" && IsHexColor(specificKey) {
 			if color, err := ParseHexColor(specificKey); err == nil {
@@ -303,66 +304,66 @@ func applyCustomPerComponentColors(theme *CustomThemeConfig, foregroundColor ui.
 	// Apply sparkline colors
 	// Power Sparkline (Default)
 	if sparkline != nil {
-		color := getColor(theme.PowerSparkline)
+		color := getColor(theme.Power)
 		sparkline.LineColor = color
 		sparkline.TitleStyle = ui.NewStyle(color, CurrentBgColor)
 	}
 	if sparklineGroup != nil {
-		color := getColor(theme.PowerSparkline)
+		color := getColor(theme.Power)
 		sparklineGroup.BorderStyle.Fg = color
 		sparklineGroup.TitleStyle.Fg = color
 	}
 
 	// GPU Sparkline
 	if gpuSparkline != nil {
-		color := getColor(theme.GPUSparkline)
+		color := getColor(theme.GPU)
 		gpuSparkline.LineColor = color
 		gpuSparkline.TitleStyle = ui.NewStyle(color, CurrentBgColor)
 	}
 	if gpuSparklineGroup != nil {
-		color := getColor(theme.GPUSparkline)
+		color := getColor(theme.GPU)
 		gpuSparklineGroup.BorderStyle.Fg = color
 		gpuSparklineGroup.TitleStyle.Fg = color
 	}
 
 	// Network Sparklines
 	if tbNetSparklineIn != nil {
-		color := getColor(theme.NetworkSparkline)
+		color := getColor(theme.Network)
 		tbNetSparklineIn.LineColor = color
 		tbNetSparklineIn.TitleStyle = ui.NewStyle(color, CurrentBgColor)
 	}
 	if tbNetSparklineOut != nil {
-		color := getColor(theme.NetworkSparkline)
+		color := getColor(theme.Network)
 		tbNetSparklineOut.LineColor = color
 		tbNetSparklineOut.TitleStyle = ui.NewStyle(color, CurrentBgColor)
 	}
 	if tbNetSparklineGroup != nil {
-		color := getColor(theme.NetworkSparkline)
+		color := getColor(theme.Network)
 		tbNetSparklineGroup.BorderStyle.Fg = color
 		tbNetSparklineGroup.TitleStyle.Fg = color
 	}
 
 	// Apply history chart colors
 	if gpuHistoryChart != nil {
-		color := getColor(theme.GPUHistory)
+		color := getColor(theme.GPU)
 		gpuHistoryChart.BorderStyle.Fg = color
 		gpuHistoryChart.TitleStyle.Fg = color
 		gpuHistoryChart.LineColors = []ui.Color{color}
 	}
 	if powerHistoryChart != nil {
-		color := getColor(theme.PowerHistory)
+		color := getColor(theme.Power)
 		powerHistoryChart.BorderStyle.Fg = color
 		powerHistoryChart.TitleStyle.Fg = color
 		powerHistoryChart.LineColors = []ui.Color{color}
 	}
 	if memoryHistoryChart != nil {
-		color := getColor(theme.MemoryHistory)
+		color := getColor(theme.Memory)
 		memoryHistoryChart.BorderStyle.Fg = color
 		memoryHistoryChart.TitleStyle.Fg = color
 		memoryHistoryChart.LineColors = []ui.Color{color}
 	}
 	if cpuHistoryChart != nil {
-		color := getColor(theme.CPUHistory)
+		color := getColor(theme.CPU)
 		cpuHistoryChart.BorderStyle.Fg = color
 		cpuHistoryChart.TitleStyle.Fg = color
 		cpuHistoryChart.LineColors = []ui.Color{color}
@@ -394,10 +395,10 @@ func applyCustomPerComponentColors(theme *CustomThemeConfig, foregroundColor ui.
 
 	// Apply info box color (was Disk)
 	if infoParagraph != nil {
-		color := getColor(theme.InfoBox)
-		infoParagraph.BorderStyle.Fg = color
-		infoParagraph.TitleStyle.Fg = color
-		infoParagraph.TextStyle = ui.NewStyle(color, CurrentBgColor)
+		// Uses foreground color (no specific key)
+		infoParagraph.BorderStyle.Fg = foregroundColor
+		infoParagraph.TitleStyle.Fg = foregroundColor
+		infoParagraph.TextStyle = ui.NewStyle(foregroundColor, CurrentBgColor)
 	}
 
 	// Apply Process List color
@@ -419,7 +420,7 @@ func applyCustomPerComponentColors(theme *CustomThemeConfig, foregroundColor ui.
 
 	// Apply CPU Cores color
 	if cpuCoreWidget != nil {
-		color := getColor(theme.CPUCores)
+		color := getColor(theme.CPU)
 		cpuCoreWidget.BorderStyle.Fg = color
 		cpuCoreWidget.TitleStyle.Fg = color
 	}
@@ -957,10 +958,8 @@ func applyCustomThemeFile() (bool, bool) {
 
 		// Apply per-component colors if any are specified
 		if theme.CPU != "" || theme.GPU != "" || theme.Memory != "" || theme.ANE != "" ||
-			theme.Network != "" || theme.InfoBox != "" || theme.Power != "" ||
-			theme.PowerSparkline != "" || theme.GPUSparkline != "" || theme.NetworkSparkline != "" ||
-			theme.CPUHistory != "" || theme.GPUHistory != "" || theme.MemoryHistory != "" || theme.PowerHistory != "" ||
-			theme.ProcessList != "" || theme.SystemInfo != "" || theme.CPUCores != "" || theme.Thunderbolt != "" {
+			theme.Network != "" || theme.Power != "" || theme.Thunderbolt != "" ||
+			theme.ProcessList != "" || theme.SystemInfo != "" {
 			foregroundColor, _ := ParseHexColor(theme.Foreground)
 			applyCustomPerComponentColors(theme, foregroundColor)
 		}
