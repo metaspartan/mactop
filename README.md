@@ -158,19 +158,20 @@ Create `~/.mactop/theme.json` to customize colors:
 - `background`: Background color for all UI elements
 
 #### Per-Component Colors (Optional)
-Override individual component colors for a colorful UI:
 
-- `cpu`: CPU gauge color
-- `gpu`: GPU gauge color
-- `memory`: Memory gauge color
-- `ane`: ANE (Apple Neural Engine) gauge color
-- `network`: Network sparklines color
-- `disk`: Disk info text/border color
-- `power`: Power chart color
-- `sparklines`: All sparklines color (overrides network if specified)
-- `historyCharts`: History charts color
+Individual component colors that override the foreground:
 
-#### Example: Material Dark Theme
+- `cpu`: CPU gauge, CPU cores widget, CPU history chart
+- `gpu`: GPU gauge, GPU sparkline, GPU history chart
+- `memory`: Memory gauge, Memory history chart
+- `ane`: ANE (Apple Neural Engine) gauge
+- `network`: Network box, Network sparklines
+- `power`: Power box, Power sparkline, Power history chart
+- `thunderbolt`: Thunderbolt/RDMA box
+- `processList`: Process list color
+- `systemInfo`: System info box color
+
+#### Example: Colorful Theme
 ```json
 {
   "foreground": "#B0BEC5",
@@ -180,10 +181,10 @@ Override individual component colors for a colorful UI:
   "memory": "#69F0AE",
   "ane": "#E040FB",
   "network": "#FFAB40",
-  "disk": "#FFFF00",
   "power": "#FF6E40",
-  "sparklines": "#FFD740",
-  "historyCharts": "#64FFDA"
+  "thunderbolt": "#E91E63",
+  "processList": "#FFEB3B",
+  "systemInfo": "#00BCD4"
 }
 ```
 
