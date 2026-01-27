@@ -11,6 +11,19 @@ import (
 type CustomThemeConfig struct {
 	Foreground string `json:"foreground,omitempty"` // Primary UI color (borders, titles, gauges)
 	Background string `json:"background,omitempty"` // Background color
+
+	// Per-gauge colors (override foreground if specified)
+	CPU    string `json:"cpu,omitempty"`    // CPU gauge color (also affects cores, history)
+	GPU    string `json:"gpu,omitempty"`    // GPU gauge color (also affects sparkline, history)
+	Memory string `json:"memory,omitempty"` // Memory gauge color (also affects history)
+	ANE    string `json:"ane,omitempty"`    // ANE (Apple Neural Engine) gauge color
+
+	Network     string `json:"network,omitempty"`     // Network & Disk box color (also affects network sparklines)
+	Power       string `json:"power,omitempty"`       // Power chart box color (also affects power sparkline, history)
+	Thunderbolt string `json:"thunderbolt,omitempty"` // Thunderbolt/RDMA box color
+
+	ProcessList string `json:"processList,omitempty"` // Process list color
+	SystemInfo  string `json:"systemInfo,omitempty"`  // Apple Silicon system info box color
 }
 
 type AppConfig struct {

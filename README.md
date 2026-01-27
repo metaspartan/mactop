@@ -153,10 +153,42 @@ mactop --headless --format toon
 
 Create `~/.mactop/theme.json` to customize colors:
 
+#### Basic Colors
 ```json
 {
   "foreground": "#9580FF",
   "background": "#22212C"
+}
+```
+
+#### Per-Component Colors (Optional)
+
+Individual component colors that override the foreground:
+
+- `cpu`: CPU gauge, CPU cores widget, CPU history chart
+- `gpu`: GPU gauge, GPU sparkline, GPU history chart
+- `memory`: Memory gauge, Memory history chart
+- `ane`: ANE (Apple Neural Engine) gauge
+- `network`: Network box, Network sparklines
+- `power`: Power box, Power sparkline, Power history chart
+- `thunderbolt`: Thunderbolt/RDMA box
+- `processList`: Process list color
+- `systemInfo`: System info box color
+
+#### Example: Colorful Theme
+```json
+{
+  "foreground": "#B0BEC5",
+  "background": "#212121",
+  "cpu": "#FF5252",
+  "gpu": "#448AFF",
+  "memory": "#69F0AE",
+  "ane": "#E040FB",
+  "network": "#FFAB40",
+  "power": "#FF6E40",
+  "thunderbolt": "#E91E63",
+  "processList": "#FFEB3B",
+  "systemInfo": "#00BCD4"
 }
 ```
 
