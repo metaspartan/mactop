@@ -405,7 +405,16 @@ func applyCustomPerComponentColors(theme *CustomThemeConfig, foregroundColor ui.
 		processList.BorderStyle.Fg = color
 		processList.TitleStyle.Fg = color
 		processList.TextStyle = ui.NewStyle(color, CurrentBgColor)
-		processList.SelectedStyle = ui.NewStyle(ui.ColorBlack, color)
+
+		// Ensure selected text is readable on custom background
+		selectedFg := ui.NewRGBColor(2, 2, 2)
+		// If the custom color is light, use dark text. If dark, use white text.
+		// Note: ui.ColorBlack is often very dark grey in some terminals,
+		// but typically we want high contrast against the 'color' background.
+		if IsHexColor(theme.ProcessList) && !IsLightHexColor(theme.ProcessList) {
+			selectedFg = ui.ColorWhite
+		}
+		processList.SelectedStyle = ui.NewStyle(selectedFg, color)
 	}
 
 	// Apply System Info color
@@ -712,15 +721,15 @@ func resolveThemeColorString(theme string) string {
 }
 
 func GetProcessTextColor(isCurrentUser bool) string {
-	if IsLightMode {
-		if isCurrentUser {
-			// Check for custom ProcessList color first
-			if currentConfig.CustomTheme != nil && currentConfig.CustomTheme.ProcessList != "" {
-				if IsHexColor(currentConfig.CustomTheme.ProcessList) {
-					return currentConfig.CustomTheme.ProcessList
-				}
+	if isCurrentUser {
+		// Prioritize custom ProcessList color if valid
+		if currentConfig.CustomTheme != nil && currentConfig.CustomTheme.ProcessList != "" {
+			if IsHexColor(currentConfig.CustomTheme.ProcessList) {
+				return currentConfig.CustomTheme.ProcessList
 			}
+		}
 
+		if IsLightMode {
 			color := GetThemeColorWithLightMode(currentConfig.Theme, true)
 			if color == ui.NewRGBColor(2, 2, 2) {
 				return "#020202"
@@ -730,21 +739,15 @@ func GetProcessTextColor(isCurrentUser bool) string {
 			}
 			return resolveThemeColorString(currentConfig.Theme)
 		}
-		return "240"
-	}
-
-	if isCurrentUser {
-		// Check for custom ProcessList color first
-		if currentConfig.CustomTheme != nil && currentConfig.CustomTheme.ProcessList != "" {
-			if IsHexColor(currentConfig.CustomTheme.ProcessList) {
-				return currentConfig.CustomTheme.ProcessList
-			}
-		}
 
 		if IsCatppuccinTheme(currentConfig.Theme) {
 			return GetCatppuccinHex(currentConfig.Theme, "Primary")
 		}
 		return resolveThemeColorString(currentConfig.Theme)
+	}
+	// Non-current user processes
+	if IsLightMode {
+		return "240"
 	}
 	return "#888888" // Grey for non-current-user (root/system) processes
 }
@@ -759,6 +762,11 @@ func cycleTheme() {
 	}
 	nextIndex := (currentIndex + 1) % len(themeOrder)
 	currentColorName = themeOrder[nextIndex]
+
+	// When cycling themes, clear the custom theme configuration to prevent
+	// lingering custom colors from overriding the selected preset theme.
+	currentConfig.CustomTheme = nil
+
 	applyTheme(themeOrder[nextIndex], IsLightMode)
 
 	currentConfig.Theme = currentColorName
