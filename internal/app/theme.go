@@ -408,10 +408,13 @@ func applyCustomPerComponentColors(theme *CustomThemeConfig, foregroundColor ui.
 
 		// Ensure selected text is readable on custom background
 		selectedFg := ui.NewRGBColor(2, 2, 2)
-		// If the custom color is light, use dark text. If dark, use white text.
-		// Note: ui.ColorBlack is often very dark grey in some terminals,
-		// but typically we want high contrast against the 'color' background.
-		if IsHexColor(theme.ProcessList) && !IsLightHexColor(theme.ProcessList) {
+		// Check contrast: prefer ProcessList color, but fall back to Foreground
+		// when ProcessList is empty or not a valid hex color.
+		colorForContrast := theme.ProcessList
+		if colorForContrast == "" || !IsHexColor(colorForContrast) {
+			colorForContrast = theme.Foreground
+		}
+		if !IsLightHexColor(colorForContrast) {
 			selectedFg = ui.ColorWhite
 		}
 		processList.SelectedStyle = ui.NewStyle(selectedFg, color)
