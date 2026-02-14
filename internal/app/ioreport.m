@@ -47,8 +47,8 @@ int get_wifi_link_info(wifi_link_info_t *info) {
     // Get transmit rate
     info->tx_rate_mbps = (int)[iface transmitRate];
 
-    // Check if connected
-    info->is_connected = ([iface ssid] != nil) ? 1 : 0;
+    // Check if connected — use serviceActive instead of ssid
+    info->is_connected = [iface serviceActive] ? 1 : 0;
 
     // Map PHY mode to string and Wi-Fi generation
     CWPHYMode mode = [iface activePHYMode];
