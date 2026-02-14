@@ -517,6 +517,42 @@ func runAlternateMode() bool {
 	return false
 }
 
+// seedInitialMetrics takes a quick sample and pushes initial values into the metric channels.
+func seedInitialMetrics() {
+	m := sampleSocMetrics(100)
+	_, throttled := getThermalStateString()
+	componentSum := m.TotalPower
+	totalPower := componentSum
+	systemResidual := 0.0
+
+	if m.SystemPower > componentSum {
+		totalPower = m.SystemPower
+		systemResidual = m.SystemPower - componentSum
+	}
+	cpuMetricsChan <- CPUMetrics{
+		CPUW:      m.CPUPower,
+		GPUW:      m.GPUPower,
+		ANEW:      m.ANEPower,
+		DRAMW:     m.DRAMPower,
+		GPUSRAMW:  m.GPUSRAMPower,
+		SystemW:   systemResidual,
+		PackageW:  totalPower,
+		Throttled: throttled,
+		CPUTemp:   float64(m.CPUTemp),
+		GPUTemp:   float64(m.GPUTemp),
+	}
+	gpuMetricsChan <- GPUMetrics{
+		FreqMHz:       int(m.GPUFreqMHz),
+		ActivePercent: m.GPUActive,
+		Power:         m.GPUPower + m.GPUSRAMPower,
+		Temp:          m.GPUTemp,
+	}
+	if processes, err := getProcessList(0.0); err == nil {
+		processMetricsChan <- processes
+	}
+	netdiskMetricsChan <- getNetDiskMetrics()
+}
+
 func Run() {
 	colorName, interval, setColor, setInterval := handleLegacyFlags()
 
@@ -594,43 +630,7 @@ func Run() {
 	}
 	renderUI()
 
-	initialSocMetrics := sampleSocMetrics(100)
-	_, throttled := getThermalStateString()
-	componentSum := initialSocMetrics.TotalPower
-	totalPower := componentSum
-	systemResidual := 0.0
-
-	if initialSocMetrics.SystemPower > componentSum {
-		totalPower = initialSocMetrics.SystemPower
-		systemResidual = initialSocMetrics.SystemPower - componentSum
-	}
-	cpuMetrics := CPUMetrics{
-		CPUW:      initialSocMetrics.CPUPower,
-		GPUW:      initialSocMetrics.GPUPower,
-		ANEW:      initialSocMetrics.ANEPower,
-		DRAMW:     initialSocMetrics.DRAMPower,
-		GPUSRAMW:  initialSocMetrics.GPUSRAMPower,
-		SystemW:   systemResidual,
-		PackageW:  totalPower,
-		Throttled: throttled,
-		CPUTemp:   float64(initialSocMetrics.CPUTemp),
-		GPUTemp:   float64(initialSocMetrics.GPUTemp),
-	}
-	gpuMetrics := GPUMetrics{
-		FreqMHz:       int(initialSocMetrics.GPUFreqMHz),
-		ActivePercent: initialSocMetrics.GPUActive,
-		Power:         initialSocMetrics.GPUPower + initialSocMetrics.GPUSRAMPower,
-		Temp:          initialSocMetrics.GPUTemp,
-	}
-
-	cpuMetricsChan <- cpuMetrics
-	gpuMetricsChan <- gpuMetrics
-
-	if processes, err := getProcessList(0.0); err == nil {
-		processMetricsChan <- processes
-	}
-
-	netdiskMetricsChan <- getNetDiskMetrics()
+	seedInitialMetrics()
 
 	triggerProcessCollectionChan := make(chan struct{}, 1)
 

@@ -161,6 +161,44 @@ func collectNetDiskMetrics(done chan struct{}, netdiskMetricsChan chan NetDiskMe
 	}
 }
 
+// dispatchMetrics sends metrics to channels without blocking, checking done for exit.
+func dispatchMetrics(done chan struct{}, cpuCh chan CPUMetrics, gpuCh chan GPUMetrics,
+	tbCh chan []ThunderboltNetStats, triggerCh chan struct{},
+	cpu CPUMetrics, gpu GPUMetrics, tb []ThunderboltNetStats) bool {
+	select {
+	case <-done:
+		return true
+	case cpuCh <- cpu:
+	default:
+	}
+	select {
+	case gpuCh <- gpu:
+	default:
+	}
+	select {
+	case tbCh <- tb:
+	default:
+	}
+	select {
+	case triggerCh <- struct{}{}:
+	default:
+	}
+	return false
+}
+
+// getAvgCPUPercent returns the average CPU usage percentage across all cores.
+func getAvgCPUPercent() float64 {
+	percentages, err := GetCPUPercentages()
+	if err != nil || len(percentages) == 0 {
+		return 0
+	}
+	var total float64
+	for _, p := range percentages {
+		total += p
+	}
+	return total / float64(len(percentages))
+}
+
 func collectMetrics(done chan struct{}, cpumetricsChan chan CPUMetrics, gpumetricsChan chan GPUMetrics, tbNetStatsChan chan []ThunderboltNetStats, triggerProcessCollectionChan chan struct{}) {
 	// Pre-calculate static info
 	sysInfo := getSOCInfo()
@@ -216,42 +254,13 @@ func collectMetrics(done chan struct{}, cpumetricsChan chan CPUMetrics, gpumetri
 			Temp:          m.GPUTemp,
 		}
 
-		tbNetStats := GetThunderboltNetStats()
-
-		select {
-		case <-done:
+		if dispatchMetrics(done, cpumetricsChan, gpumetricsChan, tbNetStatsChan, triggerProcessCollectionChan, cpuMetrics, gpuMetrics, GetThunderboltNetStats()) {
 			return
-		case cpumetricsChan <- cpuMetrics:
-		default:
-		}
-		select {
-		case gpumetricsChan <- gpuMetrics:
-		default:
-		}
-		select {
-		case tbNetStatsChan <- tbNetStats:
-		default:
-		}
-
-		select {
-		case triggerProcessCollectionChan <- struct{}{}:
-		default:
-		}
-
-		// Calculate CPU percent for menubar
-		var cpuPercent float64
-		percentages, err := GetCPUPercentages()
-		if err == nil && len(percentages) > 0 {
-			var total float64
-			for _, p := range percentages {
-				total += p
-			}
-			cpuPercent = total / float64(len(percentages))
 		}
 
 		// Push to menubar worker
 		if menubar {
-			pushMenuBarMetricsToWorker(m, cpuMetrics, gpuMetrics, getNetDiskMetrics(), sysInfo, maxFP32TFLOPs, cpuPercent, thermalStr, rdmaStat)
+			pushMenuBarMetricsToWorker(m, cpuMetrics, gpuMetrics, getNetDiskMetrics(), sysInfo, maxFP32TFLOPs, getAvgCPUPercent(), thermalStr, rdmaStat)
 		}
 
 		elapsed := time.Since(start)

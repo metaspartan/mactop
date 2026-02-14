@@ -146,6 +146,12 @@ func applyMenuBarConfig() {
 	C.setMenuBarConfig(&ccfg)
 }
 
+// cBoolToPtr converts a C int (0/1) to a Go *bool
+func cBoolToPtr(v C.int) *bool {
+	b := v != 0
+	return &b
+}
+
 // GoSaveMenuBarConfig is called from ObjC when settings change
 //
 //export GoSaveMenuBarConfig
@@ -166,37 +172,12 @@ func GoSaveMenuBarConfig(statusBarWidth, statusBarHeight, sparklineWidth, showCP
 	if sparklineWidth > 0 {
 		m.SparklineWidth = int(sparklineWidth)
 	}
-	t, f := true, false
-	if showCPU != 0 {
-		m.ShowCPU = &t
-	} else {
-		m.ShowCPU = &f
-	}
-	if showGPU != 0 {
-		m.ShowGPU = &t
-	} else {
-		m.ShowGPU = &f
-	}
-	if showANE != 0 {
-		m.ShowANE = &t
-	} else {
-		m.ShowANE = &f
-	}
-	if showMem != 0 {
-		m.ShowMemory = &t
-	} else {
-		m.ShowMemory = &f
-	}
-	if showPower != 0 {
-		m.ShowPower = &t
-	} else {
-		m.ShowPower = &f
-	}
-	if showPercent != 0 {
-		m.ShowPercent = &t
-	} else {
-		m.ShowPercent = &f
-	}
+	m.ShowCPU = cBoolToPtr(showCPU)
+	m.ShowGPU = cBoolToPtr(showGPU)
+	m.ShowANE = cBoolToPtr(showANE)
+	m.ShowMemory = cBoolToPtr(showMem)
+	m.ShowPower = cBoolToPtr(showPower)
+	m.ShowPercent = cBoolToPtr(showPercent)
 
 	if fontSize > 0 {
 		m.FontSize = int(fontSize)
