@@ -60,8 +60,11 @@ func resolveSelectedHeaderFg(themeColorStr string) string {
 	if IsCatppuccinTheme(currentConfig.Theme) {
 		return GetCatppuccinHex(currentConfig.Theme, "Base")
 	}
-	if IsHexColor(themeColorStr) && IsLightHexColor(themeColorStr) {
-		return "#020202"
+	if IsHexColor(themeColorStr) {
+		if IsLightHexColor(themeColorStr) {
+			return "#020202"
+		}
+		return "#ffffff"
 	}
 	if isLightNamedTheme(currentConfig.Theme) {
 		return "#020202"

@@ -34,7 +34,7 @@ type HeadlessProcess struct {
 	CPU     float64 `json:"cpu_percent" yaml:"cpu_percent" xml:"CPUPercent" toon:"cpu_percent"`
 	GPU     float64 `json:"gpu_ms_per_sec" yaml:"gpu_ms_per_sec" xml:"GPUMsPerSec" toon:"gpu_ms_per_sec"`
 	Memory  float64 `json:"memory_percent" yaml:"memory_percent" xml:"MemoryPercent" toon:"memory_percent"`
-	RSS     int64   `json:"rss_bytes" yaml:"rss_bytes" xml:"RSSBytes" toon:"rss_bytes"`
+	RSS     int64   `json:"rss_kb" yaml:"rss_kb" xml:"RSSKB" toon:"rss_kb"`
 }
 
 // HeadlessNetworkLinks holds link speed info for all network interfaces
