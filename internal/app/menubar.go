@@ -51,6 +51,8 @@ typedef struct {
     int show_memory;
     int show_power;
     int show_percent;
+    int font_size;
+    int power_font_size;
     char cpu_color[8];
     char gpu_color[8];
     char ane_color[8];
@@ -131,7 +133,10 @@ func applyMenuBarConfig() {
 	ccfg.show_ane = boolToInt(mbCfg.ShowANE, 1)
 	ccfg.show_memory = boolToInt(mbCfg.ShowMemory, 0)
 	ccfg.show_power = boolToInt(mbCfg.ShowPower, 1)
+	ccfg.show_power = boolToInt(mbCfg.ShowPower, 1)
 	ccfg.show_percent = boolToInt(mbCfg.ShowPercent, 0)
+	ccfg.font_size = C.int(mbCfg.FontSize)
+	ccfg.power_font_size = C.int(mbCfg.PowerFontSize)
 	copyColorToCBuf(&ccfg.cpu_color, mbCfg.CPUColor)
 	copyColorToCBuf(&ccfg.gpu_color, mbCfg.GPUColor)
 	copyColorToCBuf(&ccfg.ane_color, mbCfg.ANEColor)
@@ -142,7 +147,8 @@ func applyMenuBarConfig() {
 // GoSaveMenuBarConfig is called from ObjC when settings change
 //
 //export GoSaveMenuBarConfig
-func GoSaveMenuBarConfig(statusBarWidth, showCPU, showGPU, showANE, showMem, showPower, showPercent C.int,
+func GoSaveMenuBarConfig(statusBarWidth, sparklineWidth, showCPU, showGPU, showANE, showMem, showPower, showPercent,
+	fontSize, powerFontSize C.int,
 	cpuHex, gpuHex, aneHex, memHex *C.char) {
 	if currentConfig.MenuBar == nil {
 		currentConfig.MenuBar = &MenuBarConfig{}
@@ -151,6 +157,9 @@ func GoSaveMenuBarConfig(statusBarWidth, showCPU, showGPU, showANE, showMem, sho
 
 	if statusBarWidth > 0 {
 		m.StatusBarWidth = int(statusBarWidth)
+	}
+	if sparklineWidth > 0 {
+		m.SparklineWidth = int(sparklineWidth)
 	}
 	t, f := true, false
 	if showCPU != 0 {
@@ -183,6 +192,14 @@ func GoSaveMenuBarConfig(statusBarWidth, showCPU, showGPU, showANE, showMem, sho
 	} else {
 		m.ShowPercent = &f
 	}
+
+	if fontSize > 0 {
+		m.FontSize = int(fontSize)
+	}
+	if powerFontSize > 0 {
+		m.PowerFontSize = int(powerFontSize)
+	}
+
 	if cpuHex != nil {
 		m.CPUColor = C.GoString(cpuHex)
 	}
@@ -195,6 +212,7 @@ func GoSaveMenuBarConfig(statusBarWidth, showCPU, showGPU, showANE, showMem, sho
 	if memHex != nil {
 		m.MemColor = C.GoString(memHex)
 	}
+
 	saveConfig()
 }
 
@@ -204,7 +222,9 @@ func startMenuBarWorker() {
 	runtime.LockOSThread()
 
 	// Load config in the worker process so defaults/persistence works
+	// Load config in the worker process so defaults/persistence works
 	loadConfig()
+	applyMenuBarConfig()
 
 	// Initialize AppKit
 	if ret := C.initMenuBar(); ret != 0 {

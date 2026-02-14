@@ -37,6 +37,8 @@ type MenuBarConfig struct {
 	ShowMemory      *bool  `json:"show_memory,omitempty"`      // Show Memory bar in status bar (default: true)
 	ShowPower       *bool  `json:"show_power,omitempty"`       // Show power watts text (default: true)
 	ShowPercent     *bool  `json:"show_percent,omitempty"`     // Show percentage text next to bars (default: false)
+	FontSize        int    `json:"font_size,omitempty"`        // Font size for status bars (px, default: 10)
+	PowerFontSize   int    `json:"power_font_size,omitempty"`  // Font size for power watts (px, default: 11)
 	CPUColor        string `json:"cpu_color,omitempty"`        // Hex color for CPU bar (default: systemGreen)
 	GPUColor        string `json:"gpu_color,omitempty"`        // Hex color for GPU bar (default: systemCyan)
 	ANEColor        string `json:"ane_color,omitempty"`        // Hex color for ANE bar (default: systemPurple)
@@ -59,6 +61,8 @@ func loadMenuBarConfig() MenuBarConfig {
 		StatusBarWidth:  24,
 		SparklineWidth:  300,
 		SparklineHeight: 40,
+		FontSize:        10,
+		PowerFontSize:   11,
 	}
 	if currentConfig.MenuBar != nil {
 		m := currentConfig.MenuBar
@@ -70,6 +74,12 @@ func loadMenuBarConfig() MenuBarConfig {
 		}
 		if m.SparklineHeight > 0 {
 			cfg.SparklineHeight = m.SparklineHeight
+		}
+		if m.FontSize > 0 {
+			cfg.FontSize = m.FontSize
+		}
+		if m.PowerFontSize > 0 {
+			cfg.PowerFontSize = m.PowerFontSize
 		}
 		if m.ShowCPU != nil {
 			cfg.ShowCPU = m.ShowCPU
