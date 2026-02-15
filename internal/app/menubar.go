@@ -250,6 +250,7 @@ func updateMenuBarFromPayload(p MenuBarMetricsPayload) {
 	// CPU Loading
 	cm.cpu_percent = C.double(p.CPUPercent)
 	cm.gpu_percent = C.double(p.GPUMetrics.ActivePercent)
+	cm.ane_percent = C.double(p.CPUMetrics.ANEW / 8.0 * 100) // Power-based estimation (same as TUI)
 
 	cm.mem_used_bytes = C.ulonglong(p.MemMetrics.Used)
 	cm.mem_total_bytes = C.ulonglong(p.MemMetrics.Total)
