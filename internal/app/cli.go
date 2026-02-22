@@ -80,6 +80,7 @@ Options:
       --unit-network <unit> Network unit: auto, byte, kb, mb, gb (default: auto)
       --unit-disk <unit>    Disk unit: auto, byte, kb, mb, gb (default: auto)
       --unit-temp <unit>    Temperature unit: celsius, fahrenheit (default: celsius)
+      --menubar           Run as a macOS menu bar status item (no TUI)
 
 Theme File:
   Create ~/.mactop/theme.json with custom hex colors:

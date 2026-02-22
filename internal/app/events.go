@@ -164,7 +164,9 @@ func handleIntervalKeys(key string) {
 		updateHelpText()
 		updateModelText()
 		updateIntervalText()
+		currentConfig.Interval = updateInterval
 		renderMutex.Unlock()
+		saveConfig()
 	}
 }
 

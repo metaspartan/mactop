@@ -3,6 +3,7 @@
 
 #include "smc.h"
 #import <CoreFoundation/CoreFoundation.h>
+#import <CoreWLAN/CoreWLAN.h>
 #import <Foundation/Foundation.h>
 #import <IOKit/IOKitLib.h>
 #include <mach/mach_host.h>
@@ -13,6 +14,93 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+
+// Wi-Fi link info structure
+typedef struct {
+  char interface_name[32];
+  char phy_mode[32];        // "802.11n", "802.11ac", "802.11ax", "802.11be"
+  char wifi_generation[16]; // "Wi-Fi 4", "Wi-Fi 5", "Wi-Fi 6", "Wi-Fi 7"
+  int tx_rate_mbps;         // Current transmit rate in Mbps
+  int is_connected;         // 1 if associated to network
+} wifi_link_info_t;
+
+// Get Wi-Fi link information using CoreWLAN
+int get_wifi_link_info(wifi_link_info_t *info) {
+  @autoreleasepool {
+    memset(info, 0, sizeof(wifi_link_info_t));
+
+    CWWiFiClient *client = [CWWiFiClient sharedWiFiClient];
+    if (!client)
+      return -1;
+
+    CWInterface *iface = [client interface];
+    if (!iface)
+      return -1;
+
+    // Get interface name
+    NSString *ifName = [iface interfaceName];
+    if (ifName) {
+      strncpy(info->interface_name, [ifName UTF8String],
+              sizeof(info->interface_name) - 1);
+    }
+
+    // Get transmit rate
+    info->tx_rate_mbps = (int)[iface transmitRate];
+
+    // Check if connected — use serviceActive instead of ssid
+    info->is_connected = [iface serviceActive] ? 1 : 0;
+
+    // Map PHY mode to string and Wi-Fi generation
+    CWPHYMode mode = [iface activePHYMode];
+    switch (mode) {
+    case kCWPHYModeNone:
+      snprintf(info->phy_mode, sizeof(info->phy_mode), "None");
+      snprintf(info->wifi_generation, sizeof(info->wifi_generation), "");
+      break;
+    case kCWPHYMode11a:
+      snprintf(info->phy_mode, sizeof(info->phy_mode), "802.11a");
+      snprintf(info->wifi_generation, sizeof(info->wifi_generation), "Wi-Fi 2");
+      break;
+    case kCWPHYMode11b:
+      snprintf(info->phy_mode, sizeof(info->phy_mode), "802.11b");
+      snprintf(info->wifi_generation, sizeof(info->wifi_generation), "Wi-Fi 1");
+      break;
+    case kCWPHYMode11g:
+      snprintf(info->phy_mode, sizeof(info->phy_mode), "802.11g");
+      snprintf(info->wifi_generation, sizeof(info->wifi_generation), "Wi-Fi 3");
+      break;
+    case kCWPHYMode11n:
+      snprintf(info->phy_mode, sizeof(info->phy_mode), "802.11n");
+      snprintf(info->wifi_generation, sizeof(info->wifi_generation), "Wi-Fi 4");
+      break;
+    case kCWPHYMode11ac:
+      snprintf(info->phy_mode, sizeof(info->phy_mode), "802.11ac");
+      snprintf(info->wifi_generation, sizeof(info->wifi_generation), "Wi-Fi 5");
+      break;
+    case kCWPHYMode11ax:
+      snprintf(info->phy_mode, sizeof(info->phy_mode), "802.11ax");
+      snprintf(info->wifi_generation, sizeof(info->wifi_generation), "Wi-Fi 6");
+      break;
+#ifdef kCWPHYMode11be
+    case kCWPHYMode11be:
+      snprintf(info->phy_mode, sizeof(info->phy_mode), "802.11be");
+      snprintf(info->wifi_generation, sizeof(info->wifi_generation), "Wi-Fi 7");
+      break;
+#else
+    case 7: // kCWPHYMode11be not yet in SDK enum
+      snprintf(info->phy_mode, sizeof(info->phy_mode), "802.11be");
+      snprintf(info->wifi_generation, sizeof(info->wifi_generation), "Wi-Fi 7");
+      break;
+#endif
+    default:
+      snprintf(info->phy_mode, sizeof(info->phy_mode), "Unknown");
+      snprintf(info->wifi_generation, sizeof(info->wifi_generation), "");
+      break;
+    }
+
+    return 0;
+  }
+}
 
 typedef struct IOReportSubscriptionRef *IOReportSubscriptionRef;
 

@@ -20,7 +20,10 @@ import (
 	w "github.com/metaspartan/gotui/v5/widgets"
 )
 
-var renderMutex sync.Mutex
+var (
+	renderMutex   sync.Mutex
+	menubarWorker bool // Hidden flag for the worker process
+)
 
 func setupUI() {
 	appleSiliconModel := getSOCInfo()
@@ -299,7 +302,8 @@ func updateHelpText() {
 			"--unit-disk: Disk unit: auto, byte, kb, mb, gb (default: auto)\n"+
 			"--unit-temp: Temperature unit: celsius, fahrenheit (default: celsius)\n"+
 			"--foreground: Set the UI foreground color (named or hex, e.g., green, #9580FF)\n"+
-			"--bg: Set the UI background color (named or hex, e.g., mocha-base, #22212C)\n\n"+
+			"--bg: Set the UI background color (named or hex, e.g., mocha-base, #22212C)\n"+
+			"--menubar: Run as a macOS menu bar status item (no TUI)\n\n"+
 			"Theme File: Create ~/.mactop/theme.json for custom colors:\n"+
 			"{\"foreground\": \"#9580FF\", \"background\": \"#22212C\"}\n\n",
 		prometheusStatus,
@@ -465,9 +469,13 @@ func applyInitialTheme(colorName string, setColor bool) {
 // initializeTheme sets up all theming with priority: CLI flags > theme.json > saved config
 // Each property (foreground, background) is evaluated independently
 func initializeTheme(colorName string, setColor bool, interval int, setInterval bool) {
-	// Always apply interval if set (regardless of theme source)
+	// Interval priority: 1) CLI --interval, 2) saved config, 3) default 1000ms
 	if setInterval {
 		updateInterval = interval
+		currentConfig.Interval = interval
+		updateIntervalText()
+	} else if currentConfig.Interval > 0 {
+		updateInterval = currentConfig.Interval
 		updateIntervalText()
 	}
 
@@ -497,6 +505,60 @@ func initializeTheme(colorName string, setColor bool, interval int, setInterval 
 	currentColorName = currentConfig.Theme
 }
 
+// runAlternateMode checks for non-TUI modes and runs them.
+// Returns true if an alternate mode was handled (caller should return).
+func runAlternateMode() bool {
+	if menubarWorker {
+		startMenuBarWorker()
+		return true
+	}
+	if headless {
+		runHeadless(headlessCount)
+		return true
+	}
+	return false
+}
+
+// seedInitialMetrics takes a quick sample and pushes initial values into the metric channels.
+func seedInitialMetrics() {
+	m := sampleSocMetrics(100)
+	_, throttled := getThermalStateString()
+	componentSum := m.TotalPower
+	totalPower := componentSum
+	systemResidual := 0.0
+
+	if m.SystemPower > componentSum {
+		totalPower = m.SystemPower
+		systemResidual = m.SystemPower - componentSum
+	}
+	cpuMetricsChan <- CPUMetrics{
+		CPUW:            m.CPUPower,
+		GPUW:            m.GPUPower,
+		ANEW:            m.ANEPower,
+		DRAMW:           m.DRAMPower,
+		GPUSRAMW:        m.GPUSRAMPower,
+		SystemW:         systemResidual,
+		PackageW:        totalPower,
+		Throttled:       throttled,
+		CPUTemp:         float64(m.CPUTemp),
+		GPUTemp:         float64(m.GPUTemp),
+		EClusterActive:  int(m.EClusterActive),
+		PClusterActive:  int(m.PClusterActive),
+		EClusterFreqMHz: int(m.EClusterFreqMHz),
+		PClusterFreqMHz: int(m.PClusterFreqMHz),
+	}
+	gpuMetricsChan <- GPUMetrics{
+		FreqMHz:       int(m.GPUFreqMHz),
+		ActivePercent: m.GPUActive,
+		Power:         m.GPUPower + m.GPUSRAMPower,
+		Temp:          m.GPUTemp,
+	}
+	if processes, err := getProcessList(0.0); err == nil {
+		processMetricsChan <- processes
+	}
+	netdiskMetricsChan <- getNetDiskMetrics()
+}
+
 func Run() {
 	colorName, interval, setColor, setInterval := handleLegacyFlags()
 
@@ -522,6 +584,8 @@ func Run() {
 	flag.StringVar(&networkUnit, "unit-network", "auto", "Network unit: auto, byte, kb, mb, gb")
 	flag.StringVar(&diskUnit, "unit-disk", "auto", "Disk unit: auto, byte, kb, mb, gb")
 	flag.StringVar(&tempUnit, "unit-temp", "celsius", "Temperature unit: celsius, fahrenheit")
+	flag.BoolVar(&menubar, "menubar", false, "Run as a macOS menu bar status item (no TUI)")
+	flag.BoolVar(&menubarWorker, "menubar-worker", false, "Internal: Run as menu bar worker process")
 
 	loadConfig()
 
@@ -535,8 +599,7 @@ func Run() {
 
 	currentUser = os.Getenv("USER")
 
-	if headless {
-		runHeadless(headlessCount)
+	if runAlternateMode() {
 		return
 	}
 
@@ -573,45 +636,16 @@ func Run() {
 	}
 	renderUI()
 
-	initialSocMetrics := sampleSocMetrics(100)
-	_, throttled := getThermalStateString()
-	componentSum := initialSocMetrics.TotalPower
-	totalPower := componentSum
-	systemResidual := 0.0
-
-	if initialSocMetrics.SystemPower > componentSum {
-		totalPower = initialSocMetrics.SystemPower
-		systemResidual = initialSocMetrics.SystemPower - componentSum
-	}
-	cpuMetrics := CPUMetrics{
-		CPUW:      initialSocMetrics.CPUPower,
-		GPUW:      initialSocMetrics.GPUPower,
-		ANEW:      initialSocMetrics.ANEPower,
-		DRAMW:     initialSocMetrics.DRAMPower,
-		GPUSRAMW:  initialSocMetrics.GPUSRAMPower,
-		SystemW:   systemResidual,
-		PackageW:  totalPower,
-		Throttled: throttled,
-		CPUTemp:   float64(initialSocMetrics.CPUTemp),
-		GPUTemp:   float64(initialSocMetrics.GPUTemp),
-	}
-	gpuMetrics := GPUMetrics{
-		FreqMHz:       int(initialSocMetrics.GPUFreqMHz),
-		ActivePercent: initialSocMetrics.GPUActive,
-		Power:         initialSocMetrics.GPUPower + initialSocMetrics.GPUSRAMPower,
-		Temp:          initialSocMetrics.GPUTemp,
-	}
-
-	cpuMetricsChan <- cpuMetrics
-	gpuMetricsChan <- gpuMetrics
-
-	if processes, err := getProcessList(0.0); err == nil {
-		processMetricsChan <- processes
-	}
-
-	netdiskMetricsChan <- getNetDiskMetrics()
+	seedInitialMetrics()
 
 	triggerProcessCollectionChan := make(chan struct{}, 1)
+
+	// In multi-process mode, we spawn the worker here if --menubar is set on the parent
+	if menubar {
+		if err := startMenuBarProcess(); err != nil {
+			stderrLogger.Printf("Failed to start menubar worker: %v\n", err)
+		}
+	}
 
 	go collectMetrics(done, cpuMetricsChan, gpuMetricsChan, tbNetStatsChan, triggerProcessCollectionChan)
 	go collectProcessMetrics(done, processMetricsChan, triggerProcessCollectionChan)
@@ -630,6 +664,15 @@ func Run() {
 	}()
 	lastUpdateTime = time.Now()
 
+	runEventLoop(done, uiEvents)
+}
+
+// runEventLoop dispatches the event loop.
+// When --menubar is active, the menu bar is already initialized (in Run())
+// and metrics are pushed to it from collectMetrics via pushMenuBarMetricsFromTUI.
+// We do NOT pump AppKit events here — dispatch_async in updateMenuBarMetrics
+// is sufficient for the menu bar title to update.
+func runEventLoop(done chan struct{}, uiEvents <-chan ui.Event) {
 	handleEvents(done, uiEvents)
 }
 
@@ -1012,10 +1055,51 @@ func updateGPUUI(gpuMetrics GPUMetrics) {
 func updateNetDiskUI(netdiskMetrics NetDiskMetrics) {
 	var sb strings.Builder
 
+	// Get cached link info (refreshed every 5 seconds)
+	linkInfoMutex.RLock()
+	needsRefresh := time.Since(linkInfoLastUpdate) >= 5*time.Second
+	ethInfo := cachedEthernetLinkInfo
+	wifiInfo := cachedWiFiLinkInfo
+	linkInfoMutex.RUnlock()
+
+	if needsRefresh {
+		linkInfoMutex.Lock()
+		// Double-check after acquiring write lock
+		if time.Since(linkInfoLastUpdate) >= 5*time.Second {
+			cachedEthernetLinkInfo = GetEthernetLinkInfo()
+			cachedWiFiLinkInfo = GetWiFiLinkInfo()
+			linkInfoLastUpdate = time.Now()
+		}
+		ethInfo = cachedEthernetLinkInfo
+		wifiInfo = cachedWiFiLinkInfo
+		linkInfoMutex.Unlock()
+	}
+
 	// Network metrics are in Bytes/sec
 	netOut := formatBytes(netdiskMetrics.OutBytesPerSec, networkUnit)
 	netIn := formatBytes(netdiskMetrics.InBytesPerSec, networkUnit)
-	fmt.Fprintf(&sb, "Net: ↑ %s/s ↓ %s/s\n", netOut, netIn)
+
+	// Build network line with link speed info
+	linkInfo := ""
+	for _, eth := range ethInfo {
+		if eth.LinkUp {
+			linkInfo = FormatLinkSpeed(eth.LinkSpeedMbps)
+			break
+		}
+	}
+	if linkInfo == "" && wifiInfo != nil && wifiInfo.IsConnected {
+		if wifiInfo.WiFiGeneration != "" {
+			linkInfo = fmt.Sprintf("%s", wifiInfo.WiFiGeneration)
+		} else {
+			linkInfo = fmt.Sprintf("%dMbps", wifiInfo.TxRateMbps)
+		}
+	}
+
+	if linkInfo != "" {
+		fmt.Fprintf(&sb, "Net (%s): ↑ %s/s ↓ %s/s\n", linkInfo, netOut, netIn)
+	} else {
+		fmt.Fprintf(&sb, "Net: ↑ %s/s ↓ %s/s\n", netOut, netIn)
+	}
 
 	// Disk metrics are in KB/s, convert to Bytes for formatBytes
 	diskRead := formatBytes(netdiskMetrics.ReadKBytesPerSec*1024, diskUnit)

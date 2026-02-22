@@ -14,8 +14,160 @@ package app
 #include <ifaddrs.h>
 #include <net/if.h>
 #include <net/if_dl.h>
+#include <net/if_media.h>
+#include <sys/socket.h>
+#include <sys/ioctl.h>
 #include <IOKit/IOKitLib.h>
 #include <CoreFoundation/CoreFoundation.h>
+
+// Network link info structure for Ethernet interfaces
+typedef struct {
+    char name[32];           // Interface name (en0, en1, etc.)
+    int link_up;             // 1 if link is up, 0 if disconnected
+    uint64_t link_speed_mbps; // Negotiated speed in Mbps (0 if unknown)
+    char media_type[32];     // Human-readable media type string
+} net_link_info_t;
+
+// Map IFM subtype to Mbps
+static uint64_t ifm_subtype_to_mbps(int subtype) {
+    switch (subtype) {
+        case IFM_10_T:      return 10;
+        case IFM_100_TX:    return 100;
+        case IFM_1000_T:    return 1000;
+        case IFM_1000_SX:   return 1000;
+        case IFM_1000_LX:   return 1000;
+        case IFM_1000_CX:   return 1000;
+#ifdef IFM_2500_T
+        case IFM_2500_T:    return 2500;
+#endif
+#ifdef IFM_2500_SX
+        case IFM_2500_SX:   return 2500;
+#endif
+#ifdef IFM_5000_T
+        case IFM_5000_T:    return 5000;
+#endif
+#ifdef IFM_10G_T
+        case IFM_10G_T:     return 10000;
+#endif
+#ifdef IFM_10G_SR
+        case IFM_10G_SR:    return 10000;
+#endif
+#ifdef IFM_10G_LR
+        case IFM_10G_LR:    return 10000;
+#endif
+        default:            return 0;
+    }
+}
+
+// Map IFM subtype to human-readable string
+static void ifm_subtype_to_string(int subtype, char *buf, size_t bufsize) {
+    switch (subtype) {
+        case IFM_10_T:      snprintf(buf, bufsize, "10baseT"); break;
+        case IFM_100_TX:    snprintf(buf, bufsize, "100baseTX"); break;
+        case IFM_1000_T:    snprintf(buf, bufsize, "1000baseT"); break;
+        case IFM_1000_SX:   snprintf(buf, bufsize, "1000baseSX"); break;
+        case IFM_1000_LX:   snprintf(buf, bufsize, "1000baseLX"); break;
+        case IFM_1000_CX:   snprintf(buf, bufsize, "1000baseCX"); break;
+#ifdef IFM_2500_T
+        case IFM_2500_T:    snprintf(buf, bufsize, "2500baseT"); break;
+#endif
+#ifdef IFM_2500_SX
+        case IFM_2500_SX:   snprintf(buf, bufsize, "2500baseSX"); break;
+#endif
+#ifdef IFM_5000_T
+        case IFM_5000_T:    snprintf(buf, bufsize, "5000baseT"); break;
+#endif
+#ifdef IFM_10G_T
+        case IFM_10G_T:     snprintf(buf, bufsize, "10GbaseT"); break;
+#endif
+#ifdef IFM_10G_SR
+        case IFM_10G_SR:    snprintf(buf, bufsize, "10GbaseSR"); break;
+#endif
+#ifdef IFM_10G_LR
+        case IFM_10G_LR:    snprintf(buf, bufsize, "10GbaseLR"); break;
+#endif
+        default:            snprintf(buf, bufsize, "unknown"); break;
+    }
+}
+
+// Get Ethernet link info for all non-loopback interfaces
+int get_ethernet_link_info(net_link_info_t *infos, int max_infos) {
+    int sock = socket(AF_INET, SOCK_DGRAM, 0);
+    if (sock < 0) {
+        return 0;
+    }
+
+    struct ifaddrs *ifap, *ifa;
+    if (getifaddrs(&ifap) != 0) {
+        close(sock);
+        return 0;
+    }
+
+    int count = 0;
+    for (ifa = ifap; ifa != NULL && count < max_infos; ifa = ifa->ifa_next) {
+        if (ifa->ifa_addr == NULL || ifa->ifa_addr->sa_family != AF_LINK) {
+            continue;
+        }
+
+        // Skip loopback and non-ethernet interfaces
+        if (strncmp(ifa->ifa_name, "lo", 2) == 0) continue;
+        if (strncmp(ifa->ifa_name, "bridge", 6) == 0) continue;
+        if (strncmp(ifa->ifa_name, "awdl", 4) == 0) continue;
+        if (strncmp(ifa->ifa_name, "llw", 3) == 0) continue;
+        if (strncmp(ifa->ifa_name, "utun", 4) == 0) continue;
+        if (strncmp(ifa->ifa_name, "gif", 3) == 0) continue;
+        if (strncmp(ifa->ifa_name, "stf", 3) == 0) continue;
+        if (strncmp(ifa->ifa_name, "ap", 2) == 0) continue;
+
+        // Only process en* interfaces (ethernet/wifi)
+        if (strncmp(ifa->ifa_name, "en", 2) != 0) continue;
+
+        // Check if we already have this interface
+        int duplicate = 0;
+        for (int i = 0; i < count; i++) {
+            if (strcmp(infos[i].name, ifa->ifa_name) == 0) {
+                duplicate = 1;
+                break;
+            }
+        }
+        if (duplicate) continue;
+
+        struct ifmediareq ifmr;
+        memset(&ifmr, 0, sizeof(ifmr));
+        strncpy(ifmr.ifm_name, ifa->ifa_name, sizeof(ifmr.ifm_name) - 1);
+
+        if (ioctl(sock, SIOCGIFMEDIA, &ifmr) < 0) {
+            // Interface doesn't support media queries (likely Wi-Fi)
+            continue;
+        }
+
+        // Skip if no media or not ethernet type
+        if ((ifmr.ifm_status & IFM_AVALID) == 0) {
+            continue;
+        }
+        if (IFM_TYPE(ifmr.ifm_active) != IFM_ETHER) {
+            continue;
+        }
+
+        strncpy(infos[count].name, ifa->ifa_name, sizeof(infos[count].name) - 1);
+        infos[count].link_up = (ifmr.ifm_status & IFM_ACTIVE) ? 1 : 0;
+
+        if (infos[count].link_up) {
+            int subtype = IFM_SUBTYPE(ifmr.ifm_active);
+            infos[count].link_speed_mbps = ifm_subtype_to_mbps(subtype);
+            ifm_subtype_to_string(subtype, infos[count].media_type, sizeof(infos[count].media_type));
+        } else {
+            infos[count].link_speed_mbps = 0;
+            snprintf(infos[count].media_type, sizeof(infos[count].media_type), "disconnected");
+        }
+
+        count++;
+    }
+
+    freeifaddrs(ifap);
+    close(sock);
+    return count;
+}
 
 // Wrapper for host_statistics64
 kern_return_t get_vm_statistics(vm_statistics64_data_t *vm_stat) {
@@ -1228,4 +1380,50 @@ func GetStorageDevicesIOKit() []StorageDeviceInfo {
 		}
 	}
 	return result
+}
+
+// EthernetLinkInfo represents Ethernet interface link information
+type EthernetLinkInfo struct {
+	Name          string // Interface name (en0, en1, etc.)
+	LinkUp        bool   // True if link is up
+	LinkSpeedMbps uint64 // Negotiated speed in Mbps
+	MediaType     string // Raw media type string (e.g., "1000baseT")
+}
+
+// GetEthernetLinkInfo returns link information for all Ethernet interfaces
+func GetEthernetLinkInfo() []EthernetLinkInfo {
+	maxInfos := 16
+	infos := make([]C.net_link_info_t, maxInfos)
+	count := C.get_ethernet_link_info(&infos[0], C.int(maxInfos))
+	if count <= 0 {
+		return nil
+	}
+
+	result := make([]EthernetLinkInfo, int(count))
+	for i := 0; i < int(count); i++ {
+		result[i] = EthernetLinkInfo{
+			Name:          C.GoString(&infos[i].name[0]),
+			LinkUp:        infos[i].link_up != 0,
+			LinkSpeedMbps: uint64(infos[i].link_speed_mbps),
+			MediaType:     C.GoString(&infos[i].media_type[0]),
+		}
+	}
+	return result
+}
+
+// FormatLinkSpeed formats Mbps to human-readable string (e.g., "1GbE", "100Mbps")
+func FormatLinkSpeed(mbps uint64) string {
+	switch {
+	case mbps >= 10000:
+		return fmt.Sprintf("%.0fGbE", float64(mbps)/1000)
+	case mbps >= 1000:
+		if mbps%1000 == 0 {
+			return fmt.Sprintf("%dGbE", mbps/1000)
+		}
+		return fmt.Sprintf("%.1fGbE", float64(mbps)/1000)
+	case mbps > 0:
+		return fmt.Sprintf("%dMbps", mbps)
+	default:
+		return "--"
+	}
 }

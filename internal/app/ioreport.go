@@ -4,7 +4,7 @@ package app
 
 /*
 #cgo CFLAGS: -x objective-c
-#cgo LDFLAGS: -framework CoreFoundation -framework IOKit -framework Foundation -lIOReport
+#cgo LDFLAGS: -framework CoreFoundation -framework IOKit -framework Foundation -framework CoreWLAN -lIOReport
 #include <mach/mach_host.h>
 #include <mach/processor_info.h>
 #include <mach/mach_init.h>
@@ -66,6 +66,17 @@ int getThermalState();
 extern void debugIOReport(void);
 extern void printAllChannels(void);
 extern void debugMonitorChannels(int durationMs);
+
+// Wi-Fi link info structure (defined in ioreport.m)
+typedef struct {
+    char interface_name[32];
+    char phy_mode[32];
+    char wifi_generation[16];
+    int tx_rate_mbps;
+    int is_connected;
+} wifi_link_info_t;
+
+int get_wifi_link_info(wifi_link_info_t *info);
 */
 import "C"
 
@@ -78,7 +89,7 @@ type SocMetrics struct {
 	SystemPower     float64 `json:"system_power"`
 	TotalPower      float64 `json:"total_power"`
 	GPUFreqMHz      int32   `json:"gpu_freq_mhz"`
-	GPUActive       float64 `json:"-"`
+	GPUActive       float64 `json:"gpu_active"`
 	EClusterActive  float64 `json:"e_cluster_active"`
 	PClusterActive  float64 `json:"p_cluster_active"`
 	EClusterFreqMHz int32   `json:"e_cluster_freq_mhz"`
@@ -128,4 +139,29 @@ func getSocThermalState() int {
 // DebugIOReport prints all available IOReport channels and groups to stdout
 func DebugIOReport() {
 	C.debugIOReport()
+}
+
+// WiFiLinkInfo represents Wi-Fi interface link information
+type WiFiLinkInfo struct {
+	InterfaceName  string // Interface name (en0, en1, etc.)
+	PHYMode        string // "802.11n", "802.11ac", "802.11ax", etc.
+	WiFiGeneration string // "Wi-Fi 4", "Wi-Fi 5", "Wi-Fi 6", etc.
+	TxRateMbps     int    // Current transmit rate in Mbps
+	IsConnected    bool   // True if associated to a network
+}
+
+// GetWiFiLinkInfo returns Wi-Fi link information
+func GetWiFiLinkInfo() *WiFiLinkInfo {
+	var info C.wifi_link_info_t
+	ret := C.get_wifi_link_info(&info)
+	if ret != 0 {
+		return nil
+	}
+	return &WiFiLinkInfo{
+		InterfaceName:  C.GoString(&info.interface_name[0]),
+		PHYMode:        C.GoString(&info.phy_mode[0]),
+		WiFiGeneration: C.GoString(&info.wifi_generation[0]),
+		TxRateMbps:     int(info.tx_rate_mbps),
+		IsConnected:    info.is_connected != 0,
+	}
 }

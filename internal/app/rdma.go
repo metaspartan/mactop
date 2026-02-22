@@ -68,12 +68,12 @@ func CheckRDMAAvailable() RDMAStatus {
 
 	if strings.Contains(result, "enabled") {
 		status.Available = true
-		status.Status = "RDMA Enabled"
+		status.Status = "Enabled"
 		// Enumerate RDMA devices when enabled
 		status.Devices = GetRDMADevices()
 	} else if strings.Contains(result, "disabled") {
 		status.Available = false
-		status.Status = "RDMA Disabled (use rdma_ctl enable in Recovery Mode)"
+		status.Status = "Disabled" // (use rdma_ctl enable in Recovery Mode)
 	} else {
 		status.Available = strings.Contains(result, "enabled")
 		status.Status = "RDMA: " + strings.TrimSpace(string(output))

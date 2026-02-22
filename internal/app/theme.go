@@ -128,181 +128,188 @@ func IsCatppuccinTheme(theme string) bool {
 	return slices.Contains(catppuccinThemes, theme)
 }
 
-func getCPUColor() ui.Color {
-	return ui.ColorGreen
+// 1977 theme uses fixed per-component gauge colors regardless of cycle position
+
+// --- Style helpers: centralize the repeated 3-5 line styling patterns ---
+
+func styleGauge(g *w.Gauge, color, labelColor ui.Color) {
+	if g == nil {
+		return
+	}
+	g.BarColor = color
+	g.BorderStyle.Fg = color
+	g.BorderStyle.Bg = CurrentBgColor
+	g.TitleStyle.Fg = color
+	g.TitleStyle.Bg = CurrentBgColor
+	g.LabelStyle = ui.NewStyle(labelColor, CurrentBgColor)
 }
 
-func getGPUColor() ui.Color {
-	return ui.ColorMagenta
+func styleParagraph(p *w.Paragraph, color ui.Color) {
+	if p == nil {
+		return
+	}
+	p.BorderStyle.Fg = color
+	p.BorderStyle.Bg = CurrentBgColor
+	p.TitleStyle.Fg = color
+	p.TitleStyle.Bg = CurrentBgColor
+	p.TextStyle = ui.NewStyle(color, CurrentBgColor)
 }
 
-func getMemoryColor() ui.Color {
-	return ui.ColorBlue
+func styleSparkline(s *w.Sparkline, color ui.Color) {
+	if s == nil {
+		return
+	}
+	s.LineColor = color
+	s.TitleStyle = ui.NewStyle(color, CurrentBgColor)
 }
 
-func getANEColor() ui.Color {
-	return ui.ColorRed
+func styleSparklineGroup(g *w.SparklineGroup, color ui.Color) {
+	if g == nil {
+		return
+	}
+	g.BorderStyle.Fg = color
+	g.BorderStyle.Bg = CurrentBgColor
+	g.TitleStyle.Fg = color
+	g.TitleStyle.Bg = CurrentBgColor
+}
+
+func styleStepChart(sc *w.StepChart, color ui.Color) {
+	if sc == nil {
+		return
+	}
+	sc.BorderStyle.Fg = color
+	sc.BorderStyle.Bg = CurrentBgColor
+	sc.TitleStyle.Fg = color
+	sc.TitleStyle.Bg = CurrentBgColor
+	sc.LineColors = []ui.Color{color}
 }
 
 func update1977GaugeColors() {
-	if cpuGauge != nil {
-		cpuColor := getCPUColor()
-		cpuGauge.BarColor = cpuColor
-		cpuGauge.BorderStyle.Fg = cpuColor
-		cpuGauge.BorderStyle.Bg = CurrentBgColor
-		cpuGauge.TitleStyle.Fg = cpuColor
-		cpuGauge.TitleStyle.Bg = CurrentBgColor
-		cpuGauge.LabelStyle = ui.NewStyle(SecondaryTextColor, CurrentBgColor)
-	}
-
-	if gpuGauge != nil {
-		gpuColor := getGPUColor()
-		gpuGauge.BarColor = gpuColor
-		gpuGauge.BorderStyle.Fg = gpuColor
-		gpuGauge.BorderStyle.Bg = CurrentBgColor
-		gpuGauge.TitleStyle.Fg = gpuColor
-		gpuGauge.TitleStyle.Bg = CurrentBgColor
-		gpuGauge.LabelStyle = ui.NewStyle(SecondaryTextColor, CurrentBgColor)
-	}
-
-	if memoryGauge != nil {
-		memColor := getMemoryColor()
-		memoryGauge.BarColor = memColor
-		memoryGauge.BorderStyle.Fg = memColor
-		memoryGauge.BorderStyle.Bg = CurrentBgColor
-		memoryGauge.TitleStyle.Fg = memColor
-		memoryGauge.TitleStyle.Bg = CurrentBgColor
-		memoryGauge.LabelStyle = ui.NewStyle(SecondaryTextColor, CurrentBgColor)
-	}
-
-	if aneGauge != nil {
-		aneColor := getANEColor()
-		aneGauge.BarColor = aneColor
-		aneGauge.BorderStyle.Fg = aneColor
-		aneGauge.BorderStyle.Bg = CurrentBgColor
-		aneGauge.TitleStyle.Fg = aneColor
-		aneGauge.TitleStyle.Bg = CurrentBgColor
-		aneGauge.LabelStyle = ui.NewStyle(SecondaryTextColor, CurrentBgColor)
-	}
+	styleGauge(cpuGauge, ui.ColorGreen, SecondaryTextColor)
+	styleGauge(gpuGauge, ui.ColorMagenta, SecondaryTextColor)
+	styleGauge(memoryGauge, ui.ColorBlue, SecondaryTextColor)
+	styleGauge(aneGauge, ui.ColorRed, SecondaryTextColor)
 }
 
 func applyThemeToGauges(color ui.Color) {
-	if cpuGauge != nil {
-		cpuGauge.BarColor = color
-		cpuGauge.BorderStyle.Fg = color
-		cpuGauge.BorderStyle.Bg = CurrentBgColor
-		cpuGauge.TitleStyle.Fg = color
-		cpuGauge.TitleStyle.Bg = CurrentBgColor
-		cpuGauge.LabelStyle = ui.NewStyle(SecondaryTextColor, CurrentBgColor)
-
-		gpuGauge.BarColor = color
-		gpuGauge.BorderStyle.Fg = color
-		gpuGauge.BorderStyle.Bg = CurrentBgColor
-		gpuGauge.TitleStyle.Fg = color
-		gpuGauge.TitleStyle.Bg = CurrentBgColor
-		gpuGauge.LabelStyle = ui.NewStyle(SecondaryTextColor, CurrentBgColor)
-
-		memoryGauge.BarColor = color
-		memoryGauge.BorderStyle.Fg = color
-		memoryGauge.BorderStyle.Bg = CurrentBgColor
-		memoryGauge.TitleStyle.Fg = color
-		memoryGauge.TitleStyle.Bg = CurrentBgColor
-		memoryGauge.LabelStyle = ui.NewStyle(SecondaryTextColor, CurrentBgColor)
-
-		aneGauge.BarColor = color
-		aneGauge.BorderStyle.Fg = color
-		aneGauge.BorderStyle.Bg = CurrentBgColor
-		aneGauge.TitleStyle.Fg = color
-		aneGauge.TitleStyle.Bg = CurrentBgColor
-		aneGauge.LabelStyle = ui.NewStyle(SecondaryTextColor, CurrentBgColor)
-	}
+	styleGauge(cpuGauge, color, SecondaryTextColor)
+	styleGauge(gpuGauge, color, SecondaryTextColor)
+	styleGauge(memoryGauge, color, SecondaryTextColor)
+	styleGauge(aneGauge, color, SecondaryTextColor)
 }
 
 func applyCatppuccinThemeToGauges(palette *CatppuccinPalette) {
-	if cpuGauge != nil {
-		// CPU = Green (success/performance - per Catppuccin style guide)
-		cpuGauge.BarColor = palette.Green
-		cpuGauge.BorderStyle.Fg = palette.Green
-		cpuGauge.BorderStyle.Bg = CurrentBgColor
-		cpuGauge.TitleStyle.Fg = palette.Green
-		cpuGauge.TitleStyle.Bg = CurrentBgColor
-		cpuGauge.LabelStyle = ui.NewStyle(palette.Subtext0, CurrentBgColor)
+	styleGauge(cpuGauge, palette.Green, palette.Subtext0)     // CPU = Green (success/performance)
+	styleGauge(gpuGauge, palette.Blue, palette.Subtext0)      // GPU = Blue (info/secondary compute)
+	styleGauge(memoryGauge, palette.Yellow, palette.Subtext0) // Memory = Yellow (resource usage)
+	styleGauge(aneGauge, palette.Lavender, palette.Subtext0)  // ANE = Lavender (AI/neural)
+}
 
-		// GPU = Blue (info/secondary compute - per Catppuccin style guide)
-		gpuGauge.BarColor = palette.Blue
-		gpuGauge.BorderStyle.Fg = palette.Blue
-		gpuGauge.BorderStyle.Bg = CurrentBgColor
-		gpuGauge.TitleStyle.Fg = palette.Blue
-		gpuGauge.TitleStyle.Bg = CurrentBgColor
-		gpuGauge.LabelStyle = ui.NewStyle(palette.Subtext0, CurrentBgColor)
-
-		// Memory = Yellow (warning/resource usage - per Catppuccin style guide)
-		memoryGauge.BarColor = palette.Yellow
-		memoryGauge.BorderStyle.Fg = palette.Yellow
-		memoryGauge.BorderStyle.Bg = CurrentBgColor
-		memoryGauge.TitleStyle.Fg = palette.Yellow
-		memoryGauge.TitleStyle.Bg = CurrentBgColor
-		memoryGauge.LabelStyle = ui.NewStyle(palette.Subtext0, CurrentBgColor)
-
-		// ANE = Lavender (AI/neural - distinctive accent)
-		aneGauge.BarColor = palette.Lavender
-		aneGauge.BorderStyle.Fg = palette.Lavender
-		aneGauge.BorderStyle.Bg = CurrentBgColor
-		aneGauge.TitleStyle.Fg = palette.Lavender
-		aneGauge.TitleStyle.Bg = CurrentBgColor
-		aneGauge.LabelStyle = ui.NewStyle(palette.Subtext0, CurrentBgColor)
+// resolveCustomColor resolves a per-component hex color, falling back to foregroundColor.
+func resolveCustomColor(specificKey string, foregroundColor ui.Color) ui.Color {
+	if specificKey != "" && IsHexColor(specificKey) {
+		if color, err := ParseHexColor(specificKey); err == nil {
+			return color
+		}
 	}
+	return foregroundColor
+}
+
+// applyCustomGaugeColors applies per-component gauge colors from custom theme.
+func applyCustomGaugeColors(theme *CustomThemeConfig, fgColor ui.Color) {
+	styleGauge(cpuGauge, resolveCustomColor(theme.CPU, fgColor), SecondaryTextColor)
+	styleGauge(gpuGauge, resolveCustomColor(theme.GPU, fgColor), SecondaryTextColor)
+	styleGauge(memoryGauge, resolveCustomColor(theme.Memory, fgColor), SecondaryTextColor)
+	styleGauge(aneGauge, resolveCustomColor(theme.ANE, fgColor), SecondaryTextColor)
+}
+
+// applyCustomWidgetColors applies per-component widget colors from custom theme.
+func applyCustomWidgetColors(theme *CustomThemeConfig, fgColor ui.Color) {
+	// Sparklines
+	powerColor := resolveCustomColor(theme.Power, fgColor)
+	styleSparkline(sparkline, powerColor)
+	styleSparklineGroup(sparklineGroup, powerColor)
+
+	gpuColor := resolveCustomColor(theme.GPU, fgColor)
+	styleSparkline(gpuSparkline, gpuColor)
+	styleSparklineGroup(gpuSparklineGroup, gpuColor)
+
+	netColor := resolveCustomColor(theme.Network, fgColor)
+	styleSparkline(tbNetSparklineIn, netColor)
+	styleSparkline(tbNetSparklineOut, netColor)
+	styleSparklineGroup(tbNetSparklineGroup, netColor)
+
+	// Step charts
+	styleStepChart(gpuHistoryChart, gpuColor)
+	styleStepChart(powerHistoryChart, powerColor)
+	styleStepChart(memoryHistoryChart, resolveCustomColor(theme.Memory, fgColor))
+	styleStepChart(cpuHistoryChart, resolveCustomColor(theme.CPU, fgColor))
+
+	// Paragraphs
+	styleParagraph(PowerChart, powerColor)
+	styleParagraph(NetworkInfo, netColor)
+	styleParagraph(tbInfoParagraph, resolveCustomColor(theme.Thunderbolt, fgColor))
+	styleParagraph(infoParagraph, fgColor) // info box uses foreground directly
+	styleParagraph(helpText, fgColor)
+	styleParagraph(modelText, resolveCustomColor(theme.SystemInfo, fgColor))
+
+	// Process list (needs special selected-style contrast logic)
+	if processList != nil {
+		color := resolveCustomColor(theme.ProcessList, fgColor)
+		processList.BorderStyle.Fg = color
+		processList.TitleStyle.Fg = color
+		processList.TextStyle = ui.NewStyle(color, CurrentBgColor)
+
+		selectedFg := ui.NewRGBColor(2, 2, 2)
+		if theme.ProcessListSelected != "" && IsHexColor(theme.ProcessListSelected) {
+			if parsed, err := ParseHexColor(theme.ProcessListSelected); err == nil {
+				selectedFg = parsed
+			}
+		} else {
+			colorForContrast := theme.ProcessList
+			if colorForContrast == "" || !IsHexColor(colorForContrast) {
+				colorForContrast = theme.Foreground
+			}
+			if !IsLightHexColor(colorForContrast) {
+				selectedFg = ui.ColorWhite
+			}
+		}
+		processList.SelectedStyle = ui.NewStyle(selectedFg, color)
+	}
+
+	// CPU Cores widget
+	if cpuCoreWidget != nil {
+		color := resolveCustomColor(theme.CPU, fgColor)
+		cpuCoreWidget.BorderStyle.Fg = color
+		cpuCoreWidget.TitleStyle.Fg = color
+	}
+}
+
+// applyCustomPerComponentColors applies per-component colors from custom theme.
+// Falls back to foreground color if component color not specified.
+func applyCustomPerComponentColors(theme *CustomThemeConfig, foregroundColor ui.Color) {
+	applyCustomGaugeColors(theme, foregroundColor)
+	applyCustomWidgetColors(theme, foregroundColor)
 }
 
 func applyThemeToSparklines(color ui.Color) {
-	if sparkline != nil {
-		sparkline.LineColor = color
-		sparkline.TitleStyle = ui.NewStyle(color, CurrentBgColor)
-	}
-	if sparklineGroup != nil {
-		sparklineGroup.BorderStyle.Fg = color
-		sparklineGroup.TitleStyle.Fg = color
-		sparklineGroup.TitleStyle.Bg = CurrentBgColor
-	}
-	if gpuSparkline != nil {
-		gpuSparkline.LineColor = color
-		gpuSparkline.TitleStyle = ui.NewStyle(color, CurrentBgColor)
-	}
-	if gpuSparklineGroup != nil {
-		gpuSparklineGroup.BorderStyle.Fg = color
-		gpuSparklineGroup.TitleStyle.Fg = color
-		gpuSparklineGroup.TitleStyle.Bg = CurrentBgColor
-	}
-
-	if tbNetSparklineIn != nil {
-		tbNetSparklineIn.LineColor = color
-		tbNetSparklineIn.TitleStyle = ui.NewStyle(color, CurrentBgColor)
-	}
-	if tbNetSparklineOut != nil {
-		tbNetSparklineOut.LineColor = color
-		tbNetSparklineOut.TitleStyle = ui.NewStyle(color, CurrentBgColor)
-	}
-	if tbNetSparklineGroup != nil {
-		tbNetSparklineGroup.BorderStyle.Fg = color
-		tbNetSparklineGroup.TitleStyle.Fg = color
-		tbNetSparklineGroup.TitleStyle.Bg = CurrentBgColor
-	}
+	styleSparkline(sparkline, color)
+	styleSparklineGroup(sparklineGroup, color)
+	styleSparkline(gpuSparkline, color)
+	styleSparklineGroup(gpuSparklineGroup, color)
+	styleSparkline(tbNetSparklineIn, color)
+	styleSparkline(tbNetSparklineOut, color)
+	styleSparklineGroup(tbNetSparklineGroup, color)
 }
 
 func applyThemeToStepCharts(color ui.Color) {
-	stepCharts := []*w.StepChart{gpuHistoryChart, powerHistoryChart, memoryHistoryChart, cpuHistoryChart}
-	for _, sc := range stepCharts {
-		if sc != nil {
-			sc.BorderStyle.Fg = color
-			sc.BorderStyle.Bg = CurrentBgColor
-			sc.TitleStyle.Fg = color
-			sc.TitleStyle.Bg = CurrentBgColor
-			sc.LineColors = []ui.Color{color}
-		}
+	for _, sc := range []*w.StepChart{gpuHistoryChart, powerHistoryChart, memoryHistoryChart, cpuHistoryChart} {
+		styleStepChart(sc, color)
 	}
 }
 
 func applyThemeToWidgets(color ui.Color, lightMode bool) {
+	// Process list needs special selected-style logic
 	if processList != nil {
 		processList.TextStyle = ui.NewStyle(color, CurrentBgColor)
 		selectedFg := ui.NewRGBColor(2, 2, 2)
@@ -315,40 +322,24 @@ func applyThemeToWidgets(color ui.Color, lightMode bool) {
 		processList.TitleStyle.Fg = color
 		processList.TitleStyle.Bg = CurrentBgColor
 	}
-	if NetworkInfo != nil {
-		NetworkInfo.TextStyle = ui.NewStyle(color, CurrentBgColor)
-		NetworkInfo.BorderStyle.Fg = color
-		NetworkInfo.BorderStyle.Bg = CurrentBgColor
-		NetworkInfo.TitleStyle.Fg = color
-		NetworkInfo.TitleStyle.Bg = CurrentBgColor
-	}
-	if PowerChart != nil {
-		PowerChart.TextStyle = ui.NewStyle(color, CurrentBgColor)
-		PowerChart.BorderStyle.Fg = color
-		PowerChart.BorderStyle.Bg = CurrentBgColor
-		PowerChart.TitleStyle.Fg = color
-		PowerChart.TitleStyle.Bg = CurrentBgColor
-	}
+
+	// Paragraphs
+	styleParagraph(NetworkInfo, color)
+	styleParagraph(PowerChart, color)
+	styleParagraph(modelText, color)
+	styleParagraph(helpText, color)
+	styleParagraph(tbInfoParagraph, color)
+	styleParagraph(infoParagraph, color)
+
+	// CPU Cores widget
 	if cpuCoreWidget != nil {
 		cpuCoreWidget.BorderStyle.Fg = color
 		cpuCoreWidget.BorderStyle.Bg = CurrentBgColor
 		cpuCoreWidget.TitleStyle.Fg = color
 		cpuCoreWidget.TitleStyle.Bg = CurrentBgColor
 	}
-	if modelText != nil {
-		modelText.BorderStyle.Fg = color
-		modelText.BorderStyle.Bg = CurrentBgColor
-		modelText.TitleStyle.Fg = color
-		modelText.TitleStyle.Bg = CurrentBgColor
-		modelText.TextStyle = ui.NewStyle(color, CurrentBgColor)
-	}
-	if helpText != nil {
-		helpText.BorderStyle.Fg = color
-		helpText.BorderStyle.Bg = CurrentBgColor
-		helpText.TitleStyle.Fg = color
-		helpText.TitleStyle.Bg = CurrentBgColor
-		helpText.TextStyle = ui.NewStyle(color, CurrentBgColor)
-	}
+
+	// Main block
 	if mainBlock != nil {
 		mainBlock.BorderStyle.Fg = color
 		mainBlock.BorderStyle.Bg = CurrentBgColor
@@ -356,20 +347,6 @@ func applyThemeToWidgets(color ui.Color, lightMode bool) {
 		mainBlock.TitleStyle.Bg = CurrentBgColor
 		mainBlock.TitleBottomStyle.Fg = color
 		mainBlock.TitleBottomStyle.Bg = CurrentBgColor
-	}
-	if tbInfoParagraph != nil {
-		tbInfoParagraph.BorderStyle.Fg = color
-		tbInfoParagraph.BorderStyle.Bg = CurrentBgColor
-		tbInfoParagraph.TitleStyle.Fg = color
-		tbInfoParagraph.TitleStyle.Bg = CurrentBgColor
-		tbInfoParagraph.TextStyle = ui.NewStyle(color, CurrentBgColor)
-	}
-	if infoParagraph != nil {
-		infoParagraph.BorderStyle.Fg = color
-		infoParagraph.BorderStyle.Bg = CurrentBgColor
-		infoParagraph.TitleStyle.Fg = color
-		infoParagraph.TitleStyle.Bg = CurrentBgColor
-		infoParagraph.TextStyle = ui.NewStyle(color, CurrentBgColor)
 	}
 }
 
@@ -542,8 +519,15 @@ func resolveThemeColorString(theme string) string {
 }
 
 func GetProcessTextColor(isCurrentUser bool) string {
-	if IsLightMode {
-		if isCurrentUser {
+	if isCurrentUser {
+		// Prioritize custom ProcessList color if valid
+		if currentConfig.CustomTheme != nil && currentConfig.CustomTheme.ProcessList != "" {
+			if IsHexColor(currentConfig.CustomTheme.ProcessList) {
+				return currentConfig.CustomTheme.ProcessList
+			}
+		}
+
+		if IsLightMode {
 			color := GetThemeColorWithLightMode(currentConfig.Theme, true)
 			if color == ui.NewRGBColor(2, 2, 2) {
 				return "#020202"
@@ -553,14 +537,20 @@ func GetProcessTextColor(isCurrentUser bool) string {
 			}
 			return resolveThemeColorString(currentConfig.Theme)
 		}
-		return "240"
-	}
 
-	if isCurrentUser {
 		if IsCatppuccinTheme(currentConfig.Theme) {
 			return GetCatppuccinHex(currentConfig.Theme, "Primary")
 		}
 		return resolveThemeColorString(currentConfig.Theme)
+	}
+	// Non-current user processes
+	if currentConfig.CustomTheme != nil && currentConfig.CustomTheme.ProcessListDim != "" {
+		if IsHexColor(currentConfig.CustomTheme.ProcessListDim) {
+			return currentConfig.CustomTheme.ProcessListDim
+		}
+	}
+	if IsLightMode {
+		return "240"
 	}
 	return "#888888" // Grey for non-current-user (root/system) processes
 }
@@ -575,9 +565,12 @@ func cycleTheme() {
 	}
 	nextIndex := (currentIndex + 1) % len(themeOrder)
 	currentColorName = themeOrder[nextIndex]
-	applyTheme(themeOrder[nextIndex], IsLightMode)
 
-	currentConfig.Theme = currentColorName
+	// When cycling themes, clear the custom theme configuration to prevent
+	// lingering custom colors from overriding the selected preset theme.
+	currentConfig.CustomTheme = nil
+
+	applyTheme(themeOrder[nextIndex], IsLightMode)
 	saveConfig()
 
 	updateInfoUI()
@@ -739,6 +732,14 @@ func GetCurrentBgName() string {
 	return "clear"
 }
 
+// hasCustomComponentColors returns true if any per-component color is specified.
+func hasCustomComponentColors(t *CustomThemeConfig) bool {
+	return t.CPU != "" || t.GPU != "" || t.Memory != "" || t.ANE != "" ||
+		t.Network != "" || t.Power != "" || t.Thunderbolt != "" ||
+		t.ProcessList != "" || t.ProcessListDim != "" ||
+		t.ProcessListSelected != "" || t.SystemInfo != ""
+}
+
 // applyCustomThemeFile loads and applies custom theme from ~/.mactop/theme.json
 // Returns (appliedForeground, appliedBackground) to indicate which colors were set
 func applyCustomThemeFile() (bool, bool) {
@@ -763,6 +764,12 @@ func applyCustomThemeFile() (bool, bool) {
 		currentConfig.Theme = theme.Foreground
 		currentConfig.CustomTheme = theme
 		appliedFg = true
+
+		// Apply per-component colors if any are specified
+		if hasCustomComponentColors(theme) {
+			foregroundColor, _ := ParseHexColor(theme.Foreground)
+			applyCustomPerComponentColors(theme, foregroundColor)
+		}
 	}
 
 	return appliedFg, appliedBg

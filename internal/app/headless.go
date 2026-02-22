@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -26,24 +27,75 @@ func safeFloat64At(slice []float64, index int) float64 {
 	return 0.0
 }
 
+// HeadlessProcess represents a single process in headless output
+type HeadlessProcess struct {
+	PID     int     `json:"pid" yaml:"pid" xml:"PID" toon:"pid"`
+	Command string  `json:"command" yaml:"command" xml:"Command" toon:"command"`
+	CPU     float64 `json:"cpu_percent" yaml:"cpu_percent" xml:"CPUPercent" toon:"cpu_percent"`
+	GPU     float64 `json:"gpu_ms_per_sec" yaml:"gpu_ms_per_sec" xml:"GPUMsPerSec" toon:"gpu_ms_per_sec"`
+	Memory  float64 `json:"memory_percent" yaml:"memory_percent" xml:"MemoryPercent" toon:"memory_percent"`
+	RSS     int64   `json:"rss_kb" yaml:"rss_kb" xml:"RSSKB" toon:"rss_kb"`
+}
+
+// HeadlessNetworkLinks holds link speed info for all network interfaces
+type HeadlessNetworkLinks struct {
+	Ethernet []HeadlessEthernetLink `json:"ethernet,omitempty" yaml:"ethernet,omitempty" xml:"Ethernet" toon:"ethernet"`
+	WiFi     *HeadlessWiFiLink      `json:"wifi,omitempty" yaml:"wifi,omitempty" xml:"WiFi" toon:"wifi"`
+}
+
+// HeadlessEthernetLink represents a single Ethernet interface's link info
+type HeadlessEthernetLink struct {
+	Name           string `json:"name" yaml:"name" xml:"Name" toon:"name"`
+	LinkUp         bool   `json:"link_up" yaml:"link_up" xml:"LinkUp" toon:"link_up"`
+	SpeedMbps      uint64 `json:"speed_mbps" yaml:"speed_mbps" xml:"SpeedMbps" toon:"speed_mbps"`
+	SpeedFormatted string `json:"speed_formatted" yaml:"speed_formatted" xml:"SpeedFormatted" toon:"speed_formatted"`
+}
+
+// HeadlessWiFiLink represents Wi-Fi interface link info
+type HeadlessWiFiLink struct {
+	Interface  string `json:"interface" yaml:"interface" xml:"Interface" toon:"interface"`
+	PHYMode    string `json:"phy_mode" yaml:"phy_mode" xml:"PHYMode" toon:"phy_mode"`
+	Generation string `json:"generation" yaml:"generation" xml:"Generation" toon:"generation"`
+	TxRateMbps int    `json:"tx_rate_mbps" yaml:"tx_rate_mbps" xml:"TxRateMbps" toon:"tx_rate_mbps"`
+	Connected  bool   `json:"connected" yaml:"connected" xml:"Connected" toon:"connected"`
+}
+
+// HeadlessGPUMetrics holds GPU frequency and utilization
+type HeadlessGPUMetrics struct {
+	FreqMHz       int     `json:"freq_mhz" yaml:"freq_mhz" xml:"FreqMHz" toon:"freq_mhz"`
+	ActivePercent float64 `json:"active_percent" yaml:"active_percent" xml:"ActivePercent" toon:"active_percent"`
+}
+
+// HeadlessVolume represents a disk volume's usage
+type HeadlessVolume struct {
+	Name    string  `json:"name" yaml:"name" xml:"Name" toon:"name"`
+	TotalGB float64 `json:"total_gb" yaml:"total_gb" xml:"TotalGB" toon:"total_gb"`
+	UsedGB  float64 `json:"used_gb" yaml:"used_gb" xml:"UsedGB" toon:"used_gb"`
+	UsedPct float64 `json:"used_percent" yaml:"used_percent" xml:"UsedPercent" toon:"used_percent"`
+}
+
 type HeadlessOutput struct {
-	Timestamp             string             `json:"timestamp" yaml:"timestamp" xml:"Timestamp" toon:"timestamp"`
-	SocMetrics            SocMetrics         `json:"soc_metrics" yaml:"soc_metrics" xml:"SocMetrics" toon:"soc_metrics"`
-	Memory                MemoryMetrics      `json:"memory" yaml:"memory" xml:"Memory" toon:"memory"`
-	NetDisk               NetDiskMetrics     `json:"net_disk" yaml:"net_disk" xml:"NetDisk" toon:"net_disk"`
-	CPUUsage              float64            `json:"cpu_usage" yaml:"cpu_usage" xml:"CPUUsage" toon:"cpu_usage"`
-	ECPUUsage             []float64          `json:"ecpu_usage" yaml:"ecpu_usage" xml:"ECPUUsage" toon:"ecpu_usage"`
-	PCPUUsage             []float64          `json:"pcpu_usage" yaml:"pcpu_usage" xml:"PCPUUsage" toon:"pcpu_usage"`
-	GPUUsage              float64            `json:"gpu_usage" yaml:"gpu_usage" xml:"GPUUsage" toon:"gpu_usage"`
-	TFLOPsFP32            float64            `json:"tflops_fp32" yaml:"tflops_fp32" xml:"TFLOPsFP32" toon:"tflops_fp32"`
-	TFLOPsFP16            float64            `json:"tflops_fp16" yaml:"tflops_fp16" xml:"TFLOPsFP16" toon:"tflops_fp16"`
-	CoreUsages            []float64          `json:"core_usages" yaml:"core_usages" xml:"CoreUsages" toon:"core_usages"`
-	SystemInfo            SystemInfo         `json:"system_info" yaml:"system_info" xml:"SystemInfo" toon:"system_info"`
-	ThermalState          string             `json:"thermal_state" yaml:"thermal_state" xml:"ThermalState" toon:"thermal_state"`
-	ThunderboltInfo       *ThunderboltOutput `json:"thunderbolt_info" yaml:"thunderbolt_info" xml:"ThunderboltInfo" toon:"thunderbolt_info"`
-	TBNetTotalBytesInSec  float64            `json:"tb_net_total_bytes_in_per_sec" yaml:"tb_net_total_bytes_in_per_sec" xml:"TBNetTotalBytesInSec" toon:"tb_net_total_bytes_in_per_sec"`
-	TBNetTotalBytesOutSec float64            `json:"tb_net_total_bytes_out_per_sec" yaml:"tb_net_total_bytes_out_per_sec" xml:"TBNetTotalBytesOutSec" toon:"tb_net_total_bytes_out_per_sec"`
-	RDMAStatus            RDMAStatus         `json:"rdma_status" yaml:"rdma_status" xml:"RDMAStatus" toon:"rdma_status"`
+	Timestamp             string               `json:"timestamp" yaml:"timestamp" xml:"Timestamp" toon:"timestamp"`
+	SocMetrics            SocMetrics           `json:"soc_metrics" yaml:"soc_metrics" xml:"SocMetrics" toon:"soc_metrics"`
+	Memory                MemoryMetrics        `json:"memory" yaml:"memory" xml:"Memory" toon:"memory"`
+	NetDisk               NetDiskMetrics       `json:"net_disk" yaml:"net_disk" xml:"NetDisk" toon:"net_disk"`
+	CPUUsage              float64              `json:"cpu_usage" yaml:"cpu_usage" xml:"CPUUsage" toon:"cpu_usage"`
+	ECPUUsage             []float64            `json:"ecpu_usage" yaml:"ecpu_usage" xml:"ECPUUsage" toon:"ecpu_usage"`
+	PCPUUsage             []float64            `json:"pcpu_usage" yaml:"pcpu_usage" xml:"PCPUUsage" toon:"pcpu_usage"`
+	GPUUsage              float64              `json:"gpu_usage" yaml:"gpu_usage" xml:"GPUUsage" toon:"gpu_usage"`
+	GPUMetrics            HeadlessGPUMetrics   `json:"gpu_metrics" yaml:"gpu_metrics" xml:"GPUMetrics" toon:"gpu_metrics"`
+	TFLOPsFP32            float64              `json:"tflops_fp32" yaml:"tflops_fp32" xml:"TFLOPsFP32" toon:"tflops_fp32"`
+	TFLOPsFP16            float64              `json:"tflops_fp16" yaml:"tflops_fp16" xml:"TFLOPsFP16" toon:"tflops_fp16"`
+	CoreUsages            []float64            `json:"core_usages" yaml:"core_usages" xml:"CoreUsages" toon:"core_usages"`
+	SystemInfo            SystemInfo           `json:"system_info" yaml:"system_info" xml:"SystemInfo" toon:"system_info"`
+	ThermalState          string               `json:"thermal_state" yaml:"thermal_state" xml:"ThermalState" toon:"thermal_state"`
+	Processes             []HeadlessProcess    `json:"processes,omitempty" yaml:"processes,omitempty" xml:"Processes" toon:"processes"`
+	NetworkLinks          HeadlessNetworkLinks `json:"network_links" yaml:"network_links" xml:"NetworkLinks" toon:"network_links"`
+	Volumes               []HeadlessVolume     `json:"volumes,omitempty" yaml:"volumes,omitempty" xml:"Volumes" toon:"volumes"`
+	ThunderboltInfo       *ThunderboltOutput   `json:"thunderbolt_info" yaml:"thunderbolt_info" xml:"ThunderboltInfo" toon:"thunderbolt_info"`
+	TBNetTotalBytesInSec  float64              `json:"tb_net_total_bytes_in_per_sec" yaml:"tb_net_total_bytes_in_per_sec" xml:"TBNetTotalBytesInSec" toon:"tb_net_total_bytes_in_per_sec"`
+	TBNetTotalBytesOutSec float64              `json:"tb_net_total_bytes_out_per_sec" yaml:"tb_net_total_bytes_out_per_sec" xml:"TBNetTotalBytesOutSec" toon:"tb_net_total_bytes_out_per_sec"`
+	RDMAStatus            RDMAStatus           `json:"rdma_status" yaml:"rdma_status" xml:"RDMAStatus" toon:"rdma_status"`
 }
 
 func runHeadless(count int) {
@@ -138,6 +190,7 @@ func printCSVHeader() {
 		"Timestamp",
 		"System_Name", "Core_Count", "E_Core_Count", "P_Core_Count", "GPU_Core_Count",
 		"CPU_Usage", "ECPU_Freq_MHz", "ECPU_Active", "PCPU_Freq_MHz", "PCPU_Active", "GPU_Usage",
+		"GPU_Freq_MHz", "GPU_Active_Percent",
 		"Mem_Used", "Mem_Total", "Swap_Used",
 		"Disk_Read_KB", "Disk_Write_KB",
 		"Net_In_Bytes", "Net_Out_Bytes",
@@ -153,8 +206,8 @@ func printCSVHeader() {
 		headers = append(headers, fmt.Sprintf("Core_%d", i))
 	}
 
-	// Add JSON blob header for complex nested data
-	headers = append(headers, "Thunderbolt_Info_JSON")
+	// Add JSON blob headers for complex nested data
+	headers = append(headers, "Thunderbolt_Info_JSON", "Processes_JSON", "Network_Links_JSON", "Volumes_JSON")
 
 	// Print CSV header line
 	fmt.Println(strings.Join(headers, ","))
@@ -256,6 +309,8 @@ func processHeadlessSample(format string, tbInfo *ThunderboltOutput, sysInfo Sys
 			fmt.Sprintf("%.2f", safeFloat64At(output.PCPUUsage, 0)),
 			fmt.Sprintf("%.2f", safeFloat64At(output.PCPUUsage, 1)),
 			fmt.Sprintf("%.2f", output.GPUUsage),
+			fmt.Sprintf("%d", output.GPUMetrics.FreqMHz),
+			fmt.Sprintf("%.2f", output.GPUMetrics.ActivePercent),
 			fmt.Sprintf("%d", output.Memory.Used),
 			fmt.Sprintf("%d", output.Memory.Total),
 			fmt.Sprintf("%d", output.Memory.SwapUsed),
@@ -284,7 +339,10 @@ func processHeadlessSample(format string, tbInfo *ThunderboltOutput, sysInfo Sys
 		}
 
 		tbJSON, _ := json.Marshal(output.ThunderboltInfo)
-		record = append(record, string(tbJSON))
+		procsJSON, _ := json.Marshal(output.Processes)
+		linksJSON, _ := json.Marshal(output.NetworkLinks)
+		volsJSON, _ := json.Marshal(output.Volumes)
+		record = append(record, string(tbJSON), string(procsJSON), string(linksJSON), string(volsJSON))
 
 		writer.Write(record)
 		writer.Flush()
@@ -297,6 +355,53 @@ func processHeadlessSample(format string, tbInfo *ThunderboltOutput, sysInfo Sys
 
 	fmt.Println(string(data))
 	return nil
+}
+
+// headless link info cache (refreshed every 5s like TUI)
+var (
+	headlessLinkInfoMutex      sync.RWMutex
+	headlessEthernetLinkInfo   []EthernetLinkInfo
+	headlessWiFiLinkInfo       *WiFiLinkInfo
+	headlessLinkInfoLastUpdate time.Time
+)
+
+func getHeadlessNetworkLinks() HeadlessNetworkLinks {
+	headlessLinkInfoMutex.RLock()
+	needsRefresh := time.Since(headlessLinkInfoLastUpdate) >= 5*time.Second
+	headlessLinkInfoMutex.RUnlock()
+
+	if needsRefresh {
+		headlessLinkInfoMutex.Lock()
+		if time.Since(headlessLinkInfoLastUpdate) >= 5*time.Second {
+			headlessEthernetLinkInfo = GetEthernetLinkInfo()
+			headlessWiFiLinkInfo = GetWiFiLinkInfo()
+			headlessLinkInfoLastUpdate = time.Now()
+		}
+		headlessLinkInfoMutex.Unlock()
+	}
+
+	headlessLinkInfoMutex.RLock()
+	defer headlessLinkInfoMutex.RUnlock()
+
+	var links HeadlessNetworkLinks
+	for _, eth := range headlessEthernetLinkInfo {
+		links.Ethernet = append(links.Ethernet, HeadlessEthernetLink{
+			Name:           eth.Name,
+			LinkUp:         eth.LinkUp,
+			SpeedMbps:      eth.LinkSpeedMbps,
+			SpeedFormatted: FormatLinkSpeed(eth.LinkSpeedMbps),
+		})
+	}
+	if headlessWiFiLinkInfo != nil {
+		links.WiFi = &HeadlessWiFiLink{
+			Interface:  headlessWiFiLinkInfo.InterfaceName,
+			PHYMode:    headlessWiFiLinkInfo.PHYMode,
+			Generation: headlessWiFiLinkInfo.WiFiGeneration,
+			TxRateMbps: headlessWiFiLinkInfo.TxRateMbps,
+			Connected:  headlessWiFiLinkInfo.IsConnected,
+		}
+	}
+	return links
 }
 
 func collectHeadlessData(tbInfo *ThunderboltOutput, sysInfo SystemInfo) HeadlessOutput {
@@ -349,6 +454,36 @@ func collectHeadlessData(tbInfo *ThunderboltOutput, sysInfo SystemInfo) Headless
 		fp16TFLOPs = fp32TFLOPs * 2
 	}
 
+	// Collect per-process metrics (top 20 by CPU, includes GPU time)
+	var headlessProcesses []HeadlessProcess
+	if procs, err := getProcessList(m.GPUActive); err == nil {
+		limit := min(len(procs), 20)
+		for _, p := range procs[:limit] {
+			headlessProcesses = append(headlessProcesses, HeadlessProcess{
+				PID:     p.PID,
+				Command: p.Command,
+				CPU:     p.CPU,
+				GPU:     p.GPU,
+				Memory:  p.Memory,
+				RSS:     p.RSS,
+			})
+		}
+	}
+
+	// Collect network link speed info
+	networkLinks := getHeadlessNetworkLinks()
+
+	// Collect disk volume info
+	var headlessVolumes []HeadlessVolume
+	for _, v := range getVolumes() {
+		headlessVolumes = append(headlessVolumes, HeadlessVolume{
+			Name:    v.Name,
+			TotalGB: v.Total,
+			UsedGB:  v.Used,
+			UsedPct: v.UsedPct,
+		})
+	}
+
 	return HeadlessOutput{
 		Timestamp:             time.Now().Format(time.RFC3339),
 		SocMetrics:            m,
@@ -358,10 +493,14 @@ func collectHeadlessData(tbInfo *ThunderboltOutput, sysInfo SystemInfo) Headless
 		ECPUUsage:             []float64{float64(m.EClusterFreqMHz), m.EClusterActive},
 		PCPUUsage:             []float64{float64(m.PClusterFreqMHz), m.PClusterActive},
 		GPUUsage:              m.GPUActive,
+		GPUMetrics:            HeadlessGPUMetrics{FreqMHz: int(m.GPUFreqMHz), ActivePercent: m.GPUActive},
 		TFLOPsFP32:            fp32TFLOPs,
 		TFLOPsFP16:            fp16TFLOPs,
 		CoreUsages:            percentages,
 		SystemInfo:            sysInfo,
+		Processes:             headlessProcesses,
+		NetworkLinks:          networkLinks,
+		Volumes:               headlessVolumes,
 		ThunderboltInfo:       tbInfo,
 		TBNetTotalBytesInSec:  tbNetTotalIn,
 		TBNetTotalBytesOutSec: tbNetTotalOut,

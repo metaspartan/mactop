@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	version                                                     = "v2.0.8"
+	version                                                     = "v2.0.9"
 	cpuGauge, gpuGauge, memoryGauge, aneGauge                   *w.Gauge
 	mainBlock                                                   *ui.Block
 	modelText, PowerChart, NetworkInfo, helpText, infoParagraph *w.Paragraph
@@ -65,6 +65,7 @@ var (
 	headlessPretty bool
 	headlessCount  int
 	headlessFormat string
+	menubar        bool   // Run as menu bar status item
 	cliBgColor     string // Background color from --bg flag
 	interruptChan  = make(chan struct{}, 10)
 
@@ -113,6 +114,12 @@ var (
 	infoScrollOffset int
 	helpScrollOffset int
 	currentBgIndex   int // Index for background color cycling
+
+	// Network link info cache (refreshed every 5 seconds)
+	cachedEthernetLinkInfo []EthernetLinkInfo
+	cachedWiFiLinkInfo     *WiFiLinkInfo
+	linkInfoLastUpdate     time.Time
+	linkInfoMutex          sync.RWMutex
 )
 
 var (

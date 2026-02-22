@@ -16,54 +16,82 @@ func resolveProcessThemeColor() (string, string) {
 	themeColor := processList.TextStyle.Fg
 	var themeColorStr string
 
-	// Check if the theme is a hex color
-	if IsHexColor(currentConfig.Theme) {
-		themeColorStr = currentConfig.Theme
-	} else if IsCatppuccinTheme(currentConfig.Theme) {
-		themeColorStr = GetCatppuccinHex(currentConfig.Theme, "Primary")
-	} else if IsLightMode && currentConfig.Theme == "white" {
-		themeColorStr = "black"
-	} else if currentConfig.Theme == "1977" {
-		themeColorStr = "green"
-	} else if color, ok := colorMap[currentConfig.Theme]; ok {
-		hexStr := resolveThemeColorString(currentConfig.Theme)
-		if hexStr != currentConfig.Theme {
-			themeColorStr = hexStr
-		} else {
-			themeColorStr = getThemeColorName(color)
+	// Check if custom ProcessList color is set
+	if currentConfig.CustomTheme != nil && currentConfig.CustomTheme.ProcessList != "" {
+		if IsHexColor(currentConfig.CustomTheme.ProcessList) {
+			themeColorStr = currentConfig.CustomTheme.ProcessList
 		}
-	} else {
-		themeColorStr = getThemeColorName(themeColor)
 	}
 
-	// Determine selected header foreground color (text on colored background)
-	selectedHeaderFg := "#ffffff" // Default to white for most themes
-	if themeColorStr == "black" || themeColorStr == "#000000" || themeColorStr == "#020202" {
-		selectedHeaderFg = "#ffffff"
-	} else if IsLightMode {
-		selectedHeaderFg = "#020202"
-	} else if IsCatppuccinTheme(currentConfig.Theme) {
-		selectedHeaderFg = GetCatppuccinHex(currentConfig.Theme, "Base")
-	} else if IsHexColor(themeColorStr) && IsLightHexColor(themeColorStr) {
-		// Bright hex colors need dark text for contrast
-		selectedHeaderFg = "#020202"
-	} else if isLightNamedTheme(currentConfig.Theme) {
-		// Bright named colors need dark text for contrast
-		selectedHeaderFg = "#020202"
+	if themeColorStr == "" {
+		// Check if the theme is a hex color
+		if IsHexColor(currentConfig.Theme) {
+			themeColorStr = currentConfig.Theme
+		} else if IsCatppuccinTheme(currentConfig.Theme) {
+			themeColorStr = GetCatppuccinHex(currentConfig.Theme, "Primary")
+		} else if IsLightMode && currentConfig.Theme == "white" {
+			themeColorStr = "black"
+		} else if currentConfig.Theme == "1977" {
+			themeColorStr = "green"
+		} else if color, ok := colorMap[currentConfig.Theme]; ok {
+			hexStr := resolveThemeColorString(currentConfig.Theme)
+			if hexStr != currentConfig.Theme {
+				themeColorStr = hexStr
+			} else {
+				themeColorStr = getThemeColorName(color)
+			}
+		} else {
+			themeColorStr = getThemeColorName(themeColor)
+		}
 	}
-	// For dark hex colors, white text looks best
-	return themeColorStr, selectedHeaderFg
+
+	return themeColorStr, resolveSelectedHeaderFg(themeColorStr)
+}
+
+// resolveSelectedHeaderFg determines the foreground color for selected headers
+// based on the theme color, ensuring good contrast.
+func resolveSelectedHeaderFg(themeColorStr string) string {
+	if themeColorStr == "black" || themeColorStr == "#000000" || themeColorStr == "#020202" {
+		return "#ffffff"
+	}
+	if IsLightMode {
+		return "#020202"
+	}
+	if IsCatppuccinTheme(currentConfig.Theme) {
+		return GetCatppuccinHex(currentConfig.Theme, "Base")
+	}
+	if IsHexColor(themeColorStr) {
+		if IsLightHexColor(themeColorStr) {
+			return "#020202"
+		}
+		return "#ffffff"
+	}
+	if isLightNamedTheme(currentConfig.Theme) {
+		return "#020202"
+	}
+	return "#ffffff"
 }
 
 func getProcessListTitle() (string, ui.Style) {
+	// Resolve title color (use process list color if set)
+	var titleColor ui.Color = ui.ColorClear
+	if currentConfig.CustomTheme != nil && currentConfig.CustomTheme.ProcessList != "" {
+		if color, err := ParseHexColor(currentConfig.CustomTheme.ProcessList); err == nil {
+			titleColor = color
+		}
+	}
+	if titleColor == ui.ColorClear {
+		titleColor = GetThemeColorWithLightMode(currentConfig.Theme, IsLightMode)
+	}
+
 	if killPending {
 		return fmt.Sprintf(" Process List - KILL CONFIRMATION PENDING (PID %d) ", killPID), ui.NewStyle(ui.ColorRed, CurrentBgColor, ui.ModifierBold)
 	} else if searchMode || searchText != "" {
-		return fmt.Sprintf(" Search: %s_ (Esc to clear) ", searchText), ui.NewStyle(GetThemeColorWithLightMode(currentConfig.Theme, IsLightMode), CurrentBgColor, ui.ModifierBold)
+		return fmt.Sprintf(" Search: %s_ (Esc to clear) ", searchText), ui.NewStyle(titleColor, CurrentBgColor, ui.ModifierBold)
 	} else if isFrozen {
-		return " Process List [FROZEN] (f to resume) ", ui.NewStyle(GetThemeColorWithLightMode(currentConfig.Theme, IsLightMode), CurrentBgColor, ui.ModifierBold)
+		return " Process List [FROZEN] (f to resume) ", ui.NewStyle(titleColor, CurrentBgColor, ui.ModifierBold)
 	}
-	return "Process List (↑/↓ scroll, / search, f freeze, F9 kill)", ui.NewStyle(GetThemeColorWithLightMode(currentConfig.Theme, IsLightMode), CurrentBgColor)
+	return "Process List (↑/↓ scroll, / search, f freeze, F9 kill)", ui.NewStyle(titleColor, CurrentBgColor)
 }
 
 func attemptKillProcess() {

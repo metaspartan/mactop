@@ -83,16 +83,8 @@ func buildInfoLines(themeColor string) []string {
 		formatLine("Disk", fmt.Sprintf("R %s/s W %s/s", formatBytes(lastNetDiskMetrics.ReadKBytesPerSec*1024, diskUnit), formatBytes(lastNetDiskMetrics.WriteKBytesPerSec*1024, diskUnit))),
 	}
 
-	volumes := getVolumes()
-	if len(volumes) > 0 {
-		infoLines = append(infoLines, "-------------------------")
-		for _, v := range volumes {
-			used := formatBytes(v.Used*1e9, diskUnit)
-			total := formatBytes(v.Total*1e9, diskUnit)
-			avail := formatBytes(v.Available*1e9, diskUnit)
-			infoLines = append(infoLines, formatLine(v.Name, fmt.Sprintf("%s / %s (%s free)", used, total, avail)))
-		}
-	}
+	infoLines = append(infoLines, buildNetworkLinkLines(formatLine)...)
+	infoLines = append(infoLines, buildVolumeLines(formatLine)...)
 
 	infoLines = append(infoLines, "-------------------------")
 
@@ -102,6 +94,57 @@ func buildInfoLines(themeColor string) []string {
 
 	infoLines = append(infoLines, formatLine("RDMA", rdmaLabel))
 
+	infoLines = append(infoLines, buildThunderboltInfoLines(themeColor)...)
+
+	return infoLines
+}
+
+func buildNetworkLinkLines(formatLine func(string, string) string) []string {
+	var lines []string
+
+	linkInfoMutex.RLock()
+	ethInfo := cachedEthernetLinkInfo
+	wifiInfo := cachedWiFiLinkInfo
+	linkInfoMutex.RUnlock()
+
+	for _, eth := range ethInfo {
+		if eth.LinkUp {
+			lines = append(lines, formatLine("Ethernet", fmt.Sprintf("%s (%s)", FormatLinkSpeed(eth.LinkSpeedMbps), eth.Name)))
+		} else {
+			lines = append(lines, formatLine("Ethernet", fmt.Sprintf("Disconnected (%s)", eth.Name)))
+		}
+	}
+	if wifiInfo != nil {
+		if wifiInfo.IsConnected {
+			gen := wifiInfo.WiFiGeneration
+			if gen == "" {
+				gen = wifiInfo.PHYMode
+			}
+			lines = append(lines, formatLine("Wi-Fi", fmt.Sprintf("%s @ %dMbps (%s)", gen, wifiInfo.TxRateMbps, wifiInfo.InterfaceName)))
+		} else {
+			lines = append(lines, formatLine("Wi-Fi", fmt.Sprintf("Disconnected (%s)", wifiInfo.InterfaceName)))
+		}
+	}
+	return lines
+}
+
+func buildVolumeLines(formatLine func(string, string) string) []string {
+	var lines []string
+	volumes := getVolumes()
+	if len(volumes) > 0 {
+		lines = append(lines, "-------------------------")
+		for _, v := range volumes {
+			used := formatBytes(v.Used*1e9, diskUnit)
+			total := formatBytes(v.Total*1e9, diskUnit)
+			avail := formatBytes(v.Available*1e9, diskUnit)
+			lines = append(lines, formatLine(v.Name, fmt.Sprintf("%s / %s (%s free)", used, total, avail)))
+		}
+	}
+	return lines
+}
+
+func buildThunderboltInfoLines(themeColor string) []string {
+	var lines []string
 	tbInfoMutex.Lock()
 	tbInfo := tbDeviceInfo
 	tbInfoMutex.Unlock()
@@ -110,12 +153,11 @@ func buildInfoLines(themeColor string) []string {
 		for line := range strings.Lines(tbInfo) {
 			line = strings.TrimSpace(line)
 			if line != "" {
-				infoLines = append(infoLines, fmt.Sprintf("[%s](fg:%s)", line, themeColor))
+				lines = append(lines, fmt.Sprintf("[%s](fg:%s)", line, themeColor))
 			}
 		}
 	}
-
-	return infoLines
+	return lines
 }
 
 func getASCIIArt() []string {

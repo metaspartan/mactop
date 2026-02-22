@@ -161,7 +161,53 @@ func collectNetDiskMetrics(done chan struct{}, netdiskMetricsChan chan NetDiskMe
 	}
 }
 
+// dispatchMetrics sends metrics to channels without blocking, checking done for exit.
+func dispatchMetrics(done chan struct{}, cpuCh chan CPUMetrics, gpuCh chan GPUMetrics,
+	tbCh chan []ThunderboltNetStats, triggerCh chan struct{},
+	cpu CPUMetrics, gpu GPUMetrics, tb []ThunderboltNetStats) bool {
+	select {
+	case <-done:
+		return true
+	case cpuCh <- cpu:
+	default:
+	}
+	select {
+	case gpuCh <- gpu:
+	default:
+	}
+	select {
+	case tbCh <- tb:
+	default:
+	}
+	select {
+	case triggerCh <- struct{}{}:
+	default:
+	}
+	return false
+}
+
+// getAvgCPUPercent returns the average CPU usage percentage across all cores.
+func getAvgCPUPercent() float64 {
+	percentages, err := GetCPUPercentages()
+	if err != nil || len(percentages) == 0 {
+		return 0
+	}
+	var total float64
+	for _, p := range percentages {
+		total += p
+	}
+	return total / float64(len(percentages))
+}
+
 func collectMetrics(done chan struct{}, cpumetricsChan chan CPUMetrics, gpumetricsChan chan GPUMetrics, tbNetStatsChan chan []ThunderboltNetStats, triggerProcessCollectionChan chan struct{}) {
+	// Pre-calculate static info
+	sysInfo := getSOCInfo()
+	maxGPUFreq := GetMaxGPUFrequency()
+	var maxFP32TFLOPs float64
+	if maxGPUFreq > 0 && sysInfo.GPUCoreCount > 0 {
+		maxFP32TFLOPs = float64(sysInfo.GPUCoreCount) * float64(maxGPUFreq) * 0.000256
+	}
+
 	for {
 		start := time.Now()
 
@@ -172,7 +218,8 @@ func collectMetrics(done chan struct{}, cpumetricsChan chan CPUMetrics, gpumetri
 
 		m := sampleSocMetrics(sampleDuration / 2)
 
-		_, throttled := getThermalStateString()
+		thermalStr, throttled := getThermalStateString()
+		rdmaStat := CheckRDMAAvailable().Status
 
 		componentSum := m.TotalPower
 		totalPower := componentSum
@@ -207,26 +254,16 @@ func collectMetrics(done chan struct{}, cpumetricsChan chan CPUMetrics, gpumetri
 			Temp:          m.GPUTemp,
 		}
 
-		tbNetStats := GetThunderboltNetStats()
-
-		select {
-		case <-done:
+		if dispatchMetrics(done, cpumetricsChan, gpumetricsChan, tbNetStatsChan, triggerProcessCollectionChan, cpuMetrics, gpuMetrics, GetThunderboltNetStats()) {
 			return
-		case cpumetricsChan <- cpuMetrics:
-		default:
-		}
-		select {
-		case gpumetricsChan <- gpuMetrics:
-		default:
-		}
-		select {
-		case tbNetStatsChan <- tbNetStats:
-		default:
 		}
 
-		select {
-		case triggerProcessCollectionChan <- struct{}{}:
-		default:
+		// Push to menubar worker — snapshot net metrics under lock to avoid race
+		if menubar {
+			renderMutex.Lock()
+			nd := lastNetDiskMetrics
+			renderMutex.Unlock()
+			pushMenuBarMetricsToWorker(m, cpuMetrics, gpuMetrics, nd, sysInfo, maxFP32TFLOPs, getAvgCPUPercent(), thermalStr, rdmaStat)
 		}
 
 		elapsed := time.Since(start)
