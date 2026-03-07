@@ -84,6 +84,51 @@ func formatTime(seconds float64) string {
 	}
 }
 
+// formatProcessTime formats process CPU time in compact top-style format with
+// sub-second precision: "0:00.23", "5:12.03", "1:02:30", "2d01:30:00"
+func formatProcessTime(seconds float64) string {
+	hundredths := int(seconds*100) % 100
+	totalSecs := int(seconds)
+	days := totalSecs / 86400
+	hours := (totalSecs / 3600) % 24
+	minutes := (totalSecs / 60) % 60
+	secs := totalSecs % 60
+
+	switch {
+	case days > 0:
+		return fmt.Sprintf("%dd%02d:%02d:%02d", days, hours, minutes, secs)
+	case hours > 0:
+		return fmt.Sprintf("%d:%02d:%02d", hours, minutes, secs)
+	default:
+		return fmt.Sprintf("%d:%02d.%02d", minutes, secs, hundredths)
+	}
+}
+
+// parseProcessTime parses process time strings produced by formatProcessTime
+func parseProcessTime(timeStr string) float64 {
+	var days, hours, minutes, seconds, hundredths int
+
+	// "2d01:30:00"
+	n, err := fmt.Sscanf(timeStr, "%dd%d:%d:%d", &days, &hours, &minutes, &seconds)
+	if n == 4 && err == nil {
+		return float64(days*86400) + float64(hours*3600) + float64(minutes*60) + float64(seconds)
+	}
+
+	// "1:02:30"
+	n, err = fmt.Sscanf(timeStr, "%d:%d:%d", &hours, &minutes, &seconds)
+	if n == 3 && err == nil {
+		return float64(hours*3600) + float64(minutes*60) + float64(seconds)
+	}
+
+	// "5:12.03"
+	n, err = fmt.Sscanf(timeStr, "%d:%d.%d", &minutes, &seconds, &hundredths)
+	if n == 3 && err == nil {
+		return float64(minutes*60) + float64(seconds) + float64(hundredths)/100.0
+	}
+
+	return 0.0
+}
+
 func formatMemorySize(kb int64) string {
 	const (
 		MB = 1024
