@@ -112,6 +112,9 @@ func initSocMetrics() error {
 }
 
 func sampleSocMetrics(durationMs int) SocMetrics {
+	if durationMs <= 0 {
+		durationMs = 100
+	}
 	pm := C.samplePowerMetrics(C.int(durationMs))
 	return SocMetrics{
 		CPUPower:        float64(pm.cpuPower),
