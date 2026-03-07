@@ -404,7 +404,7 @@ func calculateMaxWidths(availableWidth int) map[string]int {
 		"CPU":  6,
 		"GPU":  6,
 		"MEM":  5,
-		"TIME": 9,
+		"TIME": 12,
 		"CMD":  15,
 	}
 	usedWidth := 0
