@@ -136,7 +136,7 @@ func processOsProc(kp C.struct_kinfo_proc, now time.Time, prevProcessTimes map[i
 	user := getUsername(uid)
 
 	totalSeconds := float64(totalTimeNs) / 1e9
-	timeStr := formatTime(totalSeconds)
+	timeStr := formatProcessTime(totalSeconds)
 
 	pm := ProcessMetrics{
 		PID:         pid,
@@ -404,7 +404,7 @@ func calculateMaxWidths(availableWidth int) map[string]int {
 		"CPU":  6,
 		"GPU":  6,
 		"MEM":  5,
-		"TIME": 13,
+		"TIME": 8,
 		"CMD":  15,
 	}
 	usedWidth := 0
@@ -468,8 +468,6 @@ func buildHeader(maxWidths map[string]int, themeColorStr, selectedHeaderFg strin
 func buildProcessRows(processes []ProcessMetrics, maxWidths map[string]int) []string {
 	items := make([]string, len(processes))
 	for i, p := range processes {
-		seconds := parseTimeString(p.Time)
-		timeStr := formatTime(seconds)
 		virtStr := formatMemorySize(p.VSZ)
 		resStr := formatResMemorySize(p.RSS)
 		username := truncateWithEllipsis(p.User, maxWidths["USER"])
@@ -488,7 +486,7 @@ func buildProcessRows(processes []ProcessMetrics, maxWidths map[string]int) []st
 			maxWidths["CPU"]-1, p.CPU,
 			maxWidths["GPU"]-1, gpuPercent,
 			maxWidths["MEM"]-1, p.Memory,
-			maxWidths["TIME"], timeStr,
+			maxWidths["TIME"], p.Time,
 			truncateWithEllipsis(cmdName, maxWidths["CMD"]),
 		)
 

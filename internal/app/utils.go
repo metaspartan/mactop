@@ -40,9 +40,24 @@ func StderrToLogfile(logfile *os.File) {
 
 func parseTimeString(timeStr string) float64 {
 	var days, hours, minutes, seconds int
+	var secs float64
+
+	// Try process time format with hours: "H:MM:SS" (check for two colons)
+	if strings.Count(timeStr, ":") == 2 {
+		n, err := fmt.Sscanf(timeStr, "%d:%d:%d", &hours, &minutes, &seconds)
+		if n == 3 && err == nil {
+			return float64(hours*3600) + float64(minutes*60) + float64(seconds)
+		}
+	}
+
+	// Try process time format with centiseconds: "MM:SS.CC"
+	n, err := fmt.Sscanf(timeStr, "%d:%f", &minutes, &secs)
+	if n == 2 && err == nil {
+		return float64(minutes*60) + secs
+	}
 
 	// Try full format first: "01d02h30m45s"
-	n, err := fmt.Sscanf(timeStr, "%dd%dh%dm%ds", &days, &hours, &minutes, &seconds)
+	n, err = fmt.Sscanf(timeStr, "%dd%dh%dm%ds", &days, &hours, &minutes, &seconds)
 	if n == 4 && err == nil {
 		return float64(days*86400) + float64(hours*3600) + float64(minutes*60) + float64(seconds)
 	}
@@ -82,6 +97,18 @@ func formatTime(seconds float64) string {
 	default:
 		return fmt.Sprintf("%dm%02ds", minutes, secs)
 	}
+}
+
+func formatProcessTime(seconds float64) string {
+	if seconds >= 3600 {
+		hours := int(seconds) / 3600
+		minutes := (int(seconds) / 60) % 60
+		secs := int(seconds) % 60
+		return fmt.Sprintf("%d:%02d:%02d", hours, minutes, secs)
+	}
+	minutes := int(seconds) / 60
+	secs := seconds - float64(minutes*60)
+	return fmt.Sprintf("%02d:%05.2f", minutes, secs)
 }
 
 func formatMemorySize(kb int64) string {
