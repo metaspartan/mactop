@@ -149,6 +149,7 @@ func handleFanSetMin() {
 		_ = SetFanForceTest(true)
 		_ = SetFanMode(fan.ID, 1)
 		_ = SetFanTarget(fan.ID, fan.MinRPM)
+		pendingFanTargets[fan.ID] = fan.MinRPM
 	}
 	updateInfoUI()
 	w, h := ui.TerminalDimensions()
@@ -163,6 +164,7 @@ func handleFanSetMax() {
 		_ = SetFanForceTest(true)
 		_ = SetFanMode(fan.ID, 1)
 		_ = SetFanTarget(fan.ID, fan.MaxRPM)
+		pendingFanTargets[fan.ID] = fan.MaxRPM
 	}
 	updateInfoUI()
 	w, h := ui.TerminalDimensions()
@@ -174,6 +176,9 @@ func handleFanResetAuto() {
 	defer renderMutex.Unlock()
 
 	_ = ResetFansToAuto()
+	for k := range pendingFanTargets {
+		delete(pendingFanTargets, k)
+	}
 	updateInfoUI()
 	w, h := ui.TerminalDimensions()
 	drawScreen(w, h)

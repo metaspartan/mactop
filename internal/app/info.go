@@ -509,7 +509,7 @@ func buildGroupedTempLines(sensors []TempSensor, themeColor string) []string {
 
 	// Preferred display order — most important first
 	preferred := []string{
-		"CPU E-Core", "CPU P-Core", "CPU Core", "CPU Die",
+		"CPU E-Core", "CPU P-Core", "CPU S-Core", "CPU Core", "CPU Die",
 		"GPU", "SoC Package", "Memory", "SSD", "NAND",
 		"Ambient", "VRM", "Board", "Thunderbolt",
 		"Wireless", "Display",
