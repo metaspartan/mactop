@@ -407,6 +407,15 @@ int initIOReport() {
     CFRelease(amcChan);
   }
 
+  // PMP group provides DRAM bandwidth data on A-series chips (A18 Pro, etc.)
+  // where AMC Stats channels are present but produce no delta data.
+  CFDictionaryRef pmpChan =
+      IOReportCopyChannelsInGroup(CFSTR("PMP"), NULL, 0, 0, 0);
+  if (pmpChan != NULL) {
+    IOReportMergeChannels(energyChan, pmpChan, NULL);
+    CFRelease(pmpChan);
+  }
+
   CFIndex size = CFDictionaryGetCount(energyChan);
   g_channels =
       CFDictionaryCreateMutableCopy(kCFAllocatorDefault, size, energyChan);
@@ -1049,6 +1058,8 @@ PowerMetrics samplePowerMetrics(int durationMs) {
   }
 
   CFIndex count = CFArrayGetCount(channels);
+  int64_t pmpDramReadBytes = 0;
+  int64_t pmpDramWriteBytes = 0;
   for (CFIndex i = 0; i < count; i++) {
     CFDictionaryRef item = (CFDictionaryRef)CFArrayGetValueAtIndex(channels, i);
     if (item == NULL)
@@ -1059,6 +1070,7 @@ PowerMetrics samplePowerMetrics(int durationMs) {
 
     if (groupRef == NULL || channelRef == NULL)
       continue;
+
 
     if (cfStringMatch(groupRef, "Energy Model")) {
       CFStringRef unitRef = IOReportChannelGetUnitLabel(item);
@@ -1205,6 +1217,7 @@ PowerMetrics samplePowerMetrics(int durationMs) {
     } else if (cfStringMatch(groupRef, "AMC Stats")) {
       // Sum memory bandwidth from non-DCS channels to avoid double counting.
       // DCS (DRAM Command Scheduler) channels are a subset of the total.
+      // Works on M-series chips (M1, M2, M3, M4, M5, etc.).
       char channelName[256] = {0};
       CFStringGetCString(channelRef, channelName, sizeof(channelName),
                          kCFStringEncodingUTF8);
@@ -1216,7 +1229,34 @@ PowerMetrics samplePowerMetrics(int durationMs) {
           metrics.dramWriteBytes += val;
         }
       }
+    } else if (cfStringMatch(groupRef, "PMP")) {
+      // PMP group provides DRAM bandwidth on A-series chips (A18 Pro, etc.)
+      // where AMC Stats channels exist but produce no delta data.
+      // Channels are in subgroup "DRAM BW" with names like "F1 RD", "F1 WR",
+      // "F2 RD", etc. and unit "B" (bytes). Sum all frequency bins.
+      CFStringRef subgroupRef = IOReportChannelGetSubGroup(item);
+      if (subgroupRef != NULL && cfStringMatch(subgroupRef, "DRAM BW")) {
+        char channelName[256] = {0};
+        CFStringGetCString(channelRef, channelName, sizeof(channelName),
+                           kCFStringEncodingUTF8);
+        int64_t val = IOReportSimpleGetIntegerValue(item, 0);
+        if (val > 0) {
+          if (strstr(channelName, "RD") != NULL) {
+            pmpDramReadBytes += val;
+          } else if (strstr(channelName, "WR") != NULL) {
+            pmpDramWriteBytes += val;
+          }
+        }
+      }
     }
+  }
+
+  // Fallback: use PMP DRAM BW data when AMC Stats produces no bandwidth data.
+  // This occurs on A-series chips (A18 Pro, etc.) where AMC Stats channels
+  // exist in the IOReport registry but produce no delta sample data.
+  if (metrics.dramReadBytes == 0 && metrics.dramWriteBytes == 0) {
+    metrics.dramReadBytes = pmpDramReadBytes;
+    metrics.dramWriteBytes = pmpDramWriteBytes;
   }
 
   metrics.socTemp = readSocTemperature(&metrics.cpuTemp, &metrics.gpuTemp);
