@@ -665,6 +665,7 @@ func Run() {
 		stderrLogger.Fatalf("failed to initialize metrics: %v", err)
 	}
 	defer cleanupSocMetrics()
+	defer cleanupFanControl()
 
 	StderrToLogfile(logfile)
 

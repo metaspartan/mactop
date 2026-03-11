@@ -66,6 +66,17 @@ func toggleFanLayout() {
 	renderMutex.Unlock()
 }
 
+// cleanupFanControl resets fans to auto mode on application exit
+// to prevent fans from being stuck in manual mode.
+func cleanupFanControl() {
+	if fanControl {
+		_ = ResetFansToAuto()
+		for k := range pendingFanTargets {
+			delete(pendingFanTargets, k)
+		}
+	}
+}
+
 // pendingFanTargets tracks the last-written target RPM per fan ID,
 // so rapid keypresses accumulate correctly between metric refreshes.
 var pendingFanTargets = make(map[int]int)

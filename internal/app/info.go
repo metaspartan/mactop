@@ -584,11 +584,8 @@ func renderScrollableLines(lines []string, themeColor string) string {
 	startLine := infoScrollOffset
 	endLine := min(startLine+availableHeight, totalLines)
 
-	paddingLeft := (termWidth - 60) / 2
-	if paddingLeft < 0 {
-		paddingLeft = 0
-	}
-	paddingStr := strings.Repeat(" ", paddingLeft)
+	_ = termWidth // used for scroll dimension calculation above
+	paddingStr := "  "
 
 	var result strings.Builder
 	result.WriteString("\n")
