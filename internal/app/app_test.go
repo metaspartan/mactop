@@ -104,12 +104,12 @@ func TestNewCPUCoreWidget(t *testing.T) {
 		t.Errorf("Expected modelName 'Apple M1', got %s", w.modelName)
 	}
 
-	totalFromWidget := w.eCoreCount + w.pCoreCount
+	totalFromWidget := w.eCoreCount + w.pCoreCount + w.sCoreCount
 	if totalFromWidget == 0 {
 		t.Error("Expected non-zero core counts")
 	}
 	if len(w.cores) != totalFromWidget {
-		t.Errorf("Expected len(cores) %d to match eCoreCount+pCoreCount, got %d", totalFromWidget, len(w.cores))
+		t.Errorf("Expected len(cores) %d to match eCoreCount+pCoreCount+sCoreCount, got %d", totalFromWidget, len(w.cores))
 	}
 }
 

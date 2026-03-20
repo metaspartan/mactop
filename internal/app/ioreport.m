@@ -1058,8 +1058,24 @@ PowerMetrics samplePowerMetrics(int durationMs) {
   }
 
   CFIndex count = CFArrayGetCount(channels);
+  // Temporary accumulators for CPU cluster metrics.
+  // We accumulate here first and assign to metrics after the loop,
+  // because on M5+ chips the channel iteration order is not guaranteed
+  // (PCPU may appear before MCPU0/MCPU1).
+  double eClusterActive = 0, pClusterActive = 0, sClusterActive = 0;
+  int eClusterFreq = 0, pClusterFreq = 0, sClusterFreq = 0;
+  // M-cluster (M5+) accumulators
+  double mClusterActiveSum = 0;
+  int mClusterFreqMax = 0;
+  int mClusterCount = 0;
+  // PCPU accumulator (may be P-cluster on M1-M4, or S-cluster on M5+)
+  double pcpuActive = 0;
+  int pcpuFreq = 0;
+  int hasPCPU = 0;
+
   int64_t pmpDramReadBytes = 0;
   int64_t pmpDramWriteBytes = 0;
+
   for (CFIndex i = 0; i < count; i++) {
     CFDictionaryRef item = (CFDictionaryRef)CFArrayGetValueAtIndex(channels, i);
     if (item == NULL)
@@ -1128,14 +1144,19 @@ PowerMetrics samplePowerMetrics(int durationMs) {
       if (subgroupRef != NULL &&
           cfStringMatch(subgroupRef, "CPU Complex Performance States")) {
 
-        // E-Cluster (usually CPU0 or ECPU)
-        int isECluster = cfStringContains(channelRef, "ECPU") ||
-                         cfStringContains(channelRef, "CPU0");
-        int isPCluster = cfStringContains(channelRef, "PCPU") ||
-                         cfStringContains(channelRef, "CPU1");
+        // Check MCPU first — on M5+ chips, MCPU0/MCPU1 contain "CPU0"/"CPU1"
+        // which would falsely match the E-cluster/P-cluster fallbacks.
+        int isMCluster = cfStringContains(channelRef, "MCPU");
         int isSCluster = cfStringContains(channelRef, "SCPU");
 
-        if (isECluster || isPCluster || isSCluster) {
+        // E-Cluster: ECPU (M1-M4), or legacy CPU0 fallback (but NOT MCPU0)
+        int isECluster = cfStringContains(channelRef, "ECPU") ||
+                         (!isMCluster && cfStringMatch(channelRef, "CPU0"));
+        // P-Cluster: PCPU (all chips), or legacy CPU1 fallback (but NOT MCPU1)
+        int isPCluster = cfStringContains(channelRef, "PCPU") ||
+                         (!isMCluster && cfStringMatch(channelRef, "CPU1"));
+
+        if (isECluster || isPCluster || isSCluster || isMCluster) {
           int32_t stateCount = IOReportStateGetCount(item);
           int64_t totalTime = 0;
           int64_t activeTime = 0;
@@ -1164,7 +1185,7 @@ PowerMetrics samplePowerMetrics(int durationMs) {
                 if (sscanf(nameBuf, "V%d", &vIdx) == 1 && vIdx >= 0) {
                   if (isECluster && vIdx < g_ecpu_freq_count) {
                     freq = g_ecpu_freqs[vIdx];
-                  } else if (isPCluster && vIdx < g_pcpu_freq_count) {
+                  } else if ((isPCluster || isMCluster) && vIdx < g_pcpu_freq_count) {
                     freq = g_pcpu_freqs[vIdx];
                   } else if (isSCluster && vIdx < g_scpu_freq_count) {
                     freq = g_scpu_freqs[vIdx];
@@ -1202,14 +1223,24 @@ PowerMetrics samplePowerMetrics(int durationMs) {
             }
 
             if (isECluster) {
-              metrics.eClusterActive = activePercent;
-              metrics.eClusterFreqMHz = avgFreq;
+              eClusterActive = activePercent;
+              eClusterFreq = avgFreq;
+            } else if (isMCluster) {
+              // M5+ Medium/Performance tier — accumulate across MCPU0, MCPU1
+              mClusterActiveSum += activePercent;
+              mClusterCount++;
+              if (avgFreq > mClusterFreqMax) {
+                mClusterFreqMax = avgFreq;
+              }
             } else if (isPCluster) {
-              metrics.pClusterActive = activePercent;
-              metrics.pClusterFreqMHz = avgFreq;
+              // PCPU — on M1-M4 this is the Performance cluster,
+              // on M5+ this is the Super cluster. We'll sort it out after the loop.
+              pcpuActive = activePercent;
+              pcpuFreq = avgFreq;
+              hasPCPU = 1;
             } else if (isSCluster) {
-              metrics.sClusterActive = activePercent;
-              metrics.sClusterFreqMHz = avgFreq;
+              sClusterActive = activePercent;
+              sClusterFreq = avgFreq;
             }
           }
         }
@@ -1249,6 +1280,33 @@ PowerMetrics samplePowerMetrics(int durationMs) {
         }
       }
     }
+  }
+
+  // Post-loop: assign accumulated CPU cluster metrics to final metrics.
+  // On M5+ chips (mClusterCount > 0): MCPU = Performance (pCluster), PCPU = Super (sCluster).
+  // On M1-M4 chips (mClusterCount == 0): PCPU = Performance (pCluster), ECPU = Efficiency (eCluster).
+  metrics.eClusterActive = eClusterActive;
+  metrics.eClusterFreqMHz = eClusterFreq;
+
+  if (mClusterCount > 0) {
+    // M5+ chip: MCPU average -> pCluster, PCPU -> sCluster
+    metrics.pClusterActive = mClusterActiveSum / mClusterCount;
+    metrics.pClusterFreqMHz = mClusterFreqMax;
+    if (hasPCPU) {
+      metrics.sClusterActive = pcpuActive;
+      metrics.sClusterFreqMHz = pcpuFreq;
+    } else {
+      metrics.sClusterActive = sClusterActive;
+      metrics.sClusterFreqMHz = sClusterFreq;
+    }
+  } else {
+    // M1-M4: PCPU -> pCluster, SCPU -> sCluster (if present)
+    if (hasPCPU) {
+      metrics.pClusterActive = pcpuActive;
+      metrics.pClusterFreqMHz = pcpuFreq;
+    }
+    metrics.sClusterActive = sClusterActive;
+    metrics.sClusterFreqMHz = sClusterFreq;
   }
 
   // Fallback: use PMP DRAM BW data when AMC Stats produces no bandwidth data.

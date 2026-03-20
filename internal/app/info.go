@@ -437,7 +437,7 @@ func classifyCPUCoreSensors(sensors []TempSensor, sysInfo SystemInfo) []TempSens
 	pCount := sysInfo.PCoreCount
 	sCount := sysInfo.SCoreCount
 	totalCores := eCount + pCount + sCount
-	if totalCores == 0 || eCount == 0 {
+	if totalCores == 0 {
 		return sensors
 	}
 

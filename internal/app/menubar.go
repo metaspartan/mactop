@@ -29,6 +29,7 @@ typedef struct {
     int gpu_core_count;
     int e_core_count;
     int p_core_count;
+    int s_core_count;
     int ecluster_freq_mhz;
     double ecluster_active;
     int pcluster_freq_mhz;
@@ -308,6 +309,7 @@ func updateMenuBarFromPayload(p MenuBarMetricsPayload) {
 	cm.gpu_core_count = C.int(p.SysInfo.GPUCoreCount)
 	cm.e_core_count = C.int(p.SysInfo.ECoreCount)
 	cm.p_core_count = C.int(p.SysInfo.PCoreCount)
+	cm.s_core_count = C.int(p.SysInfo.SCoreCount)
 
 	// Model Name
 	modelBytes := []byte(p.SysInfo.Name)

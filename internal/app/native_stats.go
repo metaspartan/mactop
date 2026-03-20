@@ -288,10 +288,10 @@ int get_disk_stats(disk_stat_t *stats, int max_stats) {
     return count;
 }
 
-// CoreType: 0 = unknown, 1 = E-core, 2 = P-core, 3 = S-core (Super)
+// CoreType: 0 = unknown, 1 = E-core, 2 = P-core, 3 = S-core (Super), 4 = M-core (Medium/Performance on M5)
 typedef struct {
     int cpu_id;
-    int core_type;  // 0=unknown, 1=E, 2=P, 3=S
+    int core_type;  // 0=unknown, 1=E, 2=P, 3=S, 4=M
 } core_info_t;
 
 // Get core topology from IORegistry - works on all M-series chips
@@ -334,6 +334,8 @@ int get_core_topology(core_info_t *cores, int max_cores) {
                             cores[count].core_type = 2; // P-core
                         } else if (cluster_type && cluster_type[0] == 'S') {
                             cores[count].core_type = 3; // S-core (Super)
+                        } else if (cluster_type && cluster_type[0] == 'M') {
+                            cores[count].core_type = 4; // M-core (Medium/Performance on M5)
                         } else {
                             cores[count].core_type = 0; // Unknown
                         }
@@ -1149,6 +1151,7 @@ const (
 	CoreTypeE       CoreType = 1 // Efficiency core
 	CoreTypeP       CoreType = 2 // Performance core
 	CoreTypeS       CoreType = 3 // Super core (M5+)
+	CoreTypeM       CoreType = 4 // Medium core (M5+ IORegistry "M" type = Performance tier)
 )
 
 // CoreTopologyEntry represents a single CPU core's topology information
@@ -1190,6 +1193,9 @@ func GetCoreTopology() ([]CoreTopologyEntry, error) {
 }
 
 // BuildCoreLabels creates the correct E/P/S labels based on dynamic topology detection.
+// It cross-references IORegistry topology (for CPU-to-Mach-index mapping) with sysctl
+// perflevel data (for authoritative E/P/S naming). This handles M5+ chips where IORegistry
+// uses "M" cluster-type for Performance cores and "P" for Super cores.
 // Returns: labels (sorted E first, then P, then S), eCount, pCount, sCount, and cpuIndexMap (maps display index -> Mach API index)
 func BuildCoreLabels() ([]string, int, int, int, []int) {
 	topology, err := GetCoreTopology()
@@ -1197,6 +1203,11 @@ func BuildCoreLabels() ([]string, int, int, int, []int) {
 		// Fallback to sysctl-based counts (old behavior)
 		return nil, 0, 0, 0, nil
 	}
+
+	// Get authoritative core counts from sysctl hw.perflevel (named: Super, Performance, Efficiency)
+	perfCounts := getPerfLevelCores()
+	sysP := perfCounts["P"]
+	sysS := perfCounts["S"]
 
 	// topology is already sorted by CPUID (done in GetCoreTopology)
 	// The position in this sorted array corresponds to the Mach API index (0, 1, 2, ...)
@@ -1211,6 +1222,7 @@ func BuildCoreLabels() ([]string, int, int, int, []int) {
 	var eCores []coreWithMachIndex
 	var pCores []coreWithMachIndex
 	var sCores []coreWithMachIndex
+	var mCores []coreWithMachIndex // M5+ "M" type cores from IORegistry
 
 	for machIdx, entry := range topology {
 		switch entry.CoreType {
@@ -1220,6 +1232,27 @@ func BuildCoreLabels() ([]string, int, int, int, []int) {
 			pCores = append(pCores, coreWithMachIndex{machIdx, entry.CoreType})
 		case CoreTypeS:
 			sCores = append(sCores, coreWithMachIndex{machIdx, entry.CoreType})
+		case CoreTypeM:
+			mCores = append(mCores, coreWithMachIndex{machIdx, entry.CoreType})
+		}
+	}
+
+	// M5+ chip handling: IORegistry uses "M" for Performance-tier and "P" for Super-tier.
+	// Cross-reference with sysctl perflevel counts to assign correct display labels.
+	// On M5 Max: IORegistry has 12 "M" + 6 "P", sysctl has S=6 P=12 E=0
+	if len(mCores) > 0 {
+		// "M" IORegistry type = sysctl Performance tier → display as P-cores
+		// "P" IORegistry type = sysctl Super tier → display as S-cores
+		// Verify counts match sysctl data for safety
+		if len(mCores) == sysP && len(pCores) == sysS {
+			// Confirmed: M→P display, P→S display
+			sCores = append(sCores, pCores...) // IORegistry "P" cores are Super
+			pCores = mCores                    // IORegistry "M" cores are Performance
+		} else {
+			// Counts don't match perfectly — use sysctl counts as guide
+			// Treat M-cores as P-cores (Performance tier) and existing P-cores as S-cores
+			sCores = append(sCores, pCores...)
+			pCores = mCores
 		}
 	}
 

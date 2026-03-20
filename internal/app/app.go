@@ -231,12 +231,18 @@ func updateModelText() {
 
 	totalCores := eCoreCount + pCoreCount + sCoreCount
 	var coreLines string
-	if sCoreCount > 0 {
+	if eCoreCount > 0 && sCoreCount > 0 {
 		coreLines = fmt.Sprintf("%d Cores\n%d E-Cores\n%d P-Cores\n%d S-Cores",
 			totalCores, eCoreCount, pCoreCount, sCoreCount)
-	} else {
+	} else if sCoreCount > 0 {
+		coreLines = fmt.Sprintf("%d Cores\n%d P-Cores\n%d S-Cores",
+			totalCores, pCoreCount, sCoreCount)
+	} else if eCoreCount > 0 {
 		coreLines = fmt.Sprintf("%d Cores\n%d E-Cores\n%d P-Cores",
 			totalCores, eCoreCount, pCoreCount)
+	} else {
+		coreLines = fmt.Sprintf("%d Cores\n%d P-Cores",
+			totalCores, pCoreCount)
 	}
 
 	modelText.Text = fmt.Sprintf("%s\n%s\n%s GPU Cores",

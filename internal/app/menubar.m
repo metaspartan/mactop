@@ -34,6 +34,7 @@ typedef struct {
   int gpu_core_count;
   int e_core_count;
   int p_core_count;
+  int s_core_count;
   int ecluster_freq_mhz;
   double ecluster_active;
   int pcluster_freq_mhz;
@@ -1240,20 +1241,34 @@ void cleanupMenuBar(void) {
 
     // Update menu views...
     MactopLabelView *mv = (MactopLabelView *)self.modelItem.view;
+    // Build dynamic core summary — only show core types with non-zero counts
+    NSMutableString *coreStr = [NSMutableString string];
+    if (metrics.e_core_count > 0) {
+      [coreStr appendFormat:@"%dE + ", metrics.e_core_count];
+    }
+    [coreStr appendFormat:@"%dP", metrics.p_core_count];
+    if (metrics.s_core_count > 0) {
+      [coreStr appendFormat:@" + %dS", metrics.s_core_count];
+    }
+    [coreStr appendFormat:@" + %dGPU", metrics.gpu_core_count];
     mv.label.stringValue = [NSString
-        stringWithFormat:@"%s  (%dE + %dP + %dGPU)", metrics.model_name,
-                         metrics.e_core_count, metrics.p_core_count,
-                         metrics.gpu_core_count];
+        stringWithFormat:@"%s  (%@)", metrics.model_name, coreStr];
 
     MactopMetricView *v = (MactopMetricView *)self.cpuUsageItem.view;
     [v setTwoToneLabel:@"Usage:"
                  value:[NSString
                            stringWithFormat:@"%.1f%%", metrics.cpu_percent]];
-    v = (MactopMetricView *)self.cpuEClusterItem.view;
-    [v setTwoToneLabel:@"E-Cluster:"
-                 value:[NSString stringWithFormat:@"%d MHz (%.1f%%)",
-                                                  metrics.ecluster_freq_mhz,
-                                                  metrics.ecluster_active]];
+    // E-Cluster: hide when e_core_count is 0 (M5+ has no E-cores)
+    if (metrics.e_core_count > 0) {
+      self.cpuEClusterItem.hidden = NO;
+      v = (MactopMetricView *)self.cpuEClusterItem.view;
+      [v setTwoToneLabel:@"E-Cluster:"
+                   value:[NSString stringWithFormat:@"%d MHz (%.1f%%)",
+                                                    metrics.ecluster_freq_mhz,
+                                                    metrics.ecluster_active]];
+    } else {
+      self.cpuEClusterItem.hidden = YES;
+    }
     v = (MactopMetricView *)self.cpuPClusterItem.view;
     [v setTwoToneLabel:@"P-Cluster:"
                  value:[NSString stringWithFormat:@"%d MHz (%.1f%%)",
