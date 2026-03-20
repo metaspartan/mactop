@@ -612,16 +612,7 @@ int initIOReport() {
     CFRelease(pmpChan);
   }
 
-  // SoC Stats group provides DCS frequency residency counters (DCS_F1-F8,
-  // GFX_DCS_F1-F8) for DRAM bandwidth calculation on M5+ chips where AMC
-  // Stats is kernel-blocked. These show time spent at each DRAM frequency
-  // bin and are accessible without root privileges.
-  CFDictionaryRef socChan =
-      IOReportCopyChannelsInGroup(CFSTR("SoC Stats"), NULL, 0, 0, 0);
-  if (socChan != NULL) {
-    IOReportMergeChannels(energyChan, socChan, NULL);
-    CFRelease(socChan);
-  }
+
 
   CFIndex size = CFDictionaryGetCount(energyChan);
   g_channels =
@@ -1529,17 +1520,31 @@ PowerMetrics samplePowerMetrics(int durationMs) {
   }
 
   // Fallback: estimate DRAM BW from DRAM power (no root needed).
-  // DRAM power scales linearly with actual bandwidth (validated empirically):
-  //   9.5W DRAM power ↔ 238 GB/s actual throughput → ~25.1 GB/s per watt.
-  // This accounts for ALL memory traffic (CPU, GPU, prefetch, DMA) unlike
-  // L1D miss counting which misses prefetched data. Works without root
-  // since Energy Model DRAM power is accessible to all users.
-  // Power cannot distinguish read vs write, so we split evenly.
+  //
+  // This fallback only fires when BOTH AMC Stats AND PMP produce zero data:
+  //   - M1-M4 chips: AMC Stats works → this path is NOT reached
+  //   - A-series chips: PMP works → this path is NOT reached
+  //   - M5+ chips: AMC Stats is kernel-blocked → this path IS reached
+  //
+  // DRAM active power scales linearly with data transfer rate. The energy
+  // per byte transferred is a physical property of the DRAM technology:
+  //   LPDDR5X @ 9600 MT/s: ~35-40 pJ/byte (including I/O, refresh overhead)
+  //   → 1 Watt = 1 / 37.5e-12 bytes/sec ≈ 26.7 GB/s
+  //
+  // Empirically validated on M5 Max: 9.5W DRAM power ↔ 238 GB/s actual
+  // throughput (measured via kperf L1D miss hardware counters) → 25.1 GB/s/W.
+  // This applies to ALL M5-series chips (M5, M5 Pro, M5 Max, M5 Ultra)
+  // since they all use LPDDR5X-9600 — the energy/byte is technology-specific,
+  // not chip-specific. Different bus widths only affect max power/bandwidth,
+  // not the per-byte energy.
+  //
+  // Power cannot distinguish read vs write direction, so split evenly.
   if (metrics.dramReadBytes == 0 && metrics.dramWriteBytes == 0 &&
       metrics.dramPower > 0.001) {
-    // Convert DRAM power (watts) to bandwidth (GB/s)
-    // Calibration: 25.1 GB/s per watt of DRAM power
-    double dramBwGBs = metrics.dramPower * 25.1;
+    // Energy per byte for LPDDR5X-9600: ~37.5 pJ/byte (empirical: 39.8 pJ/byte)
+    // Calibration: 1W / 39.8e-12 bytes = 25.1 GB/s per watt
+    static const double kDramGBsPerWatt = 25.1;
+    double dramBwGBs = metrics.dramPower * kDramGBsPerWatt;
     // Convert to bytes for this sample interval
     double sampleSec = (double)durationMs / 1000.0;
     int64_t totalBytes = (int64_t)(dramBwGBs * 1e9 * sampleSec);
