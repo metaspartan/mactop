@@ -36,9 +36,9 @@ type CPUMetrics struct {
 type SystemInfo struct {
 	Name         string `json:"name"`
 	CoreCount    int    `json:"core_count"`
-	ECoreCount   int    `json:"e_core_count"`
+	ECoreCount   int    `json:"e_core_count,omitempty"`
 	PCoreCount   int    `json:"p_core_count"`
-	SCoreCount   int    `json:"s_core_count"`
+	SCoreCount   int    `json:"s_core_count,omitempty"`
 	GPUCoreCount int    `json:"gpu_core_count"`
 }
 

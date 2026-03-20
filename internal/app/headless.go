@@ -101,7 +101,7 @@ type HeadlessOutput struct {
 	Memory                MemoryMetrics        `json:"memory" yaml:"memory" xml:"Memory" toon:"memory"`
 	NetDisk               NetDiskMetrics       `json:"net_disk" yaml:"net_disk" xml:"NetDisk" toon:"net_disk"`
 	CPUUsage              float64              `json:"cpu_usage" yaml:"cpu_usage" xml:"CPUUsage" toon:"cpu_usage"`
-	ECPUUsage             []float64            `json:"ecpu_usage" yaml:"ecpu_usage" xml:"ECPUUsage" toon:"ecpu_usage"`
+	ECPUUsage             []float64            `json:"ecpu_usage,omitempty" yaml:"ecpu_usage,omitempty" xml:"ECPUUsage" toon:"ecpu_usage"`
 	PCPUUsage             []float64            `json:"pcpu_usage" yaml:"pcpu_usage" xml:"PCPUUsage" toon:"pcpu_usage"`
 	SCPUUsage             []float64            `json:"scpu_usage,omitempty" yaml:"scpu_usage,omitempty" xml:"SCPUUsage" toon:"scpu_usage"`
 	GPUUsage              float64              `json:"gpu_usage" yaml:"gpu_usage" xml:"GPUUsage" toon:"gpu_usage"`
@@ -212,8 +212,10 @@ func printHeadlessStart(format string, count int) {
 func printCSVHeader() {
 	headers := []string{
 		"Timestamp",
-		"System_Name", "Core_Count", "E_Core_Count", "P_Core_Count", "GPU_Core_Count",
-		"CPU_Usage", "ECPU_Freq_MHz", "ECPU_Active", "PCPU_Freq_MHz", "PCPU_Active", "GPU_Usage",
+		"System_Name", "Core_Count", "E_Core_Count", "P_Core_Count", "S_Core_Count", "GPU_Core_Count",
+		"CPU_Usage", "ECPU_Freq_MHz", "ECPU_Active", "PCPU_Freq_MHz", "PCPU_Active",
+		"SCPU_Freq_MHz", "SCPU_Active",
+		"GPU_Usage",
 		"GPU_Freq_MHz", "GPU_Active_Percent",
 		"Mem_Used", "Mem_Total", "Swap_Used",
 		"Disk_Read_KB", "Disk_Write_KB",
@@ -221,6 +223,7 @@ func printCSVHeader() {
 		"TB_Net_In_Bytes", "TB_Net_Out_Bytes",
 		"Total_Power", "System_Power",
 		"CPU_Temp", "GPU_Temp", "Thermal_State",
+		"DRAM_Read_BW_GBs", "DRAM_Write_BW_GBs", "DRAM_BW_Combined_GBs",
 		"RDMA_Available", "RDMA_Status", "RDMA_Device_Count",
 	}
 
@@ -326,12 +329,15 @@ func processHeadlessSample(format string, tbInfo *ThunderboltOutput, sysInfo Sys
 			fmt.Sprintf("%d", output.SystemInfo.CoreCount),
 			fmt.Sprintf("%d", output.SystemInfo.ECoreCount),
 			fmt.Sprintf("%d", output.SystemInfo.PCoreCount),
+			fmt.Sprintf("%d", output.SystemInfo.SCoreCount),
 			fmt.Sprintf("%d", output.SystemInfo.GPUCoreCount),
 			fmt.Sprintf("%.2f", output.CPUUsage),
 			fmt.Sprintf("%.2f", safeFloat64At(output.ECPUUsage, 0)),
 			fmt.Sprintf("%.2f", safeFloat64At(output.ECPUUsage, 1)),
 			fmt.Sprintf("%.2f", safeFloat64At(output.PCPUUsage, 0)),
 			fmt.Sprintf("%.2f", safeFloat64At(output.PCPUUsage, 1)),
+			fmt.Sprintf("%.2f", safeFloat64At(output.SCPUUsage, 0)),
+			fmt.Sprintf("%.2f", safeFloat64At(output.SCPUUsage, 1)),
 			fmt.Sprintf("%.2f", output.GPUUsage),
 			fmt.Sprintf("%d", output.GPUMetrics.FreqMHz),
 			fmt.Sprintf("%.2f", output.GPUMetrics.ActivePercent),
@@ -349,6 +355,9 @@ func processHeadlessSample(format string, tbInfo *ThunderboltOutput, sysInfo Sys
 			fmt.Sprintf("%.2f", output.SocMetrics.CPUTemp),
 			fmt.Sprintf("%.2f", output.SocMetrics.GPUTemp),
 			output.ThermalState,
+			fmt.Sprintf("%.2f", output.SocMetrics.DRAMReadBW),
+			fmt.Sprintf("%.2f", output.SocMetrics.DRAMWriteBW),
+			fmt.Sprintf("%.2f", output.SocMetrics.DRAMBWCombined),
 			fmt.Sprintf("%t", output.RDMAStatus.Available),
 			output.RDMAStatus.Status,
 			fmt.Sprintf("%d", len(output.RDMAStatus.Devices)),
@@ -517,7 +526,6 @@ func collectHeadlessData(tbInfo *ThunderboltOutput, sysInfo SystemInfo) Headless
 		Memory:                mem,
 		NetDisk:               netDisk,
 		CPUUsage:              cpuUsage,
-		ECPUUsage:             []float64{float64(m.EClusterFreqMHz), m.EClusterActive},
 		PCPUUsage:             []float64{float64(m.PClusterFreqMHz), m.PClusterActive},
 		GPUUsage:              m.GPUActive,
 		GPUMetrics:            HeadlessGPUMetrics{FreqMHz: int(m.GPUFreqMHz), ActivePercent: m.GPUActive},
@@ -535,6 +543,9 @@ func collectHeadlessData(tbInfo *ThunderboltOutput, sysInfo SystemInfo) Headless
 		ThermalState:          thermalStr,
 		Fans:                  headlessFans,
 		Temperatures:          orderedTemps,
+	}
+	if sysInfo.ECoreCount > 0 {
+		output.ECPUUsage = []float64{float64(m.EClusterFreqMHz), m.EClusterActive}
 	}
 	if sysInfo.SCoreCount > 0 {
 		output.SCPUUsage = []float64{float64(m.SClusterFreqMHz), m.SClusterActive}

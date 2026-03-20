@@ -147,6 +147,13 @@ var (
 		},
 	)
 
+	scoreUsage = prometheus.NewGauge(
+		prometheus.GaugeOpts{
+			Name: "mactop_score_usage_percent",
+			Help: "Current S-core (Super) CPU usage percentage",
+		},
+	)
+
 	gpuUsage = prometheus.NewGauge(
 		prometheus.GaugeOpts{
 			Name: "mactop_gpu_usage_percent",
@@ -230,6 +237,14 @@ var (
 			Name: "mactop_rdma_available",
 			Help: "RDMA availability status (1=available, 0=unavailable)",
 		},
+	)
+
+	dramBandwidth = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "mactop_dram_bandwidth_gbs",
+			Help: "DRAM bandwidth in GB/s",
+		},
+		[]string{"direction"},
 	)
 
 	// Per-core CPU usage metrics

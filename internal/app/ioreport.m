@@ -588,14 +588,14 @@ static void *calibThread(void *arg) {
   volatile char *buf = malloc(sz);
   if (!buf) return NULL;
   memset((void *)buf, 0xAB, sz);
-  int64_t localBytes = 0;
   while (g_calib_running) {
     volatile uint64_t sum = 0;
     for (size_t i = 0; i < sz; i += 128)
       sum += buf[i];
-    localBytes += sz;
+    // Update byte counter atomically inside the loop so the main thread
+    // can read g_calib_bytes at any point during the measurement window.
+    __sync_fetch_and_add(&g_calib_bytes, (int64_t)sz);
   }
-  __sync_fetch_and_add(&g_calib_bytes, localBytes);
   free((void *)buf);
   return NULL;
 }
@@ -685,7 +685,9 @@ static void calibrateDramBwFromPower(void) {
 
   if (deltaPower > 0.01 && throughputGBs > 1.0) {
     g_dramGBsPerWatt = throughputGBs / deltaPower;
-    g_dramIdlePowerW = idleDramPower;
+    // Use 90% of measured idle as baseline: some "idle" power includes
+    // background memory traffic We want to subtract static/leakage only.
+    g_dramIdlePowerW = idleDramPower * 0.9;
     // Sanity check: should be between 5 and 500 GB/s per watt
     if (g_dramGBsPerWatt < 5.0 || g_dramGBsPerWatt > 500.0) {
       g_dramGBsPerWatt = 25.1; // fall back to default
@@ -1129,9 +1131,11 @@ static void loadAllTempSensors() {
     if (keyInfo.dataType != 1718383648)
       continue;
 
-    // Read current value to ensure it's a valid sensor
+    // Skip sensors with extreme values (> 200°C likely invalid)
+    // Note: don't exclude val <= 0 here — sensors may read 0°C when idle
+    // (e.g., inactive SSD, cold component) and warm up later.
     float val = (float)SMCGetFloatValue(g_smcConn, key);
-    if (val <= 0 || val > 200)
+    if (val > 200)
       continue;
 
     temp_sensor_t *sensor = &g_all_temp_sensors[g_all_temp_sensor_count];
@@ -1663,7 +1667,7 @@ PowerMetrics samplePowerMetrics(int durationMs) {
   // This path only fires on M5+ where AMC Stats is kernel-blocked.
   // On M1-M4/A-series, AMC Stats/PMP provides direct byte counters.
   if (metrics.dramReadBytes == 0 && metrics.dramWriteBytes == 0 &&
-      metrics.dramPower > g_dramIdlePowerW) {
+      metrics.dramPower > 0.001) {
     // Subtract static/idle power — only dynamic power indicates data transfer
     double activePower = metrics.dramPower - g_dramIdlePowerW;
     if (activePower < 0) activePower = 0;

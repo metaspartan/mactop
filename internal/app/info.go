@@ -563,7 +563,7 @@ func formatTempGroupLine(cat string, g *tempGroup, themeColor string) string {
 }
 
 func renderScrollableLines(lines []string, themeColor string) string {
-	termWidth, termHeight := ui.TerminalDimensions()
+	_, termHeight := ui.TerminalDimensions()
 	availableHeight := termHeight - 6
 	if availableHeight < 5 {
 		availableHeight = 5
@@ -584,7 +584,6 @@ func renderScrollableLines(lines []string, themeColor string) string {
 	startLine := infoScrollOffset
 	endLine := min(startLine+availableHeight, totalLines)
 
-	_ = termWidth // used for scroll dimension calculation above
 	paddingStr := "  "
 
 	var result strings.Builder

@@ -907,8 +907,8 @@ func updateMemoryHistory(memoryMetrics MemoryMetrics) {
 }
 
 func finalizeCPUUI(totalUsage float64, coreUsages []float64, cpuMetrics CPUMetrics, memoryMetrics MemoryMetrics) {
-	ecoreAvg, pcoreAvg, _ := calculateCoreAverages(coreUsages)
-	updateCPUPrometheusMetrics(totalUsage, ecoreAvg, pcoreAvg, coreUsages, cpuMetrics, memoryMetrics)
+	ecoreAvg, pcoreAvg, scoreAvg := calculateCoreAverages(coreUsages)
+	updateCPUPrometheusMetrics(totalUsage, ecoreAvg, pcoreAvg, scoreAvg, coreUsages, cpuMetrics, memoryMetrics)
 
 	// Update gauge colors with dynamic saturation if 1977 theme is active
 	if currentConfig.Theme == "1977" {
@@ -1008,7 +1008,7 @@ func calculateCoreAverages(coreUsages []float64) (ecoreAvg, pcoreAvg, scoreAvg f
 	return ecoreAvg, pcoreAvg, scoreAvg
 }
 
-func updateCPUPrometheusMetrics(totalUsage, ecoreAvg, pcoreAvg float64, coreUsages []float64, cpuMetrics CPUMetrics, memoryMetrics MemoryMetrics) {
+func updateCPUPrometheusMetrics(totalUsage, ecoreAvg, pcoreAvg, scoreAvg float64, coreUsages []float64, cpuMetrics CPUMetrics, memoryMetrics MemoryMetrics) {
 	thermalStateVal, _ := getThermalStateString()
 	thermalStateNum := 0
 	switch thermalStateVal {
@@ -1023,6 +1023,7 @@ func updateCPUPrometheusMetrics(totalUsage, ecoreAvg, pcoreAvg float64, coreUsag
 	cpuUsage.Set(totalUsage)
 	ecoreUsage.Set(ecoreAvg)
 	pcoreUsage.Set(pcoreAvg)
+	scoreUsage.Set(scoreAvg)
 	powerUsage.With(prometheus.Labels{"component": "cpu"}).Set(cpuMetrics.CPUW)
 	powerUsage.With(prometheus.Labels{"component": "gpu"}).Set(cpuMetrics.GPUW)
 	powerUsage.With(prometheus.Labels{"component": "ane"}).Set(cpuMetrics.ANEW)
@@ -1033,6 +1034,11 @@ func updateCPUPrometheusMetrics(totalUsage, ecoreAvg, pcoreAvg float64, coreUsag
 	socTemp.Set(cpuMetrics.CPUTemp)
 	gpuTemp.Set(cpuMetrics.GPUTemp)
 	thermalState.Set(float64(thermalStateNum))
+
+	// DRAM bandwidth
+	dramBandwidth.With(prometheus.Labels{"direction": "read"}).Set(cpuMetrics.DRAMReadBW)
+	dramBandwidth.With(prometheus.Labels{"direction": "write"}).Set(cpuMetrics.DRAMWriteBW)
+	dramBandwidth.With(prometheus.Labels{"direction": "combined"}).Set(cpuMetrics.DRAMBWCombined)
 
 	memoryUsage.With(prometheus.Labels{"type": "used"}).Set(float64(memoryMetrics.Used) / 1024 / 1024 / 1024)
 	memoryUsage.With(prometheus.Labels{"type": "total"}).Set(float64(memoryMetrics.Total) / 1024 / 1024 / 1024)

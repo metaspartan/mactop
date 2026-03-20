@@ -26,6 +26,8 @@ func startPrometheusServer(port string) {
 	registry.MustRegister(diskIOPS)
 	registry.MustRegister(tbNetworkSpeed)
 	registry.MustRegister(rdmaAvailable)
+	registry.MustRegister(scoreUsage)
+	registry.MustRegister(dramBandwidth)
 	registry.MustRegister(cpuCoreUsage)
 	registry.MustRegister(systemInfoGauge)
 	registry.MustRegister(fanRPM)
