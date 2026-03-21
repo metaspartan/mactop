@@ -18,10 +18,12 @@ class Mactop < Formula
   end
 
   def service
-    run "#{opt_bin}/mactop -p 9101 --headless > /dev/null"
+    run [opt_bin/"mactop", "-p", "9101", "--headless"]
     keep_alive true
+    log_path var/"log/mactop.log"
     error_log_path var/"log/mactop.error.log"
     process_type :background
+    require_root true
     nice 10
   end
 
@@ -41,11 +43,11 @@ class Mactop < Formula
       To change the Prometheus port:
         1. brew services stop mactop
         2. brew services edit mactop
-        3. Change :9101 to your desired port
+        3. Change 9101 to your desired port
         4. brew services start mactop
 
       Or run manually with a custom port:
-        mactop -p :<PORT> --headless
+        sudo mactop -p <PORT> --headless
     EOS
   end
 end
