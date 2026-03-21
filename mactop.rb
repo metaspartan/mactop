@@ -18,7 +18,7 @@ class Mactop < Formula
   end
 
   def service
-    run "#{opt_bin}/mactop -p :9101 --headless > /dev/null"
+    run "#{opt_bin}/mactop -p 9101 --headless > /dev/null"
     keep_alive true
     error_log_path var/"log/mactop.error.log"
     process_type :background

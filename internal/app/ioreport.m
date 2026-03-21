@@ -636,7 +636,7 @@ static void calibrateDramBwFromPower(void) {
   if (s2) CFRelease(s2);
 
   // Step 2: run 4 threads for ~1.5 seconds, measure during 1 second
-  g_calib_bytes = 0;
+  __sync_lock_test_and_set(&g_calib_bytes, 0);
   g_calib_running = 1;
   pthread_t threads[4];
   for (int t = 0; t < 4; t++)
@@ -645,7 +645,7 @@ static void calibrateDramBwFromPower(void) {
   usleep(500000); // 500ms ramp — let DRAM frequency settle
 
   // Reset counter, then measure for exactly 1 second
-  g_calib_bytes = 0;
+  __sync_lock_test_and_set(&g_calib_bytes, 0);
   s1 = IOReportCreateSamples(g_subscription, g_channels, NULL);
   usleep(1000000); // 1 second measurement
   s2 = IOReportCreateSamples(g_subscription, g_channels, NULL);
