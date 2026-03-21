@@ -978,7 +978,7 @@ func updateMemoryGaugeTitle(memoryMetrics MemoryMetrics) {
 	if isCompactLayout() {
 		memoryGauge.Title = fmt.Sprintf("Mem %.0f/%.0fG BW %.1f GB/s", float64(memoryMetrics.Used)/1024/1024/1024, float64(memoryMetrics.Total)/1024/1024/1024, lastCPUMetrics.DRAMBWCombined)
 	} else {
-		memoryGauge.Title = fmt.Sprintf("Memory: %.2f GB / %.2f GB (Swap: %.2f/%.2f GB) BW: %.1f GB/s", float64(memoryMetrics.Used)/1024/1024/1024, float64(memoryMetrics.Total)/1024/1024/1024, float64(memoryMetrics.SwapUsed)/1024/1024/1024, float64(memoryMetrics.SwapTotal)/1024/1024/1024, lastCPUMetrics.DRAMBWCombined)
+		memoryGauge.Title = fmt.Sprintf("Mem: %.2f GB / %.2f GB (Swap: %.2f/%.2f GB) BW: %.1f GB/s", float64(memoryMetrics.Used)/1024/1024/1024, float64(memoryMetrics.Total)/1024/1024/1024, float64(memoryMetrics.SwapUsed)/1024/1024/1024, float64(memoryMetrics.SwapTotal)/1024/1024/1024, lastCPUMetrics.DRAMBWCombined)
 	}
 }
 
