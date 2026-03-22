@@ -188,6 +188,17 @@ static int g_scpu_freq_count = 0;
 static temp_sensor_t g_all_temp_sensors[128];
 static int g_all_temp_sensor_count = 0;
 
+// Expected physical core counts (set from Go via setExpectedCoreCounts)
+static int g_expected_ecores = 0;
+static int g_expected_pcores = 0;
+static int g_expected_scores = 0;
+
+void setExpectedCoreCounts(int eCores, int pCores, int sCores) {
+  g_expected_ecores = eCores;
+  g_expected_pcores = pCores;
+  g_expected_scores = sCores;
+}
+
 static int cfStringStartsWith(CFStringRef str, const char *prefix);
 static void loadSMCTempKeys();
 static void loadAllTempSensors();
@@ -1366,10 +1377,16 @@ int resetFansToAuto() {
 }
 
 // Read per-core temperature sensors from IOHIDEventSystemClient.
-// This provides per-physical-core temperatures (what TG Pro uses).
 // Returns the number of sensors written into the output array.
-static int readHIDCoreTempSensors(temp_sensor_t *out, int maxSensors) {
+// Also reports per-category counts through output parameters.
+static int readHIDCoreTempSensors(temp_sensor_t *out, int maxSensors,
+                                  int *outEcount, int *outPcount,
+                                  int *outScount, int *outGPUcount) {
   int count = 0;
+  *outEcount = 0;
+  *outPcount = 0;
+  *outScount = 0;
+  *outGPUcount = 0;
 
   const void *keys[2] = {CFSTR("PrimaryUsagePage"), CFSTR("PrimaryUsage")};
   int page = kHIDPage_AppleVendor;
@@ -1474,6 +1491,12 @@ static int readHIDCoreTempSensors(temp_sensor_t *out, int maxSensors) {
       count++;
     }
   }
+
+  // Report per-category counts
+  *outEcount = eIdx;
+  *outPcount = pIdx;
+  *outScount = sIdx;
+  *outGPUcount = gpuIdx;
 
   CFRelease(services);
   CFRelease(client);
@@ -1930,42 +1953,66 @@ PowerMetrics samplePowerMetrics(int durationMs) {
   // Read all temperature sensors
   loadAllTempSensors();
 
-  // Strategy: Use HID (IOHIDEventSystemClient) for per-core CPU/GPU temps
-  // (accurate per-physical-core, same as TG Pro), then supplement with SMC
-  // sensors for everything else (board, VRM, ambient, SSD, etc.).
+  // Strategy: Validate HID per-core data against expected core counts.
+  // Use HID for a category ONLY if it provides >= expected physical cores.
+  // Otherwise fall back to SMC (with category-aware 10°C threshold).
+  // This prevents M2 Max's incomplete/garbage HID from replacing good SMC data.
 
-  // Step 1: Read HID per-core sensors
+  // Step 1: Read HID per-core sensors and get per-category counts
   temp_sensor_t hidSensors[64];
-  int hidCount = readHIDCoreTempSensors(hidSensors, 64);
+  int hidEcount = 0, hidPcount = 0, hidScount = 0, hidGPUcount = 0;
+  int hidTotal = readHIDCoreTempSensors(hidSensors, 64,
+                                         &hidEcount, &hidPcount,
+                                         &hidScount, &hidGPUcount);
+
+  // Step 2: Decide per-category: use HID or SMC?
+  // Use HID only if count >= expected physical cores (validation)
+  int useHidEcore = (hidEcount >= g_expected_ecores && g_expected_ecores > 0);
+  int useHidPcore = (hidPcount >= g_expected_pcores && g_expected_pcores > 0);
+  int useHidScore = (hidScount >= g_expected_scores && g_expected_scores > 0);
+  // GPU: use HID if it has any sensors (no expected count to compare)
+  int useHidGPU = (hidGPUcount > 0);
 
   int validSensorCount = 0;
 
-  // Step 2: If HID provided core sensors, add them first
-  if (hidCount > 0) {
-    for (int i = 0; i < hidCount && validSensorCount < 128; i++) {
-      metrics.temps[validSensorCount++] = hidSensors[i];
+  // Step 3: Add validated HID sensors for categories that passed validation
+  if (hidTotal > 0) {
+    for (int i = 0; i < hidTotal && validSensorCount < 128; i++) {
+      char hk = hidSensors[i].key[1]; // e, p, s, or g
+      int include = 0;
+      if (hk == 'e' && useHidEcore) include = 1;
+      else if (hk == 'p' && useHidPcore) include = 1;
+      else if (hk == 's' && useHidScore) include = 1;
+      else if (hk == 'g' && useHidGPU) include = 1;
+      if (include) {
+        metrics.temps[validSensorCount++] = hidSensors[i];
+      }
     }
   }
 
-  // Step 3: Add SMC sensors, skipping per-core keys if HID covers them
+  // Step 4: Add SMC sensors, skipping categories already covered by HID
   for (int i = 0; i < g_all_temp_sensor_count && validSensorCount < 128; i++) {
     float v = g_all_temp_sensors[i].value;
     if (g_smcConn) {
       v = (float)SMCGetFloatValue(g_smcConn, g_all_temp_sensors[i].key);
     }
 
-    // Determine minimum threshold based on sensor category
     float minTemp = 0.0f;
     char k1 = g_all_temp_sensors[i].key[1];
+
+    // Check if this SMC key's category is already covered by HID
+    int coveredByHID = 0;
+    if ((k1 == 'e') && useHidEcore) coveredByHID = 1;
+    else if ((k1 == 'p' || k1 == 'f') && useHidPcore) coveredByHID = 1;
+    else if ((k1 == 'g' || k1 == 'R') && useHidGPU) coveredByHID = 1;
+
+    if (coveredByHID) continue;
+
+    // For remaining silicon sensors (HID didn't cover), use 10°C minimum
     int isCoreKey = (k1 == 'p' || k1 == 'e' || k1 == 'f' ||
                      k1 == 'c' || k1 == 'C' || k1 == 'g' || k1 == 'R');
-
     if (isCoreKey) {
-      // If HID already provided per-core data, skip SMC core keys entirely
-      // to avoid double-counting and noise from garbage keys like Tf*
-      if (hidCount > 0)
-        continue;
-      minTemp = 10.0f;  // Silicon minimum — no core runs below 10°C
+      minTemp = 10.0f;
     }
 
     if (v > minTemp && v <= 200) {

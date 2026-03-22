@@ -643,8 +643,13 @@ func buildHeadlessTempGroups(sensors []TempSensor, sysInfo SystemInfo) []Headles
 	var order []string
 	for _, s := range classified {
 		cat := sensorGroupName(s.Key)
-		if s.Name == "CPU E-Core" || s.Name == "CPU P-Core" || s.Name == "CPU S-Core" {
-			cat = s.Name
+		// Merge all core sensors into base category (same as TUI)
+		if strings.HasPrefix(s.Name, "CPU E-Core") {
+			cat = "CPU E-Core"
+		} else if strings.HasPrefix(s.Name, "CPU P-Core") {
+			cat = "CPU P-Core"
+		} else if strings.HasPrefix(s.Name, "CPU S-Core") {
+			cat = "CPU S-Core"
 		}
 		g, exists := groups[cat]
 		if !exists {

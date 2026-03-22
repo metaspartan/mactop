@@ -499,14 +499,20 @@ func buildGroupedTempLines(sensors []TempSensor, themeColor string) []string {
 	// Classify generic CPU Core sensors into E/P/S before grouping
 	sensors = classifyCPUCoreSensors(sensors, cachedSystemInfo)
 
-	// Group sensors by category (using key-based group name for proper merging)
+	// Group sensors by BASE category — always show grouped averages,
+	// never individual per-core lines. Consistent across all chips.
 	groups := make(map[string]*tempGroup)
 	var groupOrder []string
 	for _, s := range sensors {
 		cat := sensorGroupName(s.Key)
-		// For classified CPU sensors, use the reclassified Name
-		if strings.HasPrefix(s.Name, "CPU E-Core") || strings.HasPrefix(s.Name, "CPU P-Core") || strings.HasPrefix(s.Name, "CPU S-Core") {
-			cat = s.Name
+		// For classified/HID CPU core sensors, merge into base category
+		// (e.g., "CPU E-Core" not "CPU E-Core 04") for consistent grouping
+		if strings.HasPrefix(s.Name, "CPU E-Core") {
+			cat = "CPU E-Core"
+		} else if strings.HasPrefix(s.Name, "CPU P-Core") {
+			cat = "CPU P-Core"
+		} else if strings.HasPrefix(s.Name, "CPU S-Core") {
+			cat = "CPU S-Core"
 		}
 		g, exists := groups[cat]
 		if !exists {
@@ -540,73 +546,17 @@ func buildGroupedTempLines(sensors []TempSensor, themeColor string) []string {
 			seen[name] = true
 		}
 	}
-
-	// For per-core groups (e.g., "CPU E-Core 04"), sort them and
-	// renumber sequentially to display "CPU E-Core 00", "CPU E-Core 01", etc.
-	type coreEntry struct {
-		origKey   string // Original category key
-		coreType  string // "CPU E-Core", "CPU P-Core", "CPU S-Core"
-		sortKey   string // Original key for sorting
-	}
-	var perCoreEntries []coreEntry
-	coreTypes := []string{"CPU E-Core", "CPU P-Core", "CPU S-Core"}
-	for _, ct := range coreTypes {
-		var entries []coreEntry
-		for _, name := range groupOrder {
-			if name != ct && strings.HasPrefix(name, ct+" ") {
-				entries = append(entries, coreEntry{origKey: name, coreType: ct, sortKey: name})
-			}
-		}
-		// Sort by the original category key (which includes SMC key suffix)
-		sort.Slice(entries, func(a, b int) bool {
-			return entries[a].sortKey < entries[b].sortKey
-		})
-		perCoreEntries = append(perCoreEntries, entries...)
-	}
-
-	// Insert per-core entries after their group header (or after the last
-	// preferred entry of their type)
-	for _, entry := range perCoreEntries {
-		if !seen[entry.origKey] {
-			// Find the right insertion point: after the base type's grouped entry
-			insertIdx := -1
-			for i, name := range ordered {
-				if name == entry.coreType || strings.HasPrefix(name, entry.coreType+" ") {
-					insertIdx = i + 1
-				}
-			}
-			if insertIdx < 0 {
-				insertIdx = len(ordered)
-			}
-			// Insert at position
-			ordered = append(ordered[:insertIdx], append([]string{entry.origKey}, ordered[insertIdx:]...)...)
-			seen[entry.origKey] = true
-		}
-	}
-
-	// Append any remaining groups not yet ordered
+	// Append any remaining groups not in preferred order
 	for _, name := range groupOrder {
 		if !seen[name] {
 			ordered = append(ordered, name)
 		}
 	}
 
-	// Build lines, renumbering per-core entries sequentially
-	coreCounters := make(map[string]int) // tracks sequential index per core type
 	var lines []string
 	for _, cat := range ordered {
 		g := groups[cat]
-		displayName := cat
-		// Renumber per-core sensors sequentially (CPU E-Core 04 → CPU E-Core 00, etc.)
-		for _, ct := range coreTypes {
-			if cat != ct && strings.HasPrefix(cat, ct+" ") {
-				idx := coreCounters[ct]
-				coreCounters[ct]++
-				displayName = fmt.Sprintf("%s %02d", ct, idx)
-				break
-			}
-		}
-		lines = append(lines, formatTempGroupLine(displayName, g, themeColor))
+		lines = append(lines, formatTempGroupLine(cat, g, themeColor))
 	}
 	return lines
 }
@@ -626,12 +576,22 @@ func formatTempGroupLine(cat string, g *tempGroup, themeColor string) string {
 	} else if avg > 70 {
 		tempColor = "yellow"
 	}
+	// Pluralize core category names for display
+	displayName := cat
+	switch cat {
+	case "CPU E-Core":
+		displayName = "CPU E-Cores"
+	case "CPU P-Core":
+		displayName = "CPU P-Cores"
+	case "CPU S-Core":
+		displayName = "CPU S-Cores"
+	}
 	if g.count == 1 {
 		return fmt.Sprintf("  [%-16s](fg:%s)  [%s](fg:%s)",
-			cat, themeColor, formatTemp(avg), tempColor)
+			displayName, themeColor, formatTemp(avg), tempColor)
 	}
 	return fmt.Sprintf("  [%-16s](fg:%s)  [%s](fg:%s)  [avg of %d, %s – %s](fg:%s)",
-		cat, themeColor, formatTemp(avg), tempColor,
+		displayName, themeColor, formatTemp(avg), tempColor,
 		g.count, formatTemp(g.min), formatTemp(g.max), themeColor)
 }
 
