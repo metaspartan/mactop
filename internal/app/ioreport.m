@@ -1220,8 +1220,18 @@ void dumpAllSMCTemps(void) {
     const char *name = tempSensorName(key);
     const char *status = "✅ OK";
 
-    if (val <= 0) {
-      status = "⚠ FILTERED (≤0°C)";
+    // Match the category-aware thresholds used in samplePowerMetrics
+    char k1 = key[1];
+    int isSilicon = (k1 == 'p' || k1 == 'e' || k1 == 'f' ||
+                     k1 == 'c' || k1 == 'C' || k1 == 'g' || k1 == 'R');
+    float minTemp = isSilicon ? 10.0f : 0.0f;
+
+    if (val <= minTemp) {
+      if (isSilicon && val > 0) {
+        status = "⚠ FILTERED (<10°C silicon)";
+      } else {
+        status = "⚠ FILTERED (≤0°C)";
+      }
       filteredCount++;
     } else if (val > 200) {
       status = "⚠ FILTERED (>200°C)";
@@ -1232,8 +1242,10 @@ void dumpAllSMCTemps(void) {
     tempKeyCount++;
   }
 
-  printf("\nTotal temperature keys: %d (filtered: %d, active: %d)\n",
+  printf("\nTotal SMC temperature keys: %d (filtered: %d, active: %d)\n",
          tempKeyCount, filteredCount, tempKeyCount - filteredCount);
+  printf("Note: When HID sensors are available, SMC core keys (Tp/Te/Tf/Tg/TR) are\n");
+  printf("      replaced by per-physical-core HID sensors for accuracy.\n");
 
   // Also print core configuration
   printf("\n=== Core Configuration ===\n");
