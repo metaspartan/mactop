@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	version                                                     = "v2.1.1"
+	version                                                     = "v2.1.2"
 	cpuGauge, gpuGauge, memoryGauge, aneGauge                   *w.Gauge
 	mainBlock                                                   *ui.Block
 	modelText, PowerChart, NetworkInfo, helpText, infoParagraph *w.Paragraph
@@ -61,15 +61,15 @@ var (
 	maxPowerSeen                  = 0.1
 	gpuValues                     = make([]float64, 100)
 
-	prometheusPort string
-	headless       bool
-	headlessPretty bool
-	headlessCount  int
-	headlessFormat string
-	menubar         bool   // Run as menu bar status item
-	filterPID       int    // Monitor a specific process by PID (0 = all)
-	cliBgColor      string // Background color from --bg flag
-	fanControl      bool   // Enable interactive fan speed control (requires --fan-control flag)
+	prometheusPort  string
+	headless        bool
+	headlessPretty  bool
+	headlessCount   int
+	headlessFormat  string
+	menubar         bool    // Run as menu bar status item
+	filterPID       int     // Monitor a specific process by PID (0 = all)
+	cliBgColor      string  // Background color from --bg flag
+	fanControl      bool    // Enable interactive fan speed control (requires --fan-control flag)
 	overlay         bool    // Show floating overlay HUD window
 	overlayWorker   bool    // Hidden: run as overlay worker process
 	overlaySections string  // Comma-separated visible sections for overlay
