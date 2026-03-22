@@ -1461,11 +1461,11 @@ static int readHIDCoreTempSensors(temp_sensor_t *out, int maxSensors) {
 
     if (category != NULL && idxPtr != NULL) {
       temp_sensor_t *s = &out[count];
-      // Derive key prefix char from category: E→e, P→p, S→s, G→g
+      // Derive key prefix char from category
       char keyChar = 'g'; // default for GPU
-      if (category[4] == 'E') keyChar = 'e';
-      else if (category[4] == 'P') keyChar = 'p';
-      else if (category[4] == 'S') keyChar = 's';
+      if (strcmp(category, "CPU E-Core") == 0) keyChar = 'e';
+      else if (strcmp(category, "CPU P-Core") == 0) keyChar = 'p';
+      else if (strcmp(category, "CPU S-Core") == 0) keyChar = 's';
       // Use synthetic key: He00, Hp00, Hs00, Hg00 (H prefix = HID source)
       snprintf(s->key, sizeof(s->key), "H%c%02X", keyChar, *idxPtr);
       snprintf(s->name, sizeof(s->name), "%s %02d", category, *idxPtr);
