@@ -3,6 +3,7 @@
 
 #import <Cocoa/Cocoa.h>
 #include <dispatch/dispatch.h>
+#include <stdatomic.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -90,10 +91,195 @@ static overlay_config_t g_overlay_config = {
 static overlay_metrics_t g_overlay_metrics;
 static double cpuSparkHistory[OVERLAY_SPARKLINE_HISTORY] = {0};
 static double gpuSparkHistory[OVERLAY_SPARKLINE_HISTORY] = {0};
+static double fpsSparkHistory[OVERLAY_SPARKLINE_HISTORY] = {0};
 
 static void pushSparkHistory(double *buf, double val) {
   memmove(buf, buf + 1, (OVERLAY_SPARKLINE_HISTORY - 1) * sizeof(double));
   buf[OVERLAY_SPARKLINE_HISTORY - 1] = val;
+}
+
+// ---------- FPS counter via CGDisplayStream ----------
+// Counts actual display surface updates (real rendered frames), not VSync ticks.
+// CGDisplayStream only fires when the WindowServer composites a new frame,
+// so on a static desktop FPS will be low, while a game at 45fps shows ~45.
+//
+// We use dlsym to load CGDisplayStream functions at runtime because Apple
+// marked them as unavailable in the macOS 15 SDK headers even though the
+// symbols still exist in the CoreGraphics dylib and work fine at runtime.
+
+#include <mach/mach_time.h>
+#include <dlfcn.h>
+
+// Opaque types
+typedef void *CGDisplayStreamRef_t;
+typedef void *CGDisplayStreamUpdateRef_t;
+typedef void *IOSurfaceRef_t;
+
+// Function pointer types matching CGDisplayStream API
+typedef CGDisplayStreamRef_t (*CGDisplayStreamCreateWithDispatchQueue_fn)(
+    CGDirectDisplayID, size_t, size_t, int32_t, CFDictionaryRef,
+    dispatch_queue_t,
+    void (^)(int status, uint64_t displayTime, IOSurfaceRef_t surface,
+             CGDisplayStreamUpdateRef_t updateRef));
+typedef int (*CGDisplayStreamStart_fn)(CGDisplayStreamRef_t);
+typedef int (*CGDisplayStreamStop_fn)(CGDisplayStreamRef_t);
+typedef size_t (*CGDisplayStreamUpdateGetDropCount_fn)(
+    CGDisplayStreamUpdateRef_t);
+
+// Loaded function pointers
+static CGDisplayStreamCreateWithDispatchQueue_fn fn_CGDisplayStreamCreate =
+    NULL;
+static CGDisplayStreamStart_fn fn_CGDisplayStreamStart = NULL;
+static CGDisplayStreamStop_fn fn_CGDisplayStreamStop = NULL;
+static CGDisplayStreamUpdateGetDropCount_fn fn_CGDisplayStreamGetDrops = NULL;
+
+// CGDisplayStream property keys (string constants)
+static CFStringRef kMinFrameTime = NULL;
+static CFStringRef kShowCursor = NULL;
+static CFStringRef kQueueDepth = NULL;
+
+static bool loadCGDisplayStreamSymbols(void) {
+  void *cg = dlopen(
+      "/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics",
+      RTLD_LAZY);
+  if (!cg)
+    return false;
+
+  fn_CGDisplayStreamCreate =
+      (CGDisplayStreamCreateWithDispatchQueue_fn)dlsym(
+          cg, "CGDisplayStreamCreateWithDispatchQueue");
+  fn_CGDisplayStreamStart =
+      (CGDisplayStreamStart_fn)dlsym(cg, "CGDisplayStreamStart");
+  fn_CGDisplayStreamStop =
+      (CGDisplayStreamStop_fn)dlsym(cg, "CGDisplayStreamStop");
+  fn_CGDisplayStreamGetDrops =
+      (CGDisplayStreamUpdateGetDropCount_fn)dlsym(
+          cg, "CGDisplayStreamUpdateGetDropCount");
+
+  // Load string constant symbols
+  CFStringRef *pMinFrameTime =
+      (CFStringRef *)dlsym(cg, "kCGDisplayStreamMinimumFrameTime");
+  CFStringRef *pShowCursor =
+      (CFStringRef *)dlsym(cg, "kCGDisplayStreamShowCursor");
+  CFStringRef *pQueueDepth =
+      (CFStringRef *)dlsym(cg, "kCGDisplayStreamQueueDepth");
+
+  if (pMinFrameTime)
+    kMinFrameTime = *pMinFrameTime;
+  if (pShowCursor)
+    kShowCursor = *pShowCursor;
+  if (pQueueDepth)
+    kQueueDepth = *pQueueDepth;
+
+  // Don't dlclose — keep symbols alive
+  return (fn_CGDisplayStreamCreate && fn_CGDisplayStreamStart &&
+          fn_CGDisplayStreamStop && fn_CGDisplayStreamGetDrops && kMinFrameTime &&
+          kShowCursor && kQueueDepth);
+}
+
+static CGDisplayStreamRef_t g_fpsStream = NULL;
+static _Atomic uint32_t g_fpsFrameCount = 0;   // Completed frames this interval
+static _Atomic uint32_t g_fpsDropCount = 0;     // Dropped frames this interval
+static _Atomic uint32_t g_fpsValue = 0;         // Last computed FPS
+static dispatch_source_t g_fpsTimer = NULL;
+static uint64_t g_fpsLastTimestamp = 0;
+
+static double machTimeToSeconds(uint64_t elapsed) {
+  static mach_timebase_info_data_t sTimebase = {0};
+  if (sTimebase.denom == 0) {
+    mach_timebase_info(&sTimebase);
+  }
+  double nanos = (double)elapsed * sTimebase.numer / sTimebase.denom;
+  return nanos / 1e9;
+}
+
+// Frame statuses
+enum {
+  kFrameStatusComplete = 0,
+  kFrameStatusIdle = 1,
+  kFrameStatusBlank = 2,
+  kFrameStatusStopped = 3,
+};
+
+static void startFPSCounter(void) {
+  if (!loadCGDisplayStreamSymbols()) {
+    // CGDisplayStream not available — FPS feature silently disabled
+    return;
+  }
+
+  CGDirectDisplayID mainDisplay = CGMainDisplayID();
+
+  // minimumFrameTime = 0 means "deliver as fast as possible"
+  NSDictionary *streamProps = @{
+    (__bridge NSString *)kMinFrameTime : @(0.0),
+    (__bridge NSString *)kShowCursor : @(NO),
+    (__bridge NSString *)kQueueDepth : @(1),
+  };
+
+  dispatch_queue_t fpsQueue =
+      dispatch_queue_create("com.mactop.fps", DISPATCH_QUEUE_SERIAL);
+
+  // Capture a tiny 1x1 region to minimize GPU/memory cost
+  g_fpsStream = fn_CGDisplayStreamCreate(
+      mainDisplay, 1, 1, 'BGRA', (__bridge CFDictionaryRef)streamProps,
+      fpsQueue,
+      ^(int status, uint64_t displayTime __attribute__((unused)),
+        IOSurfaceRef_t frameSurface __attribute__((unused)),
+        CGDisplayStreamUpdateRef_t updateRef) {
+        if (status == kFrameStatusComplete) {
+          atomic_fetch_add(&g_fpsFrameCount, 1);
+          // Count dropped frames (frames WindowServer rendered but we missed)
+          if (updateRef && fn_CGDisplayStreamGetDrops) {
+            size_t dropped = fn_CGDisplayStreamGetDrops(updateRef);
+            if (dropped > 0) {
+              atomic_fetch_add(&g_fpsDropCount, (uint32_t)dropped);
+            }
+          }
+        }
+      });
+
+  if (g_fpsStream) {
+    fn_CGDisplayStreamStart(g_fpsStream);
+  }
+
+  g_fpsLastTimestamp = mach_absolute_time();
+
+  // Timer fires every ~1s to snapshot FPS using actual elapsed time
+  g_fpsTimer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0,
+                                       dispatch_get_main_queue());
+  dispatch_source_set_timer(g_fpsTimer,
+                            dispatch_time(DISPATCH_TIME_NOW, NSEC_PER_SEC),
+                            NSEC_PER_SEC, NSEC_PER_SEC / 10);
+  dispatch_source_set_event_handler(g_fpsTimer, ^{
+    uint64_t now = mach_absolute_time();
+    uint64_t elapsed = now - g_fpsLastTimestamp;
+    double seconds = machTimeToSeconds(elapsed);
+    g_fpsLastTimestamp = now;
+
+    uint32_t completed = atomic_exchange(&g_fpsFrameCount, 0);
+    uint32_t dropped = atomic_exchange(&g_fpsDropCount, 0);
+    uint32_t totalFrames = completed + dropped;
+
+    // Calculate FPS from actual elapsed time
+    uint32_t fps = 0;
+    if (seconds > 0.1) {
+      fps = (uint32_t)(totalFrames / seconds + 0.5);
+    }
+    atomic_store(&g_fpsValue, fps);
+  });
+  dispatch_resume(g_fpsTimer);
+}
+
+static void stopFPSCounter(void) {
+  if (g_fpsStream && fn_CGDisplayStreamStop) {
+    fn_CGDisplayStreamStop(g_fpsStream);
+    CFRelease(g_fpsStream);
+    g_fpsStream = NULL;
+  }
+  if (g_fpsTimer) {
+    dispatch_source_cancel(g_fpsTimer);
+    g_fpsTimer = NULL;
+  }
 }
 
 // ---------- Forward declarations ----------
@@ -183,11 +369,12 @@ static NSColor *colorForPercent(double pct) {
 
 // ---------- Content view ----------
 
-@interface OverlayContentView : NSView {
-  NSPoint _dragStart;
-  NSPoint _windowStart;
-  BOOL _dragging;
-}
+static NSInteger g_opacityFlashCountdown = 0; // Show opacity indicator for N frames
+
+@interface OverlayContentView : NSView
+@property(nonatomic) BOOL dragging;
+@property(nonatomic) NSPoint dragStart;
+@property(nonatomic) NSPoint windowStart;
 @end
 
 @implementation OverlayContentView
@@ -198,24 +385,36 @@ static NSColor *colorForPercent(double pct) {
 
 // Allow dragging the window by dragging anywhere on the overlay
 - (void)mouseDown:(NSEvent *)event {
-  _dragStart = [NSEvent mouseLocation];
-  _windowStart = self.window.frame.origin;
-  _dragging = YES;
+  self.dragStart = [NSEvent mouseLocation];
+  self.windowStart = self.window.frame.origin;
+  self.dragging = YES;
 }
 
 - (void)mouseDragged:(NSEvent *)event {
-  if (!_dragging)
+  if (!self.dragging)
     return;
   NSPoint current = [NSEvent mouseLocation];
-  CGFloat dx = current.x - _dragStart.x;
-  CGFloat dy = current.y - _dragStart.y;
+  CGFloat dx = current.x - self.dragStart.x;
+  CGFloat dy = current.y - self.dragStart.y;
   NSPoint newOrigin =
-      NSMakePoint(_windowStart.x + dx, _windowStart.y + dy);
+      NSMakePoint(self.windowStart.x + dx, self.windowStart.y + dy);
   [self.window setFrameOrigin:newOrigin];
 }
 
 - (void)mouseUp:(NSEvent *)event {
-  _dragging = NO;
+  self.dragging = NO;
+}
+
+// Scroll wheel adjusts opacity
+- (void)scrollWheel:(NSEvent *)event {
+  CGFloat delta = event.scrollingDeltaY * 0.01;
+  CGFloat newOpacity = self.window.alphaValue + delta;
+  if (newOpacity < 0.15) newOpacity = 0.15;
+  if (newOpacity > 1.0) newOpacity = 1.0;
+  self.window.alphaValue = newOpacity;
+  g_overlay_config.opacity = newOpacity;
+  g_opacityFlashCountdown = 30; // Show indicator for ~30 frames
+  [self setNeedsDisplay:YES];
 }
 
 // ---------- Drawing ----------
@@ -295,20 +494,20 @@ static void drawMiniBar(CGFloat x, CGFloat y, CGFloat w, CGFloat h,
   overlay_config_t cfg = g_overlay_config;
 
   CGFloat W = self.bounds.size.width;
-  CGFloat padX = 12;
+  CGFloat padX = 14;
   CGFloat contentW = W - padX * 2;
-  __block CGFloat y = 14;
+  __block CGFloat y = 16;
 
   NSFont *headerFont =
-      [NSFont systemFontOfSize:16 weight:NSFontWeightBold];
+      [NSFont systemFontOfSize:18 weight:NSFontWeightBold];
   NSFont *subHeaderFont =
-      [NSFont systemFontOfSize:13 weight:NSFontWeightMedium];
-  NSFont *labelFont = [NSFont monospacedDigitSystemFontOfSize:14
+      [NSFont systemFontOfSize:14 weight:NSFontWeightMedium];
+  NSFont *labelFont = [NSFont monospacedDigitSystemFontOfSize:16
                                                         weight:NSFontWeightMedium];
-  NSFont *valueFont = [NSFont monospacedDigitSystemFontOfSize:14
+  NSFont *valueFont = [NSFont monospacedDigitSystemFontOfSize:16
                                                         weight:NSFontWeightBold];
-  NSFont *smallFont = [NSFont monospacedDigitSystemFontOfSize:11
-                                                        weight:NSFontWeightRegular];
+  NSFont *smallFont = [NSFont monospacedDigitSystemFontOfSize:13
+                                                        weight:NSFontWeightMedium];
 
   NSDictionary *headerAttrs = @{
     NSFontAttributeName : headerFont,
@@ -330,7 +529,7 @@ static void drawMiniBar(CGFloat x, CGFloat y, CGFloat w, CGFloat h,
   // ---- mactop header ----
   NSString *title = @"mactop";
   NSDictionary *titleAttrs = @{
-    NSFontAttributeName : [NSFont systemFontOfSize:15 weight:NSFontWeightHeavy],
+    NSFontAttributeName : [NSFont systemFontOfSize:17 weight:NSFontWeightHeavy],
     NSForegroundColorAttributeName : overlayNeonGreen()
   };
   NSSize titleSize = [title sizeWithAttributes:titleAttrs];
@@ -339,7 +538,7 @@ static void drawMiniBar(CGFloat x, CGFloat y, CGFloat w, CGFloat h,
   // Dot separator
   NSString *dot = @"•";
   NSDictionary *dotAttrs = @{
-    NSFontAttributeName : [NSFont systemFontOfSize:12 weight:NSFontWeightRegular],
+    NSFontAttributeName : [NSFont systemFontOfSize:14 weight:NSFontWeightRegular],
     NSForegroundColorAttributeName :
         [NSColor colorWithWhite:0.5 alpha:1.0]
   };
@@ -356,7 +555,7 @@ static void drawMiniBar(CGFloat x, CGFloat y, CGFloat w, CGFloat h,
       drawAtPoint:NSMakePoint(padX + titleSize.width + 5 + dotSize.width + 5,
                                y + 0.5)
       withAttributes:subHeaderAttrs];
-  y += 22;
+  y += 26;
 
   // Core summary line
   NSMutableString *coreSummary = [NSMutableString string];
@@ -377,7 +576,7 @@ static void drawMiniBar(CGFloat x, CGFloat y, CGFloat w, CGFloat h,
   }
   [coreSummary drawAtPoint:NSMakePoint(padX, y)
                withAttributes:smallAttrs];
-  y += 18;
+  y += 22;
 
   // Separator
   [[NSColor colorWithWhite:1.0 alpha:0.08] set];
@@ -385,28 +584,28 @@ static void drawMiniBar(CGFloat x, CGFloat y, CGFloat w, CGFloat h,
   y += 6;
 
   // ---- Metric rows ----
-  CGFloat rowH = 24;
-  CGFloat barX = padX + 80;
-  CGFloat barW = contentW - 80 - 60; // Leave room for % text
-  CGFloat barH = 6;
-  CGFloat sparkW = 56;
-  CGFloat sparkH = 18;
+  CGFloat rowH = 28;
+  CGFloat barX = padX + 90;
+  CGFloat barW = contentW - 90 - 65; // Leave room for value text
+  CGFloat barH = 7;
+  CGFloat sparkW = 60;
+  CGFloat sparkH = 20;
 
   // Helper block for labeled metric row with bar
   void (^drawMetricBar)(NSString *, double, NSColor *, double *, BOOL) =
       ^(NSString *label, double pct, NSColor *color, double *sparkData,
         BOOL showSpark) {
         // Label
-        [label drawAtPoint:NSMakePoint(padX, y + 2) withAttributes:labelAttrs];
+        [label drawAtPoint:NSMakePoint(padX, y + 4) withAttributes:labelAttrs];
 
         // Bar
-        drawMiniBar(barX, y + 7, barW - (showSpark ? sparkW + 6 : 0), barH,
+        drawMiniBar(barX, y + 10, barW - (showSpark ? sparkW + 8 : 0), barH,
                     pct, color);
 
         // Sparkline
         if (showSpark && sparkData) {
           drawMiniSparkline(sparkData, OVERLAY_SPARKLINE_HISTORY,
-                            padX + contentW - sparkW - 38, y + 1, sparkW,
+                            padX + contentW - sparkW - 48, y + 2, sparkW,
                             sparkH, color);
         }
 
@@ -417,7 +616,7 @@ static void drawMiniBar(CGFloat x, CGFloat y, CGFloat w, CGFloat h,
           NSForegroundColorAttributeName : colorForPercent(pct)
         };
         NSSize valSize = [val sizeWithAttributes:valAttrs];
-        [val drawAtPoint:NSMakePoint(padX + contentW - valSize.width, y + 1)
+        [val drawAtPoint:NSMakePoint(padX + contentW - valSize.width, y + 3)
             withAttributes:valAttrs];
 
         y += rowH;
@@ -426,17 +625,43 @@ static void drawMiniBar(CGFloat x, CGFloat y, CGFloat w, CGFloat h,
   // Helper block for labeled key-value row
   void (^drawMetricKV)(NSString *, NSString *, NSColor *) =
       ^(NSString *label, NSString *value, NSColor *color) {
-        [label drawAtPoint:NSMakePoint(padX, y + 2)
+        [label drawAtPoint:NSMakePoint(padX, y + 4)
             withAttributes:labelAttrs];
         NSDictionary *valAttrs = @{
           NSFontAttributeName : valueFont,
           NSForegroundColorAttributeName : color
         };
         NSSize valSize = [value sizeWithAttributes:valAttrs];
-        [value drawAtPoint:NSMakePoint(padX + contentW - valSize.width, y + 1)
+        [value drawAtPoint:NSMakePoint(padX + contentW - valSize.width, y + 3)
             withAttributes:valAttrs];
         y += rowH;
       };
+
+  // FPS (first metric — full-width sparkline, no progress bar)
+  uint32_t fps = atomic_load(&g_fpsValue);
+  if (fps > 0) {
+    NSString *fpsLabel = @"FPS";
+    [fpsLabel drawAtPoint:NSMakePoint(padX, y + 4) withAttributes:labelAttrs];
+
+    // FPS value right-aligned
+    NSString *fpsVal = [NSString stringWithFormat:@"%u", fps];
+    NSDictionary *fpsAttrs = @{
+      NSFontAttributeName : valueFont,
+      NSForegroundColorAttributeName : overlayAccentCyan()
+    };
+    NSSize fpsSize = [fpsVal sizeWithAttributes:fpsAttrs];
+    [fpsVal drawAtPoint:NSMakePoint(padX + contentW - fpsSize.width, y + 3)
+        withAttributes:fpsAttrs];
+
+    // Full-width sparkline between label and value
+    CGFloat fpsLabelW = 50; // space for "FPS" label
+    CGFloat fpsValW = fpsSize.width + 8; // space for value + gap
+    CGFloat fpsSparkW = contentW - fpsLabelW - fpsValW;
+    drawMiniSparkline(fpsSparkHistory, OVERLAY_SPARKLINE_HISTORY,
+                      padX + fpsLabelW, y + 2, fpsSparkW,
+                      sparkH, overlayAccentCyan());
+    y += rowH;
+  }
 
   // CPU
   if (cfg.show_cpu) {
@@ -462,21 +687,21 @@ static void drawMiniBar(CGFloat x, CGFloat y, CGFloat w, CGFloat h,
     double memPct = totalGB > 0 ? (memGB / totalGB) * 100.0 : 0;
     NSString *memStr =
         [NSString stringWithFormat:@"%.1f/%.0fGB", memGB, totalGB];
-    [(@"Memory") drawAtPoint:NSMakePoint(padX, y + 3)
+    [(@"Memory") drawAtPoint:NSMakePoint(padX, y + 4)
                  withAttributes:labelAttrs];
-    drawMiniBar(barX, y + 9, barW - sparkW - 6, barH, memPct,
+    drawMiniBar(barX, y + 10, barW - sparkW - 8, barH, memPct,
                 overlayAccentPurple());
     NSDictionary *valAttrs = @{
       NSFontAttributeName : valueFont,
       NSForegroundColorAttributeName : colorForPercent(memPct)
     };
     NSSize valSize = [memStr sizeWithAttributes:valAttrs];
-    [memStr drawAtPoint:NSMakePoint(padX + contentW - valSize.width, y + 2)
+    [memStr drawAtPoint:NSMakePoint(padX + contentW - valSize.width, y + 3)
         withAttributes:valAttrs];
     y += rowH;
 
-    // Swap — full bar like memory
-    if (m.swap_total_bytes > 0) {
+    // Swap — only show when swap is actually being used
+    if (m.swap_used_bytes > 0 && m.swap_total_bytes > 0) {
       double swapGB =
           (double)m.swap_used_bytes / (1024.0 * 1024.0 * 1024.0);
       double swapTotalGB =
@@ -484,16 +709,16 @@ static void drawMiniBar(CGFloat x, CGFloat y, CGFloat w, CGFloat h,
       double swapPct = swapTotalGB > 0 ? (swapGB / swapTotalGB) * 100.0 : 0;
       NSString *swapStr =
           [NSString stringWithFormat:@"%.1f/%.0fGB", swapGB, swapTotalGB];
-      [(@"Swap") drawAtPoint:NSMakePoint(padX, y + 3)
+      [(@"Swap") drawAtPoint:NSMakePoint(padX, y + 4)
                  withAttributes:labelAttrs];
-      drawMiniBar(barX, y + 9, barW - sparkW - 6, barH, swapPct,
+      drawMiniBar(barX, y + 10, barW - sparkW - 8, barH, swapPct,
                   overlayAccentOrange());
       NSDictionary *swapValAttrs = @{
         NSFontAttributeName : valueFont,
         NSForegroundColorAttributeName : colorForPercent(swapPct)
       };
       NSSize swapValSize = [swapStr sizeWithAttributes:swapValAttrs];
-      [swapStr drawAtPoint:NSMakePoint(padX + contentW - swapValSize.width, y + 2)
+      [swapStr drawAtPoint:NSMakePoint(padX + contentW - swapValSize.width, y + 3)
           withAttributes:swapValAttrs];
       y += rowH;
     }
@@ -510,13 +735,11 @@ static void drawMiniBar(CGFloat x, CGFloat y, CGFloat w, CGFloat h,
         [NSString stringWithFormat:@"%.1fW", m.package_watts];
     drawMetricKV(@"Power", powerStr, overlayAccentYellow());
 
-    // Breakdown (compact)
-    NSString *breakdownStr = [NSString
-        stringWithFormat:@"CPU %.1fW  GPU %.1fW  ANE %.1fW", m.cpu_watts,
-                         m.gpu_watts, m.ane_watts];
-    [breakdownStr drawAtPoint:NSMakePoint(padX + 10, y + 1)
-                  withAttributes:smallAttrs];
-    y += 14;
+    // Individual power breakdown — always show all to prevent jumping
+    drawMetricKV(@"  CPU", [NSString stringWithFormat:@"%.1fW", m.cpu_watts], overlayDimText());
+    drawMetricKV(@"  GPU", [NSString stringWithFormat:@"%.1fW", m.gpu_watts], overlayDimText());
+    drawMetricKV(@"  ANE", [NSString stringWithFormat:@"%.1fW", m.ane_watts], overlayDimText());
+    drawMetricKV(@"  DRAM", [NSString stringWithFormat:@"%.1fW", m.dram_watts], overlayDimText());
   }
 
   // DRAM Bandwidth
@@ -531,7 +754,7 @@ static void drawMiniBar(CGFloat x, CGFloat y, CGFloat w, CGFloat h,
     NSString *freqStr;
     if (m.tflops_fp32 > 0) {
       freqStr = [NSString
-          stringWithFormat:@"%d MHz  %.1f TF", m.gpu_freq_mhz,
+          stringWithFormat:@"%dMHz • %.1f TFLOPS", m.gpu_freq_mhz,
                            m.tflops_fp32];
     } else {
       freqStr = [NSString stringWithFormat:@"%d MHz", m.gpu_freq_mhz];
@@ -596,6 +819,23 @@ static void drawMiniBar(CGFloat x, CGFloat y, CGFloat w, CGFloat h,
                          formatOverlayThroughput(m.net_out_bytes_per_sec)];
     drawMetricKV(@"Network", netStr, overlayDimText());
   }
+
+  // Opacity indicator (flashes briefly when scroll-wheel adjusts opacity)
+  if (g_opacityFlashCountdown > 0) {
+    g_opacityFlashCountdown--;
+    CGFloat opacityPct = g_overlay_config.opacity * 100.0;
+    NSString *opacityStr =
+        [NSString stringWithFormat:@"Opacity: %.0f%%  (scroll to adjust)", opacityPct];
+    NSDictionary *opAttrs = @{
+      NSFontAttributeName : [NSFont systemFontOfSize:11 weight:NSFontWeightMedium],
+      NSForegroundColorAttributeName :
+          [NSColor colorWithWhite:0.6 alpha:0.8]
+    };
+    NSSize opSize = [opacityStr sizeWithAttributes:opAttrs];
+    [opacityStr
+        drawAtPoint:NSMakePoint((W - opSize.width) / 2.0, y + 2)
+        withAttributes:opAttrs];
+  }
 }
 
 @end
@@ -608,18 +848,18 @@ int initOverlay(void) {
     [NSApp setActivationPolicy:NSApplicationActivationPolicyAccessory];
 
     // Calculate initial height based on enabled sections
-    CGFloat estimatedHeight = 380; // Base height for header + always-on sections
-    // Each section adds roughly 24px with larger text
+    CGFloat estimatedHeight = 550; // Base height for header + always-on sections
+    // Each section adds roughly 28px with larger text
     if (g_overlay_config.show_fans)
-      estimatedHeight += 24;
+      estimatedHeight += 28;
     if (g_overlay_config.show_network)
-      estimatedHeight += 24;
+      estimatedHeight += 28;
     if (g_overlay_config.show_bandwidth)
-      estimatedHeight += 24;
+      estimatedHeight += 28;
     if (g_overlay_config.show_gpu_freq)
-      estimatedHeight += 24;
+      estimatedHeight += 28;
 
-    CGFloat overlayW = 340;
+    CGFloat overlayW = 460;
     CGFloat overlayH = estimatedHeight;
 
     // Position in top-left with padding
@@ -669,6 +909,9 @@ int initOverlay(void) {
 
     [g_overlayWindow orderFrontRegardless];
 
+    // Start FPS counter
+    startFPSCounter();
+
     return 0;
   }
 }
@@ -686,36 +929,40 @@ void updateOverlayMetrics(overlay_metrics_t *m) {
     g_overlay_metrics = *m;
     pushSparkHistory(cpuSparkHistory, m->cpu_percent);
     pushSparkHistory(gpuSparkHistory, m->gpu_percent);
+    pushSparkHistory(fpsSparkHistory, (double)atomic_load(&g_fpsValue));
 
     // Dynamically resize window based on content
-    CGFloat rowH = 24;
-    CGFloat baseH = 105; // Header + core line + first separator (larger)
+    CGFloat rowH = 28;
+    CGFloat topPad = 16;  // Must match y = 16 in drawRect
+    CGFloat botPad = 16;  // Symmetrical bottom padding
+    CGFloat baseH = topPad + 60 + 10; // Header block (title + core + sep)
     int rows = 0;
+
+    rows++; // FPS row (always present)
 
     if (g_overlay_config.show_cpu) rows++;
     if (g_overlay_config.show_gpu) rows++;
     if (g_overlay_config.show_ane) rows++;
     if (g_overlay_config.show_memory) {
       rows++;
-      if (m->swap_total_bytes > 0)
-        rows++; // Swap bar row
+      if (m->swap_used_bytes > 0 && m->swap_total_bytes > 0)
+        rows++;
     }
-    baseH += 8; // separator
+    baseH += 10; // separator
 
     if (g_overlay_config.show_power) {
-      rows++;
-      baseH += 16; // breakdown sub-row
+      rows += 5; // Total + CPU + GPU + ANE + DRAM (always show all)
     }
     if (g_overlay_config.show_bandwidth) rows++;
     if (g_overlay_config.show_gpu_freq) rows++;
-    baseH += 8; // separator
+    baseH += 10; // separator
 
     if (g_overlay_config.show_temps) rows++;
     if (g_overlay_config.show_thermals) rows++;
     if (g_overlay_config.show_fans && m->fan_count > 0) rows++;
     if (g_overlay_config.show_network) rows++;
 
-    CGFloat newH = baseH + rows * rowH + 14; // 14px bottom padding
+    CGFloat newH = baseH + rows * rowH + botPad;
 
     NSRect frame = g_overlayWindow.frame;
     if ((int)frame.size.height != (int)newH) {
@@ -738,6 +985,7 @@ void updateOverlayMetrics(overlay_metrics_t *m) {
 void runOverlayLoop(void) { [NSApp run]; }
 
 void cleanupOverlay(void) {
+  stopFPSCounter();
   if (g_overlayWindow) {
     [g_overlayWindow close];
     g_overlayWindow = nil;

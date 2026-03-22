@@ -648,6 +648,7 @@ func Run() {
 	flag.BoolVar(&overlay, "overlay", false, "Show floating overlay HUD window on top of all apps")
 	flag.BoolVar(&overlayWorker, "overlay-worker", false, "Internal: Run as overlay worker process")
 	flag.StringVar(&overlaySections, "overlay-sections", "", "Comma-separated visible sections for overlay (e.g. cpu,gpu,memory)")
+	flag.Float64Var(&overlayOpacity, "overlay-opacity", 0.88, "Overlay window opacity (0.15-1.0)")
 	flag.IntVar(&filterPID, "pid", 0, "Monitor a specific process by PID")
 	flag.BoolVar(&fanControl, "fan-control", false, "Enable interactive fan speed control (⚠️  writes to SMC)")
 

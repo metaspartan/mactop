@@ -70,9 +70,10 @@ var (
 	filterPID       int    // Monitor a specific process by PID (0 = all)
 	cliBgColor      string // Background color from --bg flag
 	fanControl      bool   // Enable interactive fan speed control (requires --fan-control flag)
-	overlay         bool   // Show floating overlay HUD window
-	overlayWorker   bool   // Hidden: run as overlay worker process
-	overlaySections string // Comma-separated visible sections for overlay
+	overlay         bool    // Show floating overlay HUD window
+	overlayWorker   bool    // Hidden: run as overlay worker process
+	overlaySections string  // Comma-separated visible sections for overlay
+	overlayOpacity  float64 // Overlay window opacity (0.15-1.0)
 	interruptChan   = make(chan struct{}, 10)
 
 	cachedTermWidth    int

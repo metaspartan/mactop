@@ -78,6 +78,7 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -109,6 +110,17 @@ func applyOverlayConfig(sections string) {
 	ccfg.show_network = 1
 	ccfg.show_gpu_freq = 1
 	ccfg.opacity = 0.88
+
+	// Apply opacity from CLI/env
+	if overlayOpacity > 0 {
+		if overlayOpacity < 0.15 {
+			overlayOpacity = 0.15
+		}
+		if overlayOpacity > 1.0 {
+			overlayOpacity = 1.0
+		}
+		ccfg.opacity = C.double(overlayOpacity)
+	}
 
 	// If sections are specified, disable all then enable only requested
 	if sections != "" {
@@ -172,8 +184,13 @@ func applyOverlayConfig(sections string) {
 func startOverlayWorker() {
 	runtime.LockOSThread()
 
-	// Apply section filtering from environment variable
+	// Apply section filtering and opacity from environment variables
 	sections := os.Getenv("MACTOP_OVERLAY_SECTIONS")
+	if opStr := os.Getenv("MACTOP_OVERLAY_OPACITY"); opStr != "" {
+		if op, err := strconv.ParseFloat(opStr, 64); err == nil {
+			overlayOpacity = op
+		}
+	}
 	applyOverlayConfig(sections)
 
 	// Initialize AppKit + overlay window
@@ -227,7 +244,8 @@ func updateOverlayFromPayload(p MenuBarMetricsPayload) {
 	cm.gpu_watts = C.double(p.GPUMetrics.Power)
 	cm.ane_watts = C.double(p.CPUMetrics.ANEW)
 	cm.dram_watts = C.double(p.CPUMetrics.DRAMW)
-	cm.package_watts = C.double(p.TotalPower)
+	// PackageW is the correct total: max(componentSum, systemPower)
+	cm.package_watts = C.double(p.CPUMetrics.PackageW)
 	cm.total_watts = C.double(p.CPUMetrics.PackageW)
 
 	cm.gpu_freq_mhz = C.int(p.GPUMetrics.FreqMHz)
@@ -318,7 +336,10 @@ func startOverlayProcess() error {
 
 	cmd := exec.Command(exe, "--overlay-worker")
 	// Pass section filter via environment variable
-	cmd.Env = append(os.Environ(), "MACTOP_OVERLAY_SECTIONS="+overlaySections)
+	cmd.Env = append(os.Environ(),
+		"MACTOP_OVERLAY_SECTIONS="+overlaySections,
+		fmt.Sprintf("MACTOP_OVERLAY_OPACITY=%.2f", overlayOpacity),
+	)
 
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
