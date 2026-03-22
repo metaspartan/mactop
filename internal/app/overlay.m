@@ -637,9 +637,9 @@ static void drawMiniBar(CGFloat x, CGFloat y, CGFloat w, CGFloat h,
         y += rowH;
       };
 
-  // FPS (first metric — full-width sparkline, no progress bar)
+  // FPS (first metric — always rendered, full-width sparkline)
   uint32_t fps = atomic_load(&g_fpsValue);
-  if (fps > 0) {
+  {
     NSString *fpsLabel = @"FPS";
     [fpsLabel drawAtPoint:NSMakePoint(padX, y + 4) withAttributes:labelAttrs];
 
@@ -925,10 +925,14 @@ void setOverlayConfig(overlay_config_t *cfg) {
 void updateOverlayMetrics(overlay_metrics_t *m) {
   if (!m)
     return;
+  // Copy the metrics struct BEFORE dispatching to avoid use-after-free.
+  // The pointer m comes from a Go stack variable that may be deallocated
+  // before dispatch_async fires on the main queue.
+  overlay_metrics_t localMetrics = *m;
   dispatch_async(dispatch_get_main_queue(), ^{
-    g_overlay_metrics = *m;
-    pushSparkHistory(cpuSparkHistory, m->cpu_percent);
-    pushSparkHistory(gpuSparkHistory, m->gpu_percent);
+    g_overlay_metrics = localMetrics;
+    pushSparkHistory(cpuSparkHistory, localMetrics.cpu_percent);
+    pushSparkHistory(gpuSparkHistory, localMetrics.gpu_percent);
     pushSparkHistory(fpsSparkHistory, (double)atomic_load(&g_fpsValue));
 
     // Dynamically resize window based on content
@@ -938,14 +942,14 @@ void updateOverlayMetrics(overlay_metrics_t *m) {
     CGFloat baseH = topPad + 60 + 10; // Header block (title + core + sep)
     int rows = 0;
 
-    rows++; // FPS row (always present)
+    rows++; // FPS row (always present — shows 0 when unavailable)
 
     if (g_overlay_config.show_cpu) rows++;
     if (g_overlay_config.show_gpu) rows++;
     if (g_overlay_config.show_ane) rows++;
     if (g_overlay_config.show_memory) {
       rows++;
-      if (m->swap_used_bytes > 0 && m->swap_total_bytes > 0)
+      if (localMetrics.swap_used_bytes > 0 && localMetrics.swap_total_bytes > 0)
         rows++;
     }
     baseH += 10; // separator
@@ -959,7 +963,7 @@ void updateOverlayMetrics(overlay_metrics_t *m) {
 
     if (g_overlay_config.show_temps) rows++;
     if (g_overlay_config.show_thermals) rows++;
-    if (g_overlay_config.show_fans && m->fan_count > 0) rows++;
+    if (g_overlay_config.show_fans && localMetrics.fan_count > 0) rows++;
     if (g_overlay_config.show_network) rows++;
 
     CGFloat newH = baseH + rows * rowH + botPad;

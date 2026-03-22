@@ -86,6 +86,9 @@ Options:
       --menubar           Run as a macOS menu bar status item (no TUI)
       --overlay           Show floating overlay HUD window on top of all apps
       --overlay-sections  Comma-separated visible sections (e.g. cpu,gpu,memory,power)
+      --overlay-opacity   Overlay window opacity, 0.15-1.0 (default: 0.88)
+      --fan-control       Enable interactive fan speed control (writes to SMC)
+      --dump-temps        Diagnostic: dump all raw SMC temperature keys and exit
 
 Theme File:
   Create ~/.mactop/theme.json with custom hex colors:

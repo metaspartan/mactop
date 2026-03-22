@@ -1168,14 +1168,13 @@ static void loadAllTempSensors() {
     if (keyInfo.dataType != 1718383648)
       continue;
 
-    // Validate sensor reading:
-    // - Skip sensors > 200°C (clearly invalid/sensor noise)
-    // - Skip sensors <= 0°C (CPU/GPU cores are never at/below freezing;
-    //   0 or negative values indicate inactive SMC keys returning garbage,
-    //   which is common on M2 Max where some Tp/Te keys exist but are unused)
+    // Include ALL temperature keys during enumeration — don't filter by value.
+    // This list is cached (loadAllTempSensors returns early once populated),
+    // and sensors that initially read 0°C (idle component) may warm up later.
+    // Filtering happens at refresh time in samplePowerMetrics instead.
     float val = (float)SMCGetFloatValue(g_smcConn, key);
-    if (val <= 0 || val > 200)
-      continue;
+    if (val > 200)
+      continue; // Skip clearly broken sensors (>200°C) at enumeration
 
     temp_sensor_t *sensor = &g_all_temp_sensors[g_all_temp_sensor_count];
     strcpy(sensor->key, key);
@@ -1803,16 +1802,23 @@ PowerMetrics samplePowerMetrics(int durationMs) {
 
   // Read all temperature sensors
   loadAllTempSensors();
-  metrics.tempSensorCount = g_all_temp_sensor_count;
+  // Copy sensors, refresh values, and filter out invalid readings (<=0°C or >200°C).
+  // Filtering at refresh time (not enumeration) because cached keys may start
+  // at 0°C (idle) and warm up later.
+  int validSensorCount = 0;
   for (int i = 0; i < g_all_temp_sensor_count && i < 128; i++) {
-    metrics.temps[i] = g_all_temp_sensors[i];
-    // Refresh sensor value
+    float v = g_all_temp_sensors[i].value;
     if (g_smcConn) {
-      float v = (float)SMCGetFloatValue(g_smcConn, g_all_temp_sensors[i].key);
-      if (v > 0)
-        metrics.temps[i].value = v;
+      v = (float)SMCGetFloatValue(g_smcConn, g_all_temp_sensors[i].key);
+    }
+    // Only include sensors with valid readings (>0°C and <=200°C)
+    if (v > 0 && v <= 200) {
+      metrics.temps[validSensorCount] = g_all_temp_sensors[i];
+      metrics.temps[validSensorCount].value = v;
+      validSensorCount++;
     }
   }
+  metrics.tempSensorCount = validSensorCount;
 
   CFRelease(delta);
 
