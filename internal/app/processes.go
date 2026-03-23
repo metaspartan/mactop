@@ -59,6 +59,7 @@ func getUsername(uid uint32) string {
 type ProcessTimeState struct {
 	Time      uint64
 	Timestamp time.Time
+	Command   string
 }
 
 var prevProcessTimes = make(map[int]ProcessTimeState)
@@ -78,10 +79,17 @@ func processOsProc(kp C.struct_kinfo_proc, now time.Time, prevProcessTimes map[i
 	}
 
 	comm := C.GoString(&kp.kp_proc.p_comm[0])
-	var pathBuf [C.PROC_PIDPATHINFO_MAXSIZE]C.char
-	if C.proc_pidpath(C.int(pid), unsafe.Pointer(&pathBuf), C.PROC_PIDPATHINFO_MAXSIZE) > 0 {
-		fullPath := C.GoString(&pathBuf[0])
-		comm = filepath.Base(fullPath)
+	
+	// Fast path: reuse full command name to avoid heavy proc_pidpath syscall on every tick.
+	// p_comm is a 16-byte truncation of the full name, so check if cached command starts with it.
+	if prevState, ok := prevProcessTimes[pid]; ok && prevState.Command != "" && strings.HasPrefix(prevState.Command, comm) {
+		comm = prevState.Command
+	} else {
+		var pathBuf [C.PROC_PIDPATHINFO_MAXSIZE]C.char
+		if C.proc_pidpath(C.int(pid), unsafe.Pointer(&pathBuf), C.PROC_PIDPATHINFO_MAXSIZE) > 0 {
+			fullPath := C.GoString(&pathBuf[0])
+			comm = filepath.Base(fullPath)
+		}
 	}
 
 	rssBytes := int64(0)
@@ -109,6 +117,7 @@ func processOsProc(kp C.struct_kinfo_proc, now time.Time, prevProcessTimes map[i
 	newState := ProcessTimeState{
 		Time:      totalTimeNs,
 		Timestamp: now,
+		Command:   comm,
 	}
 
 	memPercent := 0.0
