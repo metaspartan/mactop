@@ -2049,6 +2049,7 @@ PowerMetrics samplePowerMetrics(int durationMs) {
     int coveredByHID = 0;
     if ((k1 == 'e') && useHidEcore) coveredByHID = 1;
     else if ((k1 == 'p' || k1 == 'f') && useHidPcore) coveredByHID = 1;
+    else if ((k1 == 's') && useHidScore) coveredByHID = 1;
     else if ((k1 == 'g' || k1 == 'R') && useHidGPU) coveredByHID = 1;
 
     if (coveredByHID) continue;
