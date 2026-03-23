@@ -832,17 +832,11 @@ func updateTotalPowerChart(watts float64) {
 }
 
 func updateCPUUI(cpuMetrics CPUMetrics) {
-	coreUsages, err := GetCPUPercentages()
-	if err != nil {
-		stderrLogger.Printf("Error getting CPU percentages: %v\n", err)
-		return
+	if len(cpuMetrics.CoreUsages) > 0 {
+		cpuCoreWidget.UpdateUsage(cpuMetrics.CoreUsages)
 	}
-	cpuCoreWidget.UpdateUsage(coreUsages)
-	var totalUsage float64
-	for _, usage := range coreUsages {
-		totalUsage += usage
-	}
-	totalUsage /= float64(len(coreUsages))
+
+	totalUsage := cpuMetrics.AvgUsage
 	cpuGauge.Percent = int(totalUsage)
 
 	updateCPUHistory(totalUsage)
@@ -858,7 +852,7 @@ func updateCPUUI(cpuMetrics CPUMetrics) {
 	memoryGauge.Percent = int(memoryPercent)
 
 	updateMemoryHistory(memoryMetrics)
-	finalizeCPUUI(totalUsage, coreUsages, cpuMetrics, memoryMetrics)
+	finalizeCPUUI(totalUsage, cpuMetrics.CoreUsages, cpuMetrics, memoryMetrics)
 }
 
 func updateCPUHistory(totalUsage float64) {

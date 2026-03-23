@@ -191,19 +191,6 @@ func dispatchMetrics(done chan struct{}, cpuCh chan CPUMetrics, gpuCh chan GPUMe
 	return false
 }
 
-// getAvgCPUPercent returns the average CPU usage percentage across all cores.
-func getAvgCPUPercent() float64 {
-	percentages, err := GetCPUPercentages()
-	if err != nil || len(percentages) == 0 {
-		return 0
-	}
-	var total float64
-	for _, p := range percentages {
-		total += p
-	}
-	return total / float64(len(percentages))
-}
-
 func collectMetrics(done chan struct{}, cpumetricsChan chan CPUMetrics, gpumetricsChan chan GPUMetrics, tbNetStatsChan chan []ThunderboltNetStats, triggerProcessCollectionChan chan struct{}) {
 	// Pre-calculate static info
 	sysInfo := getSOCInfo()
@@ -235,6 +222,15 @@ func collectMetrics(done chan struct{}, cpumetricsChan chan CPUMetrics, gpumetri
 			systemResidual = m.SystemPower - componentSum
 		}
 
+		coreUsages, _ := GetCPUPercentages()
+		avgUsage := 0.0
+		if len(coreUsages) > 0 {
+			for _, p := range coreUsages {
+				avgUsage += p
+			}
+			avgUsage /= float64(len(coreUsages))
+		}
+
 		cpuMetrics := CPUMetrics{
 			CPUW:            m.CPUPower,
 			GPUW:            m.GPUPower,
@@ -257,6 +253,8 @@ func collectMetrics(done chan struct{}, cpumetricsChan chan CPUMetrics, gpumetri
 			DRAMBWCombined:  m.DRAMBWCombined,
 			Fans:            m.Fans,
 			TempSensors:     m.TempSensors,
+			CoreUsages:      coreUsages,
+			AvgUsage:        avgUsage,
 		}
 
 		gpuMetrics := GPUMetrics{
@@ -283,7 +281,7 @@ func collectMetrics(done chan struct{}, cpumetricsChan chan CPUMetrics, gpumetri
 			renderMutex.Lock()
 			nd := lastNetDiskMetrics
 			renderMutex.Unlock()
-			pushMenuBarMetricsToWorker(m, cpuMetrics, gpuMetrics, nd, sysInfo, maxFP32TFLOPs, getAvgCPUPercent(), thermalStr, rdmaStat)
+			pushMenuBarMetricsToWorker(m, cpuMetrics, gpuMetrics, nd, sysInfo, maxFP32TFLOPs, cpuMetrics.AvgUsage, thermalStr, rdmaStat)
 		}
 
 		// Push to overlay worker
@@ -291,7 +289,7 @@ func collectMetrics(done chan struct{}, cpumetricsChan chan CPUMetrics, gpumetri
 			renderMutex.Lock()
 			nd := lastNetDiskMetrics
 			renderMutex.Unlock()
-			pushOverlayMetrics(m, cpuMetrics, gpuMetrics, nd, sysInfo, maxFP32TFLOPs, getAvgCPUPercent(), thermalStr, rdmaStat)
+			pushOverlayMetrics(m, cpuMetrics, gpuMetrics, nd, sysInfo, maxFP32TFLOPs, cpuMetrics.AvgUsage, thermalStr, rdmaStat)
 		}
 
 		elapsed := time.Since(start)

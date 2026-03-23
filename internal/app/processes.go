@@ -85,7 +85,7 @@ func processOsProc(kp C.struct_kinfo_proc, now time.Time, prevProcessTimes map[i
 
 	comm := C.GoString(&kp.kp_proc.p_comm[0])
 	createSec := int64(C.get_proc_starttime(&kp))
-	
+
 	// Fast path: reuse full command name to avoid heavy proc_pidpath syscall on every tick.
 	// p_comm is a 16-byte truncation of the full name, so check if cached command starts with it.
 	if prevState, ok := prevProcessTimes[pid]; ok && prevState.CreateSec == createSec && prevState.Command != "" && strings.HasPrefix(prevState.Command, comm) {

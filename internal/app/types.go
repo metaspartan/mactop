@@ -23,6 +23,7 @@ type CPUMetrics struct {
 	CoreMetrics                                                      map[string]int
 	ANEW, CPUW, GPUW, DRAMW, GPUSRAMW, PackageW, SystemW             float64
 	CoreUsages                                                       []float64
+	AvgUsage                                                         float64
 	Throttled                                                        bool
 	CPUTemp                                                          float64
 	GPUTemp                                                          float64
