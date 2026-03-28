@@ -93,6 +93,7 @@ static overlay_metrics_t g_overlay_metrics;
 static double cpuSparkHistory[OVERLAY_SPARKLINE_HISTORY] = {0};
 static double gpuSparkHistory[OVERLAY_SPARKLINE_HISTORY] = {0};
 static double fpsSparkHistory[OVERLAY_SPARKLINE_HISTORY] = {0};
+static double frameIntSparkHistory[OVERLAY_SPARKLINE_HISTORY] = {0};
 static BOOL g_overlay_expanded = NO;
 
 static void pushSparkHistory(double *buf, double val) {
@@ -183,6 +184,7 @@ static CGDisplayStreamRef_t g_fpsStream = NULL;
 static _Atomic uint32_t g_fpsFrameCount = 0;   // Completed frames this interval
 static _Atomic uint32_t g_fpsDropCount = 0;     // Dropped frames this interval
 static _Atomic uint32_t g_fpsValue = 0;         // Last computed FPS
+static _Atomic uint32_t g_frameIntervalUs = 0;  // Frame interval in microseconds (×1000 for ms)
 static dispatch_source_t g_fpsTimer = NULL;
 static uint64_t g_fpsLastTimestamp = 0;
 
@@ -262,12 +264,16 @@ static void startFPSCounter(void) {
     uint32_t dropped = atomic_exchange(&g_fpsDropCount, 0);
     uint32_t totalFrames = completed + dropped;
 
-    // Calculate FPS from actual elapsed time
+    // Calculate FPS and frame interval from actual elapsed time
     uint32_t fps = 0;
-    if (seconds > 0.1) {
+    uint32_t intervalUs = 0;
+    if (seconds > 0.1 && totalFrames > 0) {
       fps = (uint32_t)(totalFrames / seconds + 0.5);
+      // Average frame interval in microseconds for sub-ms precision
+      intervalUs = (uint32_t)(seconds * 1e6 / totalFrames + 0.5);
     }
     atomic_store(&g_fpsValue, fps);
+    atomic_store(&g_frameIntervalUs, intervalUs);
   });
   dispatch_resume(g_fpsTimer);
 }
@@ -652,6 +658,7 @@ static void drawMiniBar(CGFloat x, CGFloat y, CGFloat w, CGFloat h,
 
   // FPS (first metric — always rendered, full-width sparkline)
   uint32_t fps = atomic_load(&g_fpsValue);
+  uint32_t frameIntUs = atomic_load(&g_frameIntervalUs);
   {
     NSString *fpsLabel = @"FPS";
     [fpsLabel drawAtPoint:NSMakePoint(padX, y + 4) withAttributes:labelAttrs];
@@ -680,6 +687,55 @@ static void drawMiniBar(CGFloat x, CGFloat y, CGFloat w, CGFloat h,
     drawMiniSparkline(fpsSparkHistory, OVERLAY_SPARKLINE_HISTORY,
                       padX + fpsLabelW, y + 2, fpsSparkW,
                       sparkH, overlayAccentCyan(), fpsMax);
+    y += rowH;
+  }
+
+  // Frame Interval (ms) — own row with sparkline, always rendered alongside FPS
+  {
+    NSString *fiLabel = @"Frame";
+    [fiLabel drawAtPoint:NSMakePoint(padX, y + 4) withAttributes:labelAttrs];
+
+    // Frame interval value right-aligned with color coding
+    double frameMs = frameIntUs / 1000.0;
+    NSString *fiVal;
+    if (frameIntUs > 0) {
+      fiVal = [NSString stringWithFormat:@"%.1fms", frameMs];
+    } else {
+      fiVal = @"—";
+    }
+    // Color-code: green <11ms (>90fps), yellow 11-20ms (50-90fps), red >20ms (<50fps)
+    NSColor *fiColor;
+    if (frameIntUs == 0) {
+      fiColor = overlayDimText();
+    } else if (frameMs > 20.0) {
+      fiColor = overlayAccentRed();
+    } else if (frameMs > 11.0) {
+      fiColor = overlayAccentYellow();
+    } else {
+      fiColor = overlayAccentGreen();
+    }
+    NSDictionary *fiAttrs = @{
+      NSFontAttributeName : valueFont,
+      NSForegroundColorAttributeName : fiColor
+    };
+    NSSize fiSize = [fiVal sizeWithAttributes:fiAttrs];
+    [fiVal drawAtPoint:NSMakePoint(padX + contentW - fiSize.width, y + 3)
+        withAttributes:fiAttrs];
+
+    // Sparkline — auto-scale to max observed frame interval
+    double fiMax = 16.7; // Start at 60fps baseline
+    for (int i = 0; i < OVERLAY_SPARKLINE_HISTORY; i++) {
+      if (frameIntSparkHistory[i] > fiMax) fiMax = frameIntSparkHistory[i];
+    }
+    fiMax = ceil(fiMax / 5.0) * 5.0; // Round up to nearest 5ms
+    if (fiMax < 10.0) fiMax = 10.0;
+    CGFloat fiLabelW = 65; // space for "Frame" label
+    CGFloat fiValW = fiSize.width + 8;
+    CGFloat fiSparkW = contentW - fiLabelW - fiValW;
+    // Use inverted color: high frame time = bad, so use warm color for sparkline
+    drawMiniSparkline(frameIntSparkHistory, OVERLAY_SPARKLINE_HISTORY,
+                      padX + fiLabelW, y + 2, fiSparkW,
+                      sparkH, overlayAccentOrange(), fiMax);
     y += rowH;
   }
 
@@ -987,6 +1043,7 @@ void updateOverlayMetrics(overlay_metrics_t *m) {
     pushSparkHistory(cpuSparkHistory, localMetrics.cpu_percent);
     pushSparkHistory(gpuSparkHistory, localMetrics.gpu_percent);
     pushSparkHistory(fpsSparkHistory, (double)atomic_load(&g_fpsValue));
+    pushSparkHistory(frameIntSparkHistory, atomic_load(&g_frameIntervalUs) / 1000.0);
 
     // Dynamically resize window based on content
     CGFloat rowH = 28;
@@ -996,6 +1053,7 @@ void updateOverlayMetrics(overlay_metrics_t *m) {
     int rows = 0;
 
     rows++; // FPS row (always present — shows 0 when unavailable)
+    rows++; // Frame interval row (always present alongside FPS)
 
     if (g_overlay_config.show_cpu) rows++;
     if (g_overlay_config.show_gpu) rows++;
