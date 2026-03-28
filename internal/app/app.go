@@ -930,7 +930,7 @@ func formatCPUFreq(cpuMetrics CPUMetrics) string {
 	if cpuMetrics.SClusterFreqMHz > 0 {
 		lastSFreq = cpuMetrics.SClusterFreqMHz
 	}
-	if lastEFreq <= 0 && lastPFreq <= 0 {
+	if lastEFreq <= 0 && lastPFreq <= 0 && lastSFreq <= 0 {
 		return ""
 	}
 	parts := make([]string, 0, 3)
