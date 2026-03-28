@@ -570,6 +570,15 @@ func runAlternateMode() bool {
 		DumpAllSMCTemps()
 		return true
 	}
+	if dumpDebug {
+		sysInfo := getSOCInfo()
+		fmt.Printf("System: %s\n", sysInfo.Name)
+		fmt.Printf("Cores: %d E + %d P + %d S = %d total\n",
+			sysInfo.ECoreCount, sysInfo.PCoreCount, sysInfo.SCoreCount, sysInfo.CoreCount)
+		fmt.Printf("GPU Cores: %d\n\n", sysInfo.GPUCoreCount)
+		DumpIOReportDebug()
+		return true
+	}
 	if menubarWorker {
 		startMenuBarWorker()
 		return true
@@ -1298,6 +1307,7 @@ func parseCommandLineFlags() {
 	flag.IntVar(&filterPID, "pid", 0, "Monitor a specific process by PID")
 	flag.BoolVar(&fanControl, "fan-control", false, "Enable interactive fan speed control (⚠️  writes to SMC)")
 	flag.BoolVar(&dumpTemps, "dump-temps", false, "Diagnostic: dump all raw SMC temperature keys and exit")
+	flag.BoolVar(&dumpDebug, "dump-debug", false, "Diagnostic: dump IOReport/HID/SMC/NVMe debug info and exit")
 }
 
 func setupMainBlockLayout(termWidth, termHeight int) {

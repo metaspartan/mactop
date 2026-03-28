@@ -751,25 +751,34 @@ int initIOReport() {
       IOReportCopyChannelsInGroup(energyGroup, NULL, 0, 0, 0);
   CFDictionaryRef gpuChan =
       IOReportCopyChannelsInGroup(gpuGroup, NULL, 0, 0, 0);
+  int hasGpu = (gpuChan != NULL);
+  int hasCpu = 0, hasAmc = 0;
 
   if (energyChan == NULL) {
+    fprintf(stderr, "initIOReport: 'Energy Model' channel group not found\n");
     return -1;
   }
 
   if (gpuChan != NULL) {
     IOReportMergeChannels(energyChan, gpuChan, NULL);
     CFRelease(gpuChan);
+  } else {
+    fprintf(stderr, "initIOReport: warning: 'GPU Stats' channel group not found\n");
   }
 
   CFDictionaryRef cpuChan =
       IOReportCopyChannelsInGroup(cpuGroup, NULL, 0, 0, 0);
+  hasCpu = (cpuChan != NULL);
   if (cpuChan != NULL) {
     IOReportMergeChannels(energyChan, cpuChan, NULL);
     CFRelease(cpuChan);
+  } else {
+    fprintf(stderr, "initIOReport: warning: 'CPU Stats' channel group not found\n");
   }
 
   CFDictionaryRef amcChan =
       IOReportCopyChannelsInGroup(amcGroup, NULL, 0, 0, 0);
+  hasAmc = (amcChan != NULL);
   if (amcChan != NULL) {
     IOReportMergeChannels(energyChan, amcChan, NULL);
     CFRelease(amcChan);
@@ -786,6 +795,7 @@ int initIOReport() {
   CFRelease(energyChan);
 
   if (g_channels == NULL) {
+    fprintf(stderr, "initIOReport: failed to create mutable channel dictionary (size=%ld)\n", (long)size);
     return -2;
   }
 
@@ -794,6 +804,16 @@ int initIOReport() {
       IOReportCreateSubscription(NULL, g_channels, &subsystem, 0, NULL);
 
   if (g_subscription == NULL) {
+    // Count channels for diagnostic info
+    CFArrayRef chArr = CFDictionaryGetValue(g_channels, CFSTR("IOReportChannels"));
+    CFIndex chCount = chArr ? CFArrayGetCount(chArr) : 0;
+    fprintf(stderr, "initIOReport: IOReportCreateSubscription failed "
+            "(channels=%ld, groups: Energy=%s GPU=%s CPU=%s AMC=%s)\n",
+            (long)chCount,
+            "yes",
+            hasGpu ? "yes" : "no",
+            hasCpu ? "yes" : "no",
+            hasAmc ? "yes" : "no");
     CFRelease(g_channels);
     g_channels = NULL;
     return -3;
@@ -982,6 +1002,179 @@ void debugIOReport() {
   CFRelease(allChannels);
 }
 
+// Standalone diagnostic dump — works even if initIOReport() fails.
+// Designed for users to paste output into GitHub issues.
+void dumpIOReportDebug(void) {
+  printf("=== mactop IOReport Debug Dump ===\n\n");
+
+  // 1. Probe all known IOReport channel groups
+  printf("--- IOReport Channel Groups ---\n");
+  const char *groups[] = {
+    "Energy Model", "GPU Stats", "CPU Stats", "AMC Stats",
+    "PMP", "CLPC", "ODS", "Performance Statistics",
+    NULL
+  };
+  for (int i = 0; groups[i] != NULL; i++) {
+    CFStringRef groupStr = CFStringCreateWithCString(
+        kCFAllocatorDefault, groups[i], kCFStringEncodingUTF8);
+    CFDictionaryRef ch = IOReportCopyChannelsInGroup(groupStr, NULL, 0, 0, 0);
+    if (ch != NULL) {
+      CFArrayRef arr = CFDictionaryGetValue(ch, CFSTR("IOReportChannels"));
+      CFIndex count = arr ? CFArrayGetCount(arr) : 0;
+      printf("  %-25s [OK]  %ld channels\n", groups[i], (long)count);
+      CFRelease(ch);
+    } else {
+      printf("  %-25s [NOT FOUND]\n", groups[i]);
+    }
+    CFRelease(groupStr);
+  }
+
+  // 2. Test subscription with Energy Model only (minimal)
+  printf("\n--- Subscription Test ---\n");
+  CFDictionaryRef energyChan =
+      IOReportCopyChannelsInGroup(CFSTR("Energy Model"), NULL, 0, 0, 0);
+  if (energyChan != NULL) {
+    CFMutableDictionaryRef mutable =
+        CFDictionaryCreateMutableCopy(kCFAllocatorDefault,
+                                     CFDictionaryGetCount(energyChan), energyChan);
+    CFRelease(energyChan);
+    CFMutableDictionaryRef subsystem = NULL;
+    IOReportSubscriptionRef sub =
+        IOReportCreateSubscription(NULL, mutable, &subsystem, 0, NULL);
+    if (sub != NULL) {
+      printf("  Energy-only subscription: [OK]\n");
+      // Test a quick sample
+      CFDictionaryRef s = IOReportCreateSamples(sub, mutable, NULL);
+      printf("  Quick sample:             %s\n", s ? "[OK]" : "[FAIL]");
+      if (s) CFRelease(s);
+    } else {
+      printf("  Energy-only subscription: [FAIL] — this is the root cause\n");
+      printf("  Possible causes:\n");
+      printf("    - IOReport access denied (check: log show --predicate 'eventMessage CONTAINS \"IOReport\"' --last 1m)\n");
+      printf("    - Binary not signed (try: codesign -s - /path/to/mactop)\n");
+      printf("    - System restriction on this macOS version\n");
+    }
+    CFRelease(mutable);
+  } else {
+    printf("  Energy Model not available — cannot test subscription\n");
+  }
+
+  // 3. Test full subscription (as initIOReport does)
+  printf("\n--- Full Subscription Test ---\n");
+  energyChan = IOReportCopyChannelsInGroup(CFSTR("Energy Model"), NULL, 0, 0, 0);
+  if (energyChan != NULL) {
+    CFDictionaryRef gpuChan = IOReportCopyChannelsInGroup(CFSTR("GPU Stats"), NULL, 0, 0, 0);
+    CFDictionaryRef cpuChan = IOReportCopyChannelsInGroup(CFSTR("CPU Stats"), NULL, 0, 0, 0);
+    CFDictionaryRef amcChan = IOReportCopyChannelsInGroup(CFSTR("AMC Stats"), NULL, 0, 0, 0);
+    if (gpuChan) { IOReportMergeChannels(energyChan, gpuChan, NULL); CFRelease(gpuChan); }
+    if (cpuChan) { IOReportMergeChannels(energyChan, cpuChan, NULL); CFRelease(cpuChan); }
+    if (amcChan) { IOReportMergeChannels(energyChan, amcChan, NULL); CFRelease(amcChan); }
+    CFMutableDictionaryRef merged =
+        CFDictionaryCreateMutableCopy(kCFAllocatorDefault,
+                                     CFDictionaryGetCount(energyChan), energyChan);
+    CFRelease(energyChan);
+    CFArrayRef mergedArr = CFDictionaryGetValue(merged, CFSTR("IOReportChannels"));
+    CFIndex mergedCount = mergedArr ? CFArrayGetCount(mergedArr) : 0;
+    printf("  Merged channels: %ld\n", (long)mergedCount);
+    CFMutableDictionaryRef subsystem = NULL;
+    IOReportSubscriptionRef sub =
+        IOReportCreateSubscription(NULL, merged, &subsystem, 0, NULL);
+    printf("  Full subscription: %s\n", sub ? "[OK]" : "[FAIL]");
+    CFRelease(merged);
+  }
+
+  // 4. SMC connectivity
+  printf("\n--- SMC ---\n");
+  io_connect_t smc = SMCOpen();
+  printf("  SMC connection: %s (use --dump-temps for full key list)\n",
+         smc ? "[OK]" : "[FAIL]");
+  if (smc) SMCClose(smc);
+
+  // 5. HID sensor availability
+  printf("\n--- HID Temperature Sensors ---\n");
+  IOHIDEventSystemClientRef hidClient = getHIDClient();
+  if (hidClient) {
+    CFArrayRef services = IOHIDEventSystemClientCopyServices(hidClient);
+    if (services) {
+      CFIndex count = CFArrayGetCount(services);
+      int eCount = 0, pCount = 0, sCount = 0, gpuCount = 0, nandCount = 0, otherCount = 0;
+      for (CFIndex i = 0; i < count; i++) {
+        IOHIDServiceClientRef svc =
+            (IOHIDServiceClientRef)CFArrayGetValueAtIndex(services, i);
+        CFStringRef prodRef = IOHIDServiceClientCopyProperty(svc, CFSTR("Product"));
+        if (!prodRef) continue;
+        char prod[256] = {0};
+        CFStringGetCString(prodRef, prod, sizeof(prod), kCFStringEncodingUTF8);
+        if (strstr(prod, "eACC")) eCount++;
+        else if (strstr(prod, "pACC") || strstr(prod, "mACC")) pCount++;
+        else if (strstr(prod, "sACC")) sCount++;
+        else if (strstr(prod, "GPU")) gpuCount++;
+        else if (strstr(prod, "NAND")) nandCount++;
+        else otherCount++;
+        CFRelease(prodRef);
+      }
+      printf("  Total HID temp services: %ld\n", (long)count);
+      printf("  E-Core(eACC): %d  P-Core(pACC/mACC): %d  S-Core(sACC): %d\n",
+             eCount, pCount, sCount);
+      printf("  GPU: %d  NAND: %d  Other: %d\n", gpuCount, nandCount, otherCount);
+      CFRelease(services);
+    } else {
+      printf("  HID services: [NOT AVAILABLE]\n");
+    }
+  } else {
+    printf("  HID client: [FAIL]\n");
+  }
+
+  // 6. NVMe SMART capability
+  printf("\n--- NVMe SMART ---\n");
+  CFMutableDictionaryRef match = IOServiceMatching("IOBlockStorageDevice");
+  io_iterator_t iter;
+  kern_return_t kr = IOServiceGetMatchingServices(kIOMainPortDefault, match, &iter);
+  if (kr == kIOReturnSuccess) {
+    io_service_t svc;
+    int nvmeCount = 0;
+    while ((svc = IOIteratorNext(iter)) != 0) {
+      CFTypeRef smart = IORegistryEntryCreateCFProperty(
+          svc, CFSTR("NVMe SMART Capable"), kCFAllocatorDefault, 0);
+      if (smart) {
+        nvmeCount++;
+        // Get class name
+        io_name_t className;
+        IOObjectGetClass(svc, className);
+        // Get model
+        char model[64] = "unknown";
+        CFDictionaryRef devChars = IORegistryEntryCreateCFProperty(
+            svc, CFSTR("Device Characteristics"), kCFAllocatorDefault, 0);
+        if (devChars && CFGetTypeID(devChars) == CFDictionaryGetTypeID()) {
+          CFStringRef prodName = CFDictionaryGetValue(devChars, CFSTR("Product Name"));
+          if (prodName) CFStringGetCString(prodName, model, sizeof(model), kCFStringEncodingUTF8);
+        }
+        if (devChars) CFRelease(devChars);
+
+        // Test plugin
+        CFUUIDRef factoryID = CFUUIDGetConstantUUIDWithBytes(NULL,
+            0xAA,0x0F,0xA6,0xF9,0xC2,0xD6,0x45,0x7F,
+            0xB1,0x0B,0x59,0xA1,0x32,0x53,0x29,0x2F);
+        IOCFPlugInInterface **plugin = NULL;
+        SInt32 score = 0;
+        kern_return_t pkr = IOCreatePlugInInterfaceForService(
+            svc, factoryID, kIOCFPlugInInterfaceID, &plugin, &score);
+        printf("  [%d] %s (%s) — SMART plugin: %s\n",
+               nvmeCount, model, className,
+               pkr == kIOReturnSuccess ? "OK" : "FAIL (using HID fallback)");
+        if (plugin) (*plugin)->Release(plugin);
+        CFRelease(smart);
+      }
+      IOObjectRelease(svc);
+    }
+    IOObjectRelease(iter);
+    if (nvmeCount == 0) printf("  No SMART-capable NVMe devices found\n");
+  } else {
+    printf("  IOBlockStorageDevice matching failed\n");
+  }
+
+  printf("\n=== End Debug Dump ===\n");
+}
 typedef struct {
   double cpuPower;
   double gpuPower;

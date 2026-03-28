@@ -95,6 +95,7 @@ extern void debugIOReport(void);
 extern void printAllChannels(void);
 extern void debugMonitorChannels(int durationMs);
 extern void dumpAllSMCTemps(void);
+extern void dumpIOReportDebug(void);
 extern void setExpectedCoreCounts(int eCores, int pCores, int sCores);
 int setFanForceTest(int enabled);
 int setFanMode(int fanIndex, int mode);
@@ -167,6 +168,11 @@ func initSocMetrics() error {
 	sysInfo := getSOCInfo()
 	C.setExpectedCoreCounts(C.int(sysInfo.ECoreCount), C.int(sysInfo.PCoreCount), C.int(sysInfo.SCoreCount))
 	return nil
+}
+
+// DumpIOReportDebug runs the standalone diagnostic dump (works even if initIOReport fails).
+func DumpIOReportDebug() {
+	C.dumpIOReportDebug()
 }
 
 func sampleSocMetrics(durationMs int) SocMetrics {
