@@ -68,6 +68,7 @@ var (
 	headlessFormat  string
 	menubar         bool    // Run as menu bar status item
 	filterPID       int     // Monitor a specific process by PID (0 = all)
+	cliFgColor      string  // Foreground color from --foreground flag (used for = assignments)
 	cliBgColor      string  // Background color from --bg flag
 	fanControl      bool    // Enable interactive fan speed control (requires --fan-control flag)
 	overlay         bool    // Show floating overlay HUD window

@@ -662,6 +662,16 @@ func Run() {
 
 	flag.Parse()
 
+	// If cli.go didn't catch --foreground (e.g., because it used an '=' sign like --foreground=green)
+	// then flag.Parse() will have populated cliFgColor. Update colorName and setColor.
+	if !setColor && cliFgColor != "" {
+		if !IsHexColor(cliFgColor) {
+			cliFgColor = strings.ToLower(cliFgColor)
+		}
+		colorName = cliFgColor
+		setColor = true
+	}
+
 	currentUser = os.Getenv("USER")
 
 	if runAlternateMode() {
@@ -1289,10 +1299,9 @@ func parseCommandLineFlags() {
 	flag.IntVar(&updateInterval, "i", 1000, "Update interval in milliseconds")
 	flag.Bool("d", false, "Dump all available IOReport channels and exit")
 	flag.Bool("dump-ioreport", false, "Dump all available IOReport channels and exit")
-	// Register --foreground so flag.Parse() doesn't error, but the actual value
-	// is consumed by handleLegacyFlags() which runs before flag.Parse().
-	var dummyForeground string
-	flag.StringVar(&dummyForeground, "foreground", "", "Set the UI foreground color (named or hex, e.g., green, #9580FF)")
+	// Register --foreground so flag.Parse() can catch assignments like --foreground=green.
+	// Space-separated assignments (--foreground green) are consumed by handleLegacyFlags().
+	flag.StringVar(&cliFgColor, "foreground", "", "Set the UI foreground color (named or hex, e.g., green, #9580FF)")
 	flag.StringVar(&cliBgColor, "bg", "", "Set the UI background color (named or hex, e.g., mocha-base, #22212C)")
 	flag.StringVar(&cliBgColor, "background", "", "Set the UI background color (alias for --bg)")
 	flag.StringVar(&networkUnit, "unit-network", "auto", "Network unit: auto, byte, kb, mb, gb")

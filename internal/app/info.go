@@ -372,10 +372,7 @@ func fanRPMBar(fan FanInfo, themeColor string) []string {
 	}
 
 	barWidth := 20
-	filled := int(pct / 100.0 * float64(barWidth))
-	if filled > barWidth {
-		filled = barWidth
-	}
+	filled := min(int(pct/100.0*float64(barWidth)), barWidth)
 	bar := strings.Repeat("█", filled) + strings.Repeat("░", barWidth-filled)
 
 	rpmColor := themeColor
