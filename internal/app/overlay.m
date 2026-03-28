@@ -242,9 +242,10 @@ static void startFPSCounter(void) {
         }
       });
 
-  if (g_fpsStream) {
-    fn_CGDisplayStreamStart(g_fpsStream);
+  if (!g_fpsStream) {
+    return; // Stream creation failed — FPS silently unavailable
   }
+  fn_CGDisplayStreamStart(g_fpsStream);
 
   g_fpsLastTimestamp = mach_absolute_time();
 
