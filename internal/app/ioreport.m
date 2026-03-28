@@ -1644,6 +1644,7 @@ int resetFansToAuto() {
 // Cached NVMe SMART temps — refreshed periodically, seeded by HID NAND fallback
 static temp_sensor_t g_nvme_temps[16];
 static int g_nvme_temp_count = 0;
+static int g_nvme_smart_active = 0;
 
 // Read per-core temperature sensors from IOHIDEventSystemClient.
 // Returns the number of sensors written into the output array.
@@ -1669,6 +1670,9 @@ static int readHIDCoreTempSensors(temp_sensor_t *out, int maxSensors,
 
   // Track per-type sequential indices
   int eIdx = 0, pIdx = 0, sIdx = 0, gpuIdx = 0;
+  
+  int hidNvmeCount = 0;
+  temp_sensor_t hidNvmeTemps[16];
 
   CFIndex svcCount = CFArrayGetCount(services);
   for (CFIndex i = 0; i < svcCount && count < maxSensors; i++) {
@@ -1737,7 +1741,20 @@ static int readHIDCoreTempSensors(temp_sensor_t *out, int maxSensors,
       s->value = (float)temp;
       (*idxPtr)++;
       count++;
+    } else if (strstr(product, "NAND") != NULL && strstr(product, "temp") != NULL) {
+      if (hidNvmeCount < 16) {
+        temp_sensor_t *s = &hidNvmeTemps[hidNvmeCount];
+        snprintf(s->key, sizeof(s->key), "Nv%02X", hidNvmeCount);
+        snprintf(s->name, sizeof(s->name), "NVMe %s", product);
+        s->value = (float)temp;
+        hidNvmeCount++;
+      }
     }
+  }
+
+  if (!g_nvme_smart_active && hidNvmeCount > 0) {
+    memcpy(g_nvme_temps, hidNvmeTemps, hidNvmeCount * sizeof(temp_sensor_t));
+    g_nvme_temp_count = hidNvmeCount;
   }
 
   // Report per-category counts
@@ -1745,48 +1762,6 @@ static int readHIDCoreTempSensors(temp_sensor_t *out, int maxSensors,
   *outPcount = pIdx;
   *outScount = sIdx;
   *outGPUcount = gpuIdx;
-
-  // Seed NVMe temperatures from HID NAND sensors (AppleEmbeddedNVMeTemperatureSensor)
-  // if the SMART plugin cache is empty (plugin fails for Apple embedded NVMe).
-  // This provides reliable internal NVMe drive temperature via IOHIDEventSystemClient.
-  if (g_nvme_temp_count == 0 && services != NULL) {
-    int nvmeIdx = 0;
-    for (CFIndex i = 0; i < svcCount && nvmeIdx < 16; i++) {
-      IOHIDServiceClientRef service =
-          (IOHIDServiceClientRef)CFArrayGetValueAtIndex(services, i);
-      if (service == NULL) continue;
-
-      CFStringRef productRef =
-          IOHIDServiceClientCopyProperty(service, CFSTR("Product"));
-      if (productRef == NULL) continue;
-
-      char product[512] = {0};
-      CFStringGetCString(productRef, product, sizeof(product),
-                         kCFStringEncodingUTF8);
-
-      // Match "NAND CH0 temp", "NAND CH1 temp", etc.
-      if (strstr(product, "NAND") != NULL && strstr(product, "temp") != NULL) {
-        IOHIDEventRef event = IOHIDServiceClientCopyEvent(
-            service, kIOHIDEventTypeTemperature, 0, 0);
-        if (event != NULL) {
-          double temp = IOHIDEventGetFloatValue(event,
-              kIOHIDEventTypeTemperature << 16);
-          CFRelease(event);
-          if (temp > 0.0 && temp < 150.0) {
-            temp_sensor_t *s = &g_nvme_temps[nvmeIdx];
-            snprintf(s->key, sizeof(s->key), "Nv%02X", nvmeIdx);
-            snprintf(s->name, sizeof(s->name), "NVMe %s", product);
-            s->value = (float)temp;
-            nvmeIdx++;
-          }
-        }
-      }
-      CFRelease(productRef);
-    }
-    if (nvmeIdx > 0) {
-      g_nvme_temp_count = nvmeIdx;
-    }
-  }
 
   CFRelease(services);
   return count;
@@ -2031,6 +2006,7 @@ static void readNVMeSMARTTemps(void) {
   if (localCount > 0) {
     memcpy(g_nvme_temps, localTemps, localCount * sizeof(temp_sensor_t));
     g_nvme_temp_count = localCount;
+    g_nvme_smart_active = 1;
   }
 }
 

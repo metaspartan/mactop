@@ -1210,7 +1210,7 @@ func updateNetDiskUI(netdiskMetrics NetDiskMetrics) {
 	linkInfo := ""
 	if bestEth > 0 && bestEth >= uint64(bestWifi) {
 		linkInfo = FormatLinkSpeed(bestEth)
-	} else if bestWifi > 0 {
+	} else if wifiInfo != nil && wifiInfo.IsConnected {
 		if wifiInfo.WiFiGeneration != "" {
 			linkInfo = fmt.Sprintf("%s", wifiInfo.WiFiGeneration)
 		} else {
