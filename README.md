@@ -153,7 +153,6 @@ mactop --headless --format toon
 - `--unit-disk`: Disk unit: auto, byte, kb, mb, gb (default: auto)
 - `--unit-temp`: Temperature unit: celsius, fahrenheit (default: celsius)
 - `--fan-control`: Enable interactive fan speed control (**⚠️ writes to SMC** — use with caution, may require sudo on some macOS versions)
-- `--test` or `-t`: Test IOReport power metrics (no sudo required)
 - `--menubar`: Run as a macOS menu bar status item alongside the TUI.
 - `--version` or `-v`: Print the version of mactop.
 - `--help` or `-h`: Show a help message about these flags and how to run mactop.
