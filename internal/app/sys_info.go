@@ -87,7 +87,10 @@ func getVolumes() []VolumeInfo {
 
 func getSOCInfo() SystemInfo {
 	cpuInfoDict := getCPUInfo()
-	coreTiers := getPerfLevelCores()
+	
+	// Use authoritative core counts from BuildCoreLabels which matches the gauge
+	// and accurately cross-references IORegistry with sysctl perflevels.
+	_, eCount, pCount, sCount, _ := BuildCoreLabels()
 
 	coreCount, _ := strconv.Atoi(cpuInfoDict["machdep.cpu.core_count"])
 	gpuCoreCountStr := getGPUCores()
@@ -98,9 +101,9 @@ func getSOCInfo() SystemInfo {
 	return SystemInfo{
 		Name:         cpuInfoDict["machdep.cpu.brand_string"],
 		CoreCount:    coreCount,
-		ECoreCount:   coreTiers["E"],
-		PCoreCount:   coreTiers["P"],
-		SCoreCount:   coreTiers["S"],
+		ECoreCount:   eCount,
+		PCoreCount:   pCount,
+		SCoreCount:   sCount,
 		GPUCoreCount: gpuCoreCount,
 	}
 }

@@ -140,6 +140,7 @@ static CGDisplayStreamUpdateGetDropCount_fn fn_CGDisplayStreamGetDrops = NULL;
 static CFStringRef kMinFrameTime = NULL;
 static CFStringRef kShowCursor = NULL;
 static CFStringRef kQueueDepth = NULL;
+static CFStringRef kSourceRect = NULL;
 
 static bool loadCGDisplayStreamSymbols(void) {
   void *cg = dlopen(
@@ -166,13 +167,13 @@ static bool loadCGDisplayStreamSymbols(void) {
       (CFStringRef *)dlsym(cg, "kCGDisplayStreamShowCursor");
   CFStringRef *pQueueDepth =
       (CFStringRef *)dlsym(cg, "kCGDisplayStreamQueueDepth");
+  CFStringRef *pSourceRect =
+      (CFStringRef *)dlsym(cg, "kCGDisplayStreamSourceRect");
 
-  if (pMinFrameTime)
-    kMinFrameTime = *pMinFrameTime;
-  if (pShowCursor)
-    kShowCursor = *pShowCursor;
-  if (pQueueDepth)
-    kQueueDepth = *pQueueDepth;
+  if (pMinFrameTime) kMinFrameTime = *pMinFrameTime;
+  if (pShowCursor) kShowCursor = *pShowCursor;
+  if (pQueueDepth) kQueueDepth = *pQueueDepth;
+  if (pSourceRect) kSourceRect = *pSourceRect;
 
   // Don't dlclose — keep symbols alive
   return (fn_CGDisplayStreamCreate && fn_CGDisplayStreamStart &&
@@ -214,18 +215,17 @@ static void startFPSCounter(void) {
   CGDirectDisplayID mainDisplay = CGMainDisplayID();
 
   // minimumFrameTime = 0 means "deliver as fast as possible"
-  NSDictionary *streamProps = @{
-    (__bridge NSString *)kMinFrameTime : @(0.0),
-    (__bridge NSString *)kShowCursor : @(NO),
-    (__bridge NSString *)kQueueDepth : @(1),
-  };
+  NSMutableDictionary *streamProps = [NSMutableDictionary dictionary];
+  streamProps[(__bridge NSString *)kMinFrameTime] = @(0.0);
+  streamProps[(__bridge NSString *)kShowCursor] = @(NO);
+  streamProps[(__bridge NSString *)kQueueDepth] = @(1);
 
   dispatch_queue_t fpsQueue =
       dispatch_queue_create("com.mactop.fps", DISPATCH_QUEUE_SERIAL);
 
-  // Capture a tiny 1x1 region to minimize GPU/memory cost
+  // Capture a 16x16 region minimum scaling threshold check (bypass <16px hw faults)
   g_fpsStream = fn_CGDisplayStreamCreate(
-      mainDisplay, 1, 1, 'BGRA', (__bridge CFDictionaryRef)streamProps,
+      mainDisplay, 16, 16, 'BGRA', (__bridge CFDictionaryRef)streamProps,
       fpsQueue,
       ^(int status, uint64_t displayTime __attribute__((unused)),
         IOSurfaceRef_t frameSurface __attribute__((unused)),

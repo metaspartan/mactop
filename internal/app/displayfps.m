@@ -39,6 +39,7 @@ static CGDisplayStreamUpdateGetDropCount_fn fn_DFPSGetDrops = NULL;
 static CFStringRef kDFPSMinFrameTime = NULL;
 static CFStringRef kDFPSShowCursor = NULL;
 static CFStringRef kDFPSQueueDepth = NULL;
+static CFStringRef kDFPSSourceRect = NULL;
 
 static bool dfps_loadSymbols(void) {
   void *cg = dlopen(
@@ -60,11 +61,15 @@ static bool dfps_loadSymbols(void) {
       (CFStringRef *)dlsym(cg, "kCGDisplayStreamShowCursor");
   CFStringRef *pDepth =
       (CFStringRef *)dlsym(cg, "kCGDisplayStreamQueueDepth");
+  CFStringRef *pSrc =
+      (CFStringRef *)dlsym(cg, "kCGDisplayStreamSourceRect");
 
   if (pMin) kDFPSMinFrameTime = *pMin;
   if (pCur) kDFPSShowCursor = *pCur;
   if (pDepth) kDFPSQueueDepth = *pDepth;
+  if (pSrc) kDFPSSourceRect = *pSrc;
 
+  // kDFPSSourceRect might be legitimately NULL on very old macOS, so don't fail if missing
   return (fn_DFPSCreate && fn_DFPSStart && fn_DFPSStop && fn_DFPSGetDrops &&
           kDFPSMinFrameTime && kDFPSShowCursor && kDFPSQueueDepth);
 }
@@ -98,26 +103,27 @@ static double dfps_machTimeToSeconds(uint64_t elapsed) {
 // startDisplayFPSCounter starts the CGDisplayStream-based FPS counter.
 // Returns 0 on success, -1 if CGDisplayStream is unavailable.
 int startDisplayFPSCounter(void) {
-  if (atomic_load(&g_dfpsRunning))
+  if (atomic_exchange(&g_dfpsRunning, 1) == 1) {
     return 0; // Already running
+  }
 
-  if (!dfps_loadSymbols())
-    return -1; // CGDisplayStream not available
+  if (!dfps_loadSymbols()) {
+    return -1;
+  }
 
   CGDirectDisplayID mainDisplay = CGMainDisplayID();
 
-  NSDictionary *props = @{
-    (__bridge NSString *)kDFPSMinFrameTime : @(0.0),
-    (__bridge NSString *)kDFPSShowCursor : @(NO),
-    (__bridge NSString *)kDFPSQueueDepth : @(1),
-  };
+  NSMutableDictionary *props = [NSMutableDictionary dictionary];
+  props[(__bridge NSString *)kDFPSMinFrameTime] = @(0.0);
+  props[(__bridge NSString *)kDFPSShowCursor] = @(NO);
+  props[(__bridge NSString *)kDFPSQueueDepth] = @(1);
 
   dispatch_queue_t q =
       dispatch_queue_create("com.mactop.displayfps", DISPATCH_QUEUE_SERIAL);
 
-  // Capture a tiny 1x1 region to minimize GPU/memory cost
+  // Capture a 16x16 region minimum scaling threshold check (bypass <16px hw faults)
   g_dfpsStream = fn_DFPSCreate(
-      mainDisplay, 1, 1, 'BGRA', (__bridge CFDictionaryRef)props, q,
+      mainDisplay, 16, 16, 'BGRA', (__bridge CFDictionaryRef)props, q,
       ^(int status, uint64_t displayTime __attribute__((unused)),
         IOSurfaceRef_t frameSurface __attribute__((unused)),
         CGDisplayStreamUpdateRef_t updateRef) {
