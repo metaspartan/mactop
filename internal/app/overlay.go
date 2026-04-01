@@ -25,6 +25,7 @@ typedef struct {
     double cpu_temp;
     double gpu_temp;
     char thermal_state[32];
+    int thermal_level; // 0=nominal, 1=fair, 2=serious, 3=critical
     char model_name[128];
     int gpu_core_count;
     int e_core_count;
@@ -356,6 +357,7 @@ func updateOverlayFromPayload(p MenuBarMetricsPayload) {
 		cm.thermal_state[i] = C.char(b)
 	}
 	cm.thermal_state[len(thermalBytes)] = 0
+	cm.thermal_level = C.int(p.ThermalLevel)
 
 	// RDMA Status
 	rdmaBytes := []byte(p.RDMAStatus)
@@ -457,6 +459,7 @@ func pushOverlayMetrics(sm SocMetrics, cpuMetrics CPUMetrics, gpuMetrics GPUMetr
 		TFLOPs:         maxFP32TFLOPs,
 		CPUPercent:     cpuPercent,
 		ThermalState:   thermalState,
+		ThermalLevel:   int(getThermalStateLevel()),
 		RDMAStatus:     rdmaStatus,
 		TotalPower:     sm.TotalPower,
 	}

@@ -45,6 +45,7 @@ typedef struct {
   double cpu_temp;
   double gpu_temp;
   char thermal_state[32];
+  int thermal_level; // 0=nominal, 1=fair, 2=serious, 3=critical
   char model_name[128];
   int gpu_core_count;
   int e_core_count;
@@ -1429,11 +1430,10 @@ static void drawMiniBar(CGFloat x, CGFloat y, CGFloat w, CGFloat h,
     if (thermalStr.length == 0)
       thermalStr = localize(@"Metrics_ThermalUnknown");
     NSColor *thermalColor = overlayAccentGreen();
-    if ([thermalStr isEqualToString:localize(@"Metrics_ThermalCritical")])
+    // Use numeric level for color (language-independent)
+    if (m.thermal_level >= 2) // serious or critical
       thermalColor = overlayAccentRed();
-    else if ([thermalStr isEqualToString:localize(@"Metrics_ThermalSerious")])
-      thermalColor = overlayAccentRed();
-    else if ([thermalStr isEqualToString:localize(@"Metrics_ThermalFair")])
+    else if (m.thermal_level == 1) // fair
       thermalColor = overlayAccentYellow();
     drawMetricKV([NSString stringWithUTF8String:sectionDisplayName(kSectionThermal)], thermalStr, thermalColor);
   };

@@ -100,6 +100,7 @@ type MenuBarMetricsPayload struct {
 	TFLOPs         float64        `json:"tflops"`
 	CPUPercent     float64        `json:"cpu_percent"`
 	ThermalState   string         `json:"thermal_state"`
+	ThermalLevel   int            `json:"thermal_level"` // 0=nominal, 1=fair, 2=serious, 3=critical
 	RDMAStatus     string         `json:"rdma_status"`
 	TotalPower     float64        `json:"total_power"`
 }
@@ -435,6 +436,7 @@ func pushMenuBarMetricsToWorker(sm SocMetrics, cpuMetrics CPUMetrics, gpuMetrics
 		TFLOPs:         maxFP32TFLOPs,
 		CPUPercent:     cpuPercent,
 		ThermalState:   thermalState,
+		ThermalLevel:   int(getThermalStateLevel()),
 		RDMAStatus:     rdmaStatus,
 		TotalPower:     sm.TotalPower,
 	}

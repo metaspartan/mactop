@@ -66,27 +66,6 @@ func handleFlag(arg string, idx int, args []string) (int, string, int, bool, boo
 	return emptyResult(idx).values()
 }
 
-func initCLII18n() {
-	override := detectCLILanguageOverride(os.Args[1:])
-	i18n.Init(override)
-}
-
-func detectCLILanguageOverride(args []string) string {
-	for i := range args {
-		arg := args[i]
-		if arg == "--lang" && i+1 < len(args) {
-			return args[i+1]
-		}
-		if after, ok := strings.CutPrefix(arg, "--lang="); ok {
-			return after
-		}
-	}
-	if lang := os.Getenv("MACTOP_LANG"); lang != "" {
-		return lang
-	}
-	return ""
-}
-
 func printHelpAndExit() {
 	fmt.Print(i18n.T("CLI_HelpText"))
 	os.Exit(0)
@@ -173,7 +152,9 @@ func runTestApp() {
 }
 
 func handleLegacyFlags() (string, int, bool, bool) {
-	initCLII18n()
+	// NOTE: i18n is initialized lazily on first T() call (system language)
+	// and re-initialized with the fully resolved language in Run() after
+	// config is loaded. This avoids a double-init with different languages.
 
 	var (
 		colorName             string
