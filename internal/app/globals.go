@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	version                                                     = "v2.1.2"
+	version                                                     = "v2.1.3"
 	cpuGauge, gpuGauge, memoryGauge, aneGauge                   *w.Gauge
 	mainBlock                                                   *ui.Block
 	modelText, PowerChart, NetworkInfo, helpText, infoParagraph *w.Paragraph
