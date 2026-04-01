@@ -92,6 +92,14 @@ func getSOCInfo() SystemInfo {
 	// and accurately cross-references IORegistry with sysctl perflevels.
 	_, eCount, pCount, sCount, _ := BuildCoreLabels()
 
+	// Fallback: if BuildCoreLabels failed (IORegistry unavailable), use sysctl directly
+	if eCount == 0 && pCount == 0 && sCount == 0 {
+		coreTiers := getPerfLevelCores()
+		eCount = coreTiers["E"]
+		pCount = coreTiers["P"]
+		sCount = coreTiers["S"]
+	}
+
 	coreCount, _ := strconv.Atoi(cpuInfoDict["machdep.cpu.core_count"])
 	gpuCoreCountStr := getGPUCores()
 	gpuCoreCount, _ := strconv.Atoi(gpuCoreCountStr)

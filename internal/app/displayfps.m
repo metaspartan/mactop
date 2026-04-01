@@ -8,6 +8,7 @@
 #include <dispatch/dispatch.h>
 #include <stdatomic.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <math.h>
 #include <sys/sysctl.h>
 #include <unistd.h>
@@ -110,6 +111,7 @@ int startDisplayFPSCounter(void) {
   }
 
   if (!dfps_loadSymbols()) {
+    atomic_store(&g_dfpsRunning, 0);
     return -1;
   }
 
@@ -141,6 +143,7 @@ int startDisplayFPSCounter(void) {
       });
 
   if (!g_dfpsStream) {
+    atomic_store(&g_dfpsRunning, 0);
     return -1; // Stream creation failed (no display, permission denied, etc.)
   }
   fn_DFPSStart(g_dfpsStream);
@@ -311,6 +314,13 @@ void dumpDisplayFPSDiagnostics(void) {
   }
 
   // --- Stream creation test at multiple output sizes ---
+  if (displayCount == 0) {
+    printf("--- Stream Creation Tests ---\n");
+    printf("  No active displays found — skipping stream tests.\n");
+    printf("\n=== End Diagnostics ===\n");
+    return;
+  }
+
   printf("--- Stream Creation Tests (main display 0x%08x) ---\n", (unsigned)displays[0]);
   CGDirectDisplayID mainDisplay = displays[0];
   dispatch_queue_t testQ = dispatch_queue_create("com.mactop.fpsdiag", DISPATCH_QUEUE_SERIAL);
