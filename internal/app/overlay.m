@@ -256,6 +256,46 @@ static const char *sectionConfigName(OverlaySectionID sid) {
   }
 }
 
+// Returns whether a section should be drawn based on --overlay-sections show flags.
+static BOOL sectionShouldDraw(OverlaySectionID sid, overlay_config_t cfg) {
+  switch (sid) {
+    case kSectionCPU: return cfg.show_cpu;
+    case kSectionGPU: return cfg.show_gpu;
+    case kSectionANE: return cfg.show_ane;
+    case kSectionMemory: return cfg.show_memory;
+    case kSectionPower: return cfg.show_power;
+    case kSectionTemps: return cfg.show_temps;
+    case kSectionThermal: return cfg.show_thermals;
+    case kSectionFans: return cfg.show_fans;
+    case kSectionBandwidth: return cfg.show_bandwidth;
+    case kSectionNetwork: return cfg.show_network;
+    case kSectionGPUFreq: return cfg.show_gpu_freq;
+    default: return YES;
+  }
+}
+
+// Returns the number of rows a section contributes to height calculation.
+static int sectionRowCount(OverlaySectionID sid, overlay_metrics_t metrics) {
+  switch (sid) {
+    case kSectionPower:
+      return g_overlay_config.show_power ? 5 : 0;
+    case kSectionSwap:
+      return (metrics.swap_used_bytes > 0 && metrics.swap_total_bytes > 0) ? 1 : 0;
+    case kSectionFans:
+      return (g_overlay_config.show_fans && metrics.fan_count > 0) ? 1 : 0;
+    case kSectionCPU: return g_overlay_config.show_cpu ? 1 : 0;
+    case kSectionGPU: return g_overlay_config.show_gpu ? 1 : 0;
+    case kSectionANE: return g_overlay_config.show_ane ? 1 : 0;
+    case kSectionMemory: return g_overlay_config.show_memory ? 1 : 0;
+    case kSectionTemps: return g_overlay_config.show_temps ? 1 : 0;
+    case kSectionThermal: return g_overlay_config.show_thermals ? 1 : 0;
+    case kSectionBandwidth: return g_overlay_config.show_bandwidth ? 1 : 0;
+    case kSectionNetwork: return g_overlay_config.show_network ? 1 : 0;
+    case kSectionGPUFreq: return g_overlay_config.show_gpu_freq ? 1 : 0;
+    default: return 1; // FPS, Frame
+  }
+}
+
 // Initialize settings toggles from current parsed section lists
 static void initSettingsFromConfig(void) {
   memset(g_settingsCollapsed, 0, sizeof(g_settingsCollapsed));
@@ -270,13 +310,10 @@ static void initSettingsFromConfig(void) {
 }
 
 // Save current settings toggles back to config.json
+// Preserves the user's custom section ordering by walking the existing
+// g_collapsedSections / g_expandedSections arrays (which carry the order
+// from the config) instead of a fixed canonical order.
 static void saveSettingsToConfig(void) {
-  // Rebuild collapsed_sections string
-  char collapsed[256] = {0};
-  char expanded[512] = {0};
-  int cLen = 0, eLen = 0;
-
-  // Collapsed: iterate canonical order, include if toggled
   OverlaySectionID canonicalOrder[] = {
     kSectionFPS, kSectionFrame, kSectionCPU, kSectionGPU, kSectionANE,
     kSectionMemory, kSectionSwap, kSectionPower, kSectionBandwidth,
@@ -284,28 +321,54 @@ static void saveSettingsToConfig(void) {
   };
   int nCanonical = sizeof(canonicalOrder) / sizeof(canonicalOrder[0]);
 
-  for (int i = 0; i < nCanonical; i++) {
-    if (g_settingsCollapsed[canonicalOrder[i]]) {
-      const char *name = sectionConfigName(canonicalOrder[i]);
+  // --- Rebuild collapsed_sections preserving existing order ---
+  char collapsed[256] = {0};
+  int cLen = 0;
+  // First: keep sections that are still toggled, in their existing order
+  BOOL collapsedSeen[kSectionCount] = {0};
+  for (int i = 0; i < g_collapsedCount; i++) {
+    OverlaySectionID sid = g_collapsedSections[i];
+    if (g_settingsCollapsed[sid]) {
+      const char *name = sectionConfigName(sid);
       if (cLen > 0) collapsed[cLen++] = ',';
       int nLen = (int)strlen(name);
-      if (cLen + nLen < 255) {
-        memcpy(collapsed + cLen, name, nLen);
-        cLen += nLen;
-      }
+      if (cLen + nLen < 255) { memcpy(collapsed + cLen, name, nLen); cLen += nLen; }
+      collapsedSeen[sid] = YES;
+    }
+  }
+  // Then: append any newly-toggled sections not already in the list
+  for (int i = 0; i < nCanonical; i++) {
+    OverlaySectionID sid = canonicalOrder[i];
+    if (g_settingsCollapsed[sid] && !collapsedSeen[sid]) {
+      const char *name = sectionConfigName(sid);
+      if (cLen > 0) collapsed[cLen++] = ',';
+      int nLen = (int)strlen(name);
+      if (cLen + nLen < 255) { memcpy(collapsed + cLen, name, nLen); cLen += nLen; }
     }
   }
   collapsed[cLen] = '\0';
 
-  for (int i = 0; i < nCanonical; i++) {
-    if (g_settingsExpanded[canonicalOrder[i]]) {
-      const char *name = sectionConfigName(canonicalOrder[i]);
+  // --- Rebuild expanded_order preserving existing order ---
+  char expanded[512] = {0};
+  int eLen = 0;
+  BOOL expandedSeen[kSectionCount] = {0};
+  for (int i = 0; i < g_expandedCount; i++) {
+    OverlaySectionID sid = g_expandedSections[i];
+    if (g_settingsExpanded[sid]) {
+      const char *name = sectionConfigName(sid);
       if (eLen > 0) expanded[eLen++] = ',';
       int nLen = (int)strlen(name);
-      if (eLen + nLen < 511) {
-        memcpy(expanded + eLen, name, nLen);
-        eLen += nLen;
-      }
+      if (eLen + nLen < 511) { memcpy(expanded + eLen, name, nLen); eLen += nLen; }
+      expandedSeen[sid] = YES;
+    }
+  }
+  for (int i = 0; i < nCanonical; i++) {
+    OverlaySectionID sid = canonicalOrder[i];
+    if (g_settingsExpanded[sid] && !expandedSeen[sid]) {
+      const char *name = sectionConfigName(sid);
+      if (eLen > 0) expanded[eLen++] = ',';
+      int nLen = (int)strlen(name);
+      if (eLen + nLen < 511) { memcpy(expanded + eLen, name, nLen); eLen += nLen; }
     }
   }
   expanded[eLen] = '\0';
@@ -319,7 +382,6 @@ static void saveSettingsToConfig(void) {
   parseSectionList(g_overlay_config.expanded_order, g_expandedSections, &g_expandedCount);
 
   // Write to ~/.mactop/config.json
-  // We read the existing config, update overlay section, and write back
   const char *home = getenv("HOME");
   if (!home) return;
 
@@ -341,19 +403,15 @@ static void saveSettingsToConfig(void) {
     config = [NSMutableDictionary dictionary];
   }
 
-  // Build overlay section
+  // Build overlay section — use the order-preserved C strings we just built
   NSMutableArray *collapsedArr = [NSMutableArray array];
-  for (int i = 0; i < nCanonical; i++) {
-    if (g_settingsCollapsed[canonicalOrder[i]]) {
-      [collapsedArr addObject:[NSString stringWithUTF8String:sectionConfigName(canonicalOrder[i])]];
-    }
-  }
   NSMutableArray *expandedArr = [NSMutableArray array];
-  for (int i = 0; i < nCanonical; i++) {
-    if (g_settingsExpanded[canonicalOrder[i]]) {
-      [expandedArr addObject:[NSString stringWithUTF8String:sectionConfigName(canonicalOrder[i])]];
-    }
-  }
+  parseSectionList(collapsed, g_collapsedSections, &g_collapsedCount);
+  for (int i = 0; i < g_collapsedCount; i++)
+    [collapsedArr addObject:[NSString stringWithUTF8String:sectionConfigName(g_collapsedSections[i])]];
+  parseSectionList(expanded, g_expandedSections, &g_expandedCount);
+  for (int i = 0; i < g_expandedCount; i++)
+    [expandedArr addObject:[NSString stringWithUTF8String:sectionConfigName(g_expandedSections[i])]];
 
   NSMutableDictionary *overlayDict = [NSMutableDictionary dictionary];
   overlayDict[@"collapsed_sections"] = collapsedArr;
@@ -1432,24 +1490,7 @@ static void drawMiniBar(CGFloat x, CGFloat y, CGFloat w, CGFloat h,
         needsSeparator = YES;
       }
 
-      // Check show flags for backward compatibility with --overlay-sections
-      BOOL shouldDraw = YES;
-      switch (sid) {
-        case kSectionCPU: shouldDraw = cfg.show_cpu; break;
-        case kSectionGPU: shouldDraw = cfg.show_gpu; break;
-        case kSectionANE: shouldDraw = cfg.show_ane; break;
-        case kSectionMemory: shouldDraw = cfg.show_memory; break;
-        case kSectionPower: shouldDraw = cfg.show_power; break;
-        case kSectionTemps: shouldDraw = cfg.show_temps; break;
-        case kSectionThermal: shouldDraw = cfg.show_thermals; break;
-        case kSectionFans: shouldDraw = cfg.show_fans; break;
-        case kSectionBandwidth: shouldDraw = cfg.show_bandwidth; break;
-        case kSectionNetwork: shouldDraw = cfg.show_network; break;
-        case kSectionGPUFreq: shouldDraw = cfg.show_gpu_freq; break;
-        default: break;
-      }
-
-      if (shouldDraw && sectionDrawers[sid]) {
+      if (sectionShouldDraw(sid, cfg) && sectionDrawers[sid]) {
         sectionDrawers[sid]();
       }
     }
@@ -1458,24 +1499,7 @@ static void drawMiniBar(CGFloat x, CGFloat y, CGFloat w, CGFloat h,
     for (int i = 0; i < g_collapsedCount; i++) {
       OverlaySectionID sid = g_collapsedSections[i];
 
-      // Check show flags for backward compatibility
-      BOOL shouldDraw = YES;
-      switch (sid) {
-        case kSectionCPU: shouldDraw = cfg.show_cpu; break;
-        case kSectionGPU: shouldDraw = cfg.show_gpu; break;
-        case kSectionANE: shouldDraw = cfg.show_ane; break;
-        case kSectionMemory: shouldDraw = cfg.show_memory; break;
-        case kSectionPower: shouldDraw = cfg.show_power; break;
-        case kSectionTemps: shouldDraw = cfg.show_temps; break;
-        case kSectionThermal: shouldDraw = cfg.show_thermals; break;
-        case kSectionFans: shouldDraw = cfg.show_fans; break;
-        case kSectionBandwidth: shouldDraw = cfg.show_bandwidth; break;
-        case kSectionNetwork: shouldDraw = cfg.show_network; break;
-        case kSectionGPUFreq: shouldDraw = cfg.show_gpu_freq; break;
-        default: break;
-      }
-
-      if (shouldDraw && sectionDrawers[sid]) {
+      if (sectionShouldDraw(sid, cfg) && sectionDrawers[sid]) {
         sectionDrawers[sid]();
       }
     }
@@ -1677,52 +1701,12 @@ void updateOverlayMetrics(overlay_metrics_t *m) {
           addedDetailSep = YES;
         }
 
-        switch (sid) {
-          case kSectionPower:
-            if (g_overlay_config.show_power) rows += 5;
-            break;
-          case kSectionSwap:
-            if (localMetrics.swap_used_bytes > 0 && localMetrics.swap_total_bytes > 0) rows++;
-            break;
-          case kSectionFans:
-            if (g_overlay_config.show_fans && localMetrics.fan_count > 0) rows++;
-            break;
-          case kSectionCPU: if (g_overlay_config.show_cpu) rows++; break;
-          case kSectionGPU: if (g_overlay_config.show_gpu) rows++; break;
-          case kSectionANE: if (g_overlay_config.show_ane) rows++; break;
-          case kSectionMemory: if (g_overlay_config.show_memory) rows++; break;
-          case kSectionTemps: if (g_overlay_config.show_temps) rows++; break;
-          case kSectionThermal: if (g_overlay_config.show_thermals) rows++; break;
-          case kSectionBandwidth: if (g_overlay_config.show_bandwidth) rows++; break;
-          case kSectionNetwork: if (g_overlay_config.show_network) rows++; break;
-          case kSectionGPUFreq: if (g_overlay_config.show_gpu_freq) rows++; break;
-          default: rows++; break; // FPS, Frame
-        }
+        rows += sectionRowCount(sid, localMetrics);
       }
     } else {
       for (int i = 0; i < g_collapsedCount; i++) {
         OverlaySectionID sid = g_collapsedSections[i];
-        switch (sid) {
-          case kSectionPower:
-            if (g_overlay_config.show_power) rows += 5;
-            break;
-          case kSectionSwap:
-            if (localMetrics.swap_used_bytes > 0 && localMetrics.swap_total_bytes > 0) rows++;
-            break;
-          case kSectionFans:
-            if (g_overlay_config.show_fans && localMetrics.fan_count > 0) rows++;
-            break;
-          case kSectionCPU: if (g_overlay_config.show_cpu) rows++; break;
-          case kSectionGPU: if (g_overlay_config.show_gpu) rows++; break;
-          case kSectionANE: if (g_overlay_config.show_ane) rows++; break;
-          case kSectionMemory: if (g_overlay_config.show_memory) rows++; break;
-          case kSectionTemps: if (g_overlay_config.show_temps) rows++; break;
-          case kSectionThermal: if (g_overlay_config.show_thermals) rows++; break;
-          case kSectionBandwidth: if (g_overlay_config.show_bandwidth) rows++; break;
-          case kSectionNetwork: if (g_overlay_config.show_network) rows++; break;
-          case kSectionGPUFreq: if (g_overlay_config.show_gpu_freq) rows++; break;
-          default: rows++; break; // FPS, Frame
-        }
+        rows += sectionRowCount(sid, localMetrics);
       }
     }
 

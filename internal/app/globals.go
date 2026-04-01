@@ -72,26 +72,26 @@ var (
 	maxPowerSeen                  = 0.1
 	gpuValues                     = make([]float64, 100)
 
-	prometheusPort  string
-	headless        bool
-	headlessPretty  bool
-	headlessCount   int
-	headlessFormat  string
-	menubar         bool    // Run as menu bar status item
-	filterPID       int     // Monitor a specific process by PID (0 = all)
-	cliFgColor      string  // Foreground color from --foreground flag (used for = assignments)
-	cliBgColor      string  // Background color from --bg flag
-	cliLanguage      string // Language override flag
-	resolvedLanguage string // Final resolved language (CLI > env > config > system)
-	fanControl      bool    // Enable interactive fan speed control (requires --fan-control flag)
-	overlay         bool    // Show floating overlay HUD window
-	overlayWorker   bool    // Hidden: run as overlay worker process
-	overlaySections string  // Comma-separated visible sections for overlay
-	overlayOpacity  float64 // Overlay window opacity (0.15-1.0)
-	dumpTemps       bool    // Diagnostic: dump all SMC temperature keys
-	dumpDebug       bool    // Diagnostic: dump IOReport/HID/SMC/NVMe debug info
-	dumpFPS         bool    // Diagnostic: dump CGDisplayStream FPS info
-	interruptChan   = make(chan struct{}, 10)
+	prometheusPort   string
+	headless         bool
+	headlessPretty   bool
+	headlessCount    int
+	headlessFormat   string
+	menubar          bool    // Run as menu bar status item
+	filterPID        int     // Monitor a specific process by PID (0 = all)
+	cliFgColor       string  // Foreground color from --foreground flag (used for = assignments)
+	cliBgColor       string  // Background color from --bg flag
+	cliLanguage      string  // Language override flag
+	resolvedLanguage string  // Final resolved language (CLI > env > config > system)
+	fanControl       bool    // Enable interactive fan speed control (requires --fan-control flag)
+	overlay          bool    // Show floating overlay HUD window
+	overlayWorker    bool    // Hidden: run as overlay worker process
+	overlaySections  string  // Comma-separated visible sections for overlay
+	overlayOpacity   float64 // Overlay window opacity (0.15-1.0)
+	dumpTemps        bool    // Diagnostic: dump all SMC temperature keys
+	dumpDebug        bool    // Diagnostic: dump IOReport/HID/SMC/NVMe debug info
+	dumpFPS          bool    // Diagnostic: dump CGDisplayStream FPS info
+	interruptChan    = make(chan struct{}, 10)
 
 	cachedTermWidth    int
 	cachedTermHeight   int
