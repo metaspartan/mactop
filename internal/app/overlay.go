@@ -63,6 +63,21 @@ typedef struct {
     double opacity;
     char collapsed_sections[256]; // comma-separated ordered section names for collapsed mode
     char expanded_order[512];     // comma-separated ordered section names for expanded mode
+
+    char label_fps[32];
+    char label_frame[32];
+    char label_cpu[32];
+    char label_gpu[32];
+    char label_ane[32];
+    char label_memory[32];
+    char label_swap[32];
+    char label_power[32];
+    char label_bandwidth[64];
+    char label_gpu_freq[64];
+    char label_temps[32];
+    char label_thermal[32];
+    char label_fans[32];
+    char label_network[32];
 } overlay_config_t;
 
 int initOverlay(void);
@@ -85,6 +100,8 @@ import (
 	"sync"
 	"time"
 	"unsafe"
+
+	"github.com/metaspartan/mactop/v2/internal/i18n"
 )
 
 // Overlay worker state
@@ -156,6 +173,22 @@ func applyOverlayConfig(sections string) {
 	// Copy to C struct
 	copyToCCharBuf(unsafe.Pointer(&ccfg.collapsed_sections), collapsedStr, 256)
 	copyToCCharBuf(unsafe.Pointer(&ccfg.expanded_order), expandedStr, 512)
+
+	// Populate localized section labels
+	copyToCCharBuf(unsafe.Pointer(&ccfg.label_fps), i18n.T("Overlay_FPS"), 32)
+	copyToCCharBuf(unsafe.Pointer(&ccfg.label_frame), i18n.T("Overlay_FrameInfo"), 32)
+	copyToCCharBuf(unsafe.Pointer(&ccfg.label_cpu), i18n.T("Overlay_CPU"), 32)
+	copyToCCharBuf(unsafe.Pointer(&ccfg.label_gpu), i18n.T("Overlay_GPU"), 32)
+	copyToCCharBuf(unsafe.Pointer(&ccfg.label_ane), i18n.T("Overlay_ANE"), 32)
+	copyToCCharBuf(unsafe.Pointer(&ccfg.label_memory), i18n.T("Overlay_Memory"), 32)
+	copyToCCharBuf(unsafe.Pointer(&ccfg.label_swap), i18n.T("Overlay_Swap"), 32)
+	copyToCCharBuf(unsafe.Pointer(&ccfg.label_power), i18n.T("Overlay_Power"), 32)
+	copyToCCharBuf(unsafe.Pointer(&ccfg.label_bandwidth), i18n.T("Overlay_Bandwidth"), 64)
+	copyToCCharBuf(unsafe.Pointer(&ccfg.label_gpu_freq), i18n.T("Overlay_GPUFreq"), 64)
+	copyToCCharBuf(unsafe.Pointer(&ccfg.label_temps), i18n.T("Overlay_Temps"), 32)
+	copyToCCharBuf(unsafe.Pointer(&ccfg.label_thermal), i18n.T("Overlay_Thermal"), 32)
+	copyToCCharBuf(unsafe.Pointer(&ccfg.label_fans), i18n.T("Overlay_Fans"), 32)
+	copyToCCharBuf(unsafe.Pointer(&ccfg.label_network), i18n.T("Overlay_Network"), 32)
 
 	C.setOverlayConfig(&ccfg)
 }
@@ -378,6 +411,7 @@ func startOverlayProcess() error {
 		fmt.Sprintf("MACTOP_OVERLAY_OPACITY=%.2f", effectiveOpacity),
 		"MACTOP_OVERLAY_COLLAPSED="+collapsedStr,
 		"MACTOP_OVERLAY_EXPANDED="+expandedStr,
+		"MACTOP_LANG="+cliLanguage,
 	)
 
 	stdin, err := cmd.StdinPipe()

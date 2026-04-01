@@ -73,6 +73,20 @@ typedef struct {
   double opacity;
   char collapsed_sections[256]; // comma-separated ordered section names
   char expanded_order[512];     // comma-separated ordered section names
+  char label_fps[32];
+  char label_frame[32];
+  char label_cpu[32];
+  char label_gpu[32];
+  char label_ane[32];
+  char label_memory[32];
+  char label_swap[32];
+  char label_power[32];
+  char label_bandwidth[64];
+  char label_gpu_freq[64];
+  char label_temps[32];
+  char label_thermal[32];
+  char label_fans[32];
+  char label_network[32];
 } overlay_config_t;
 
 // ---------- Section ordering ----------
@@ -157,6 +171,20 @@ static overlay_config_t g_overlay_config = {
     .opacity = 0.88,
     .collapsed_sections = "fps,frame,cpu,gpu,memory",
     .expanded_order = "fps,frame,cpu,gpu,ane,memory,swap,power,bandwidth,gpu_freq,temps,thermal,fans,network",
+    .label_fps = "FPS",
+    .label_frame = "Frame Interval",
+    .label_cpu = "CPU",
+    .label_gpu = "GPU",
+    .label_ane = "ANE",
+    .label_memory = "Memory",
+    .label_swap = "Swap",
+    .label_power = "Power",
+    .label_bandwidth = "DRAM Bandwidth",
+    .label_gpu_freq = "GPU Frequency",
+    .label_temps = "Temperatures",
+    .label_thermal = "Thermal State",
+    .label_fans = "Fans",
+    .label_network = "Network",
 };
 
 static overlay_metrics_t g_overlay_metrics;
@@ -178,20 +206,20 @@ static BOOL g_settingsInited = NO;
 
 static const char *sectionDisplayName(OverlaySectionID sid) {
   switch (sid) {
-    case kSectionFPS: return "FPS";
-    case kSectionFrame: return "Frame Interval";
-    case kSectionCPU: return "CPU";
-    case kSectionGPU: return "GPU";
-    case kSectionANE: return "ANE";
-    case kSectionMemory: return "Memory";
-    case kSectionSwap: return "Swap";
-    case kSectionPower: return "Power";
-    case kSectionBandwidth: return "DRAM Bandwidth";
-    case kSectionGPUFreq: return "GPU Frequency";
-    case kSectionTemps: return "Temperatures";
-    case kSectionThermal: return "Thermal State";
-    case kSectionFans: return "Fans";
-    case kSectionNetwork: return "Network";
+    case kSectionFPS: return g_overlay_config.label_fps;
+    case kSectionFrame: return g_overlay_config.label_frame;
+    case kSectionCPU: return g_overlay_config.label_cpu;
+    case kSectionGPU: return g_overlay_config.label_gpu;
+    case kSectionANE: return g_overlay_config.label_ane;
+    case kSectionMemory: return g_overlay_config.label_memory;
+    case kSectionSwap: return g_overlay_config.label_swap;
+    case kSectionPower: return g_overlay_config.label_power;
+    case kSectionBandwidth: return g_overlay_config.label_bandwidth;
+    case kSectionGPUFreq: return g_overlay_config.label_gpu_freq;
+    case kSectionTemps: return g_overlay_config.label_temps;
+    case kSectionThermal: return g_overlay_config.label_thermal;
+    case kSectionFans: return g_overlay_config.label_fans;
+    case kSectionNetwork: return g_overlay_config.label_network;
     default: return "?";
   }
 }
@@ -1118,7 +1146,7 @@ static void drawMiniBar(CGFloat x, CGFloat y, CGFloat w, CGFloat h,
 
   // Section draw blocks — each renders one section at the current y position
   void (^drawSectionFPS)(void) = ^{
-    NSString *fpsLabel = @"FPS";
+    NSString *fpsLabel = [NSString stringWithUTF8String:sectionDisplayName(kSectionFPS)];
     [fpsLabel drawAtPoint:NSMakePoint(padX, y + 4) withAttributes:labelAttrs];
 
     if (g_fpsStreamFailed) {
@@ -1150,7 +1178,10 @@ static void drawMiniBar(CGFloat x, CGFloat y, CGFloat w, CGFloat h,
     }
     fpsMax = ceil(fpsMax / 30.0) * 30.0;
     if (fpsMax < 60.0) fpsMax = 60.0;
-    CGFloat fpsLabelW = 50;
+    
+    NSSize fpsLabelSize = [fpsLabel sizeWithAttributes:labelAttrs];
+    CGFloat fpsLabelW = MAX(50.0, fpsLabelSize.width + 10.0);
+    
     CGFloat fpsValW = fpsSize.width + 8;
     CGFloat fpsSparkW = contentW - fpsLabelW - fpsValW;
     drawMiniSparkline(fpsSparkHistory, OVERLAY_SPARKLINE_HISTORY,
@@ -1160,7 +1191,7 @@ static void drawMiniBar(CGFloat x, CGFloat y, CGFloat w, CGFloat h,
   };
 
   void (^drawSectionFrame)(void) = ^{
-    NSString *fiLabel = @"Frame";
+    NSString *fiLabel = [NSString stringWithUTF8String:sectionDisplayName(kSectionFrame)];
     [fiLabel drawAtPoint:NSMakePoint(padX, y + 4) withAttributes:labelAttrs];
 
     if (g_fpsStreamFailed) {
@@ -1209,7 +1240,10 @@ static void drawMiniBar(CGFloat x, CGFloat y, CGFloat w, CGFloat h,
     }
     fiMax = ceil(fiMax / 5.0) * 5.0;
     if (fiMax < 10.0) fiMax = 10.0;
-    CGFloat fiLabelW = 65;
+    
+    NSSize fiLabelSize = [fiLabel sizeWithAttributes:labelAttrs];
+    CGFloat fiLabelW = MAX(65.0, fiLabelSize.width + 10.0);
+    
     CGFloat fiValW = fiSize.width + 8;
     CGFloat fiSparkW = contentW - fiLabelW - fiValW;
     drawMiniSparkline(frameIntSparkHistory, OVERLAY_SPARKLINE_HISTORY,
@@ -1219,15 +1253,15 @@ static void drawMiniBar(CGFloat x, CGFloat y, CGFloat w, CGFloat h,
   };
 
   void (^drawSectionCPU)(void) = ^{
-    drawMetricBar(@"CPU", m.cpu_percent, overlayAccentGreen(), cpuSparkHistory, YES);
+    drawMetricBar([NSString stringWithUTF8String:sectionDisplayName(kSectionCPU)], m.cpu_percent, overlayAccentGreen(), cpuSparkHistory, YES);
   };
 
   void (^drawSectionGPU)(void) = ^{
-    drawMetricBar(@"GPU", m.gpu_percent, overlayAccentOrange(), gpuSparkHistory, YES);
+    drawMetricBar([NSString stringWithUTF8String:sectionDisplayName(kSectionGPU)], m.gpu_percent, overlayAccentOrange(), gpuSparkHistory, YES);
   };
 
   void (^drawSectionANE)(void) = ^{
-    drawMetricBar(@"ANE", m.ane_percent, overlayAccentCyan(), NULL, NO);
+    drawMetricBar([NSString stringWithUTF8String:sectionDisplayName(kSectionANE)], m.ane_percent, overlayAccentCyan(), NULL, NO);
   };
 
   void (^drawSectionMemory)(void) = ^{
@@ -1236,7 +1270,7 @@ static void drawMiniBar(CGFloat x, CGFloat y, CGFloat w, CGFloat h,
     double memPct = totalGB > 0 ? (memGB / totalGB) * 100.0 : 0;
     NSString *memStr =
         [NSString stringWithFormat:@"%.1f/%.0fGB", memGB, totalGB];
-    [(@"Memory") drawAtPoint:NSMakePoint(padX, y + 4)
+    [([NSString stringWithUTF8String:sectionDisplayName(kSectionMemory)]) drawAtPoint:NSMakePoint(padX, y + 4)
                  withAttributes:labelAttrs];
     drawMiniBar(barX, y + 10, barW - sparkW - 8, barH, memPct,
                 overlayAccentPurple());
@@ -1259,10 +1293,10 @@ static void drawMiniBar(CGFloat x, CGFloat y, CGFloat w, CGFloat h,
       double swapPct = swapTotalGB > 0 ? (swapGB / swapTotalGB) * 100.0 : 0;
       NSString *swapStr =
           [NSString stringWithFormat:@"%.1f/%.0fGB", swapGB, swapTotalGB];
-      [(@"Swap") drawAtPoint:NSMakePoint(padX, y + 4)
+      [([NSString stringWithUTF8String:sectionDisplayName(kSectionSwap)]) drawAtPoint:NSMakePoint(padX, y + 4)
                  withAttributes:labelAttrs];
-      drawMiniBar(barX, y + 10, barW - sparkW - 8, barH, swapPct,
-                  overlayAccentOrange());
+    drawMiniBar(barX, y + 10, barW - sparkW - 8, barH, swapPct,
+                overlayAccentOrange());
       NSDictionary *swapValAttrs = @{
         NSFontAttributeName : valueFont,
         NSForegroundColorAttributeName : colorForPercent(swapPct)
@@ -1277,7 +1311,7 @@ static void drawMiniBar(CGFloat x, CGFloat y, CGFloat w, CGFloat h,
   void (^drawSectionPower)(void) = ^{
     NSString *powerStr =
         [NSString stringWithFormat:@"%.1fW", m.package_watts];
-    drawMetricKV(@"Power", powerStr, overlayAccentYellow());
+    drawMetricKV([NSString stringWithUTF8String:sectionDisplayName(kSectionPower)], powerStr, overlayAccentYellow());
     drawMetricKV(@"  CPU", [NSString stringWithFormat:@"%.1fW", m.cpu_watts], overlayDimText());
     drawMetricKV(@"  GPU", [NSString stringWithFormat:@"%.1fW", m.gpu_watts], overlayDimText());
     drawMetricKV(@"  ANE", [NSString stringWithFormat:@"%.1fW", m.ane_watts], overlayDimText());
@@ -1287,7 +1321,7 @@ static void drawMiniBar(CGFloat x, CGFloat y, CGFloat w, CGFloat h,
   void (^drawSectionBandwidth)(void) = ^{
     NSString *bwStr =
         [NSString stringWithFormat:@"%.1f GB/s", m.dram_bw_combined_gbs];
-    drawMetricKV(@"DRAM BW", bwStr, overlayAccentBlue());
+    drawMetricKV([NSString stringWithUTF8String:sectionDisplayName(kSectionBandwidth)], bwStr, overlayAccentBlue());
   };
 
   void (^drawSectionGPUFreq)(void) = ^{
@@ -1299,7 +1333,7 @@ static void drawMiniBar(CGFloat x, CGFloat y, CGFloat w, CGFloat h,
     } else {
       freqStr = [NSString stringWithFormat:@"%d MHz", m.gpu_freq_mhz];
     }
-    drawMetricKV(@"GPU Freq", freqStr, overlayAccentOrange());
+    drawMetricKV([NSString stringWithUTF8String:sectionDisplayName(kSectionGPUFreq)], freqStr, overlayAccentOrange());
   };
 
   void (^drawSectionTemps)(void) = ^{
@@ -1315,7 +1349,7 @@ static void drawMiniBar(CGFloat x, CGFloat y, CGFloat w, CGFloat h,
       tempColor = overlayAccentRed();
     else if (m.cpu_temp >= 70 || m.gpu_temp >= 70)
       tempColor = overlayAccentYellow();
-    drawMetricKV(@"Temps", tempStr, tempColor);
+    drawMetricKV([NSString stringWithUTF8String:sectionDisplayName(kSectionTemps)], tempStr, tempColor);
   };
 
   void (^drawSectionThermal)(void) = ^{
@@ -1330,7 +1364,7 @@ static void drawMiniBar(CGFloat x, CGFloat y, CGFloat w, CGFloat h,
       thermalColor = overlayAccentRed();
     else if ([thermalStr containsString:@"Fair"])
       thermalColor = overlayAccentYellow();
-    drawMetricKV(@"Thermal", thermalStr, thermalColor);
+    drawMetricKV([NSString stringWithUTF8String:sectionDisplayName(kSectionThermal)], thermalStr, thermalColor);
   };
 
   void (^drawSectionFans)(void) = ^{
@@ -1341,7 +1375,7 @@ static void drawMiniBar(CGFloat x, CGFloat y, CGFloat w, CGFloat h,
           [fanStr appendString:@"  "];
         [fanStr appendFormat:@"%dRPM", m.fan_rpm[i]];
       }
-      drawMetricKV(@"Fans", fanStr, overlayDimText());
+      drawMetricKV([NSString stringWithUTF8String:sectionDisplayName(kSectionFans)], fanStr, overlayDimText());
     }
   };
 
@@ -1350,7 +1384,7 @@ static void drawMiniBar(CGFloat x, CGFloat y, CGFloat w, CGFloat h,
         stringWithFormat:@"↓%@ ↑%@",
                          formatOverlayThroughput(m.net_in_bytes_per_sec),
                          formatOverlayThroughput(m.net_out_bytes_per_sec)];
-    drawMetricKV(@"Network", netStr, overlayDimText());
+    drawMetricKV([NSString stringWithUTF8String:sectionDisplayName(kSectionNetwork)], netStr, overlayDimText());
   };
 
   // Dispatch table: section ID → draw block

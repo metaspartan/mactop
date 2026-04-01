@@ -85,6 +85,8 @@ import (
 	"sync"
 	"time"
 	"unsafe"
+
+	"github.com/metaspartan/mactop/v2/internal/i18n"
 )
 
 // MenuBarMetricsPayload is the JSON structure sent from the main process
@@ -213,6 +215,15 @@ func GoSaveMenuBarConfig(statusBarWidth, statusBarHeight, sparklineWidth, sparkl
 	}
 
 	saveConfig()
+}
+
+// GoI18nT provides direct translation lookup to Objective-C
+//export GoI18nT
+func GoI18nT(id *C.char) *C.char {
+	goID := C.GoString(id)
+	translated := i18n.T(goID)
+	// Return malloc'd string (caller must free)
+	return C.CString(translated)
 }
 
 // startMenuBarWorker is the entry point for the child process (--menubar-worker).
@@ -378,6 +389,7 @@ func startMenuBarProcess() error {
 	}
 
 	cmd := exec.Command(exe, "--menubar-worker")
+	cmd.Env = append(os.Environ(), "MACTOP_LANG="+cliLanguage)
 
 	stdin, err := cmd.StdinPipe()
 	if err != nil {

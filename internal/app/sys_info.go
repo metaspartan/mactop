@@ -14,6 +14,8 @@ import (
 	"strings"
 	"syscall"
 	"unsafe"
+
+	"github.com/metaspartan/mactop/v2/internal/i18n"
 )
 
 type VolumeInfo struct {
@@ -243,19 +245,19 @@ func getThermalStateString() (string, bool) {
 	size := C.size_t(unsafe.Sizeof(val))
 
 	if C.sysctlbyname(name, unsafe.Pointer(&val), &size, nil, 0) != 0 {
-		return "Normal", false
+		return i18n.T("Metrics_ThermalNominal"), false
 	}
 
 	switch val {
 	case 0:
-		return "Normal", false
+		return i18n.T("Metrics_ThermalNominal"), false
 	case 1:
-		return "Fair", true
+		return i18n.T("Metrics_ThermalFair"), true
 	case 2:
-		return "Serious", true
+		return i18n.T("Metrics_ThermalSerious"), true
 	case 3:
-		return "Critical", true
+		return i18n.T("Metrics_ThermalCritical"), true
 	default:
-		return "Normal", false
+		return i18n.T("Metrics_ThermalUnknown"), false
 	}
 }

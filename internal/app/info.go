@@ -7,7 +7,9 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/mattn/go-runewidth"
 	ui "github.com/metaspartan/gotui/v5"
+	"github.com/metaspartan/mactop/v2/internal/i18n"
 )
 
 func buildInfoLines(themeColor string) []string {
@@ -28,7 +30,11 @@ func buildInfoLines(themeColor string) []string {
 	}
 
 	formatLine := func(label, value string) string {
-		paddedLabel := fmt.Sprintf("%-13s", label)
+		w := runewidth.StringWidth(label)
+		paddedLabel := label
+		if w < 15 {
+			paddedLabel += strings.Repeat(" ", 15-w)
+		}
 		return fmt.Sprintf("[%s](fg:%s,mod:bold): [%s](fg:%s)", paddedLabel, themeColor, value, themeColor)
 	}
 
@@ -48,22 +54,22 @@ func buildInfoLines(themeColor string) []string {
 
 	// Get RDMA status
 	rdmaStatus := CheckRDMAAvailable()
-	rdmaLabel := "Disabled"
+	rdmaLabel := i18n.T("Info_Disabled")
 	if rdmaStatus.Available {
-		rdmaLabel = "Enabled"
+		rdmaLabel = i18n.T("Info_Enabled")
 	}
 
 	infoLines := []string{
 		fmt.Sprintf("[%s@%s](fg:%s,mod:bold)", cachedCurrentUser, cachedHostname, themeColor),
 		"-------------------------",
-		formatLine("OS", fmt.Sprintf("macOS %s", cachedOSVersion)),
-		formatLine("Host", cachedModelName),
-		formatLine("Kernel", cachedKernelVersion),
-		formatLine("Uptime", uptimeStr),
-		formatLine("Shell", cachedShell),
-		formatLine("CPU", cachedModelName),
-		formatLine("GPU", fmt.Sprintf("%d Core GPU", appleSiliconModel.GPUCoreCount)),
-		formatLine("TFLOPs", func() string {
+		formatLine(i18n.T("Info_OS"), fmt.Sprintf("macOS %s", cachedOSVersion)),
+		formatLine(i18n.T("Info_Host"), cachedModelName),
+		formatLine(i18n.T("Info_Kernel"), cachedKernelVersion),
+		formatLine(i18n.T("Info_Uptime"), uptimeStr),
+		formatLine(i18n.T("Info_Shell"), cachedShell),
+		formatLine(i18n.T("Info_CPU"), cachedModelName),
+		formatLine(i18n.T("Info_GPU"), fmt.Sprintf("%d Core GPU", appleSiliconModel.GPUCoreCount)),
+		formatLine(i18n.T("Info_TFLOPs"), func() string {
 			gpuCores := appleSiliconModel.GPUCoreCount
 			maxFreq := GetMaxGPUFrequency()
 			if maxFreq > 0 && gpuCores > 0 {
@@ -73,26 +79,26 @@ func buildInfoLines(themeColor string) []string {
 			}
 			return "N/A"
 		}()),
-		formatLine("Memory", fmt.Sprintf("%.2f GB / %.2f GB", usedMem, totalMem)),
-		formatLine("Swap", fmt.Sprintf("%.2f GB / %.2f GB", swapUsed, swapTotal)),
+		formatLine(i18n.T("Info_Memory"), fmt.Sprintf("%.2f GB / %.2f GB", usedMem, totalMem)),
+		formatLine(i18n.T("Info_Swap"), fmt.Sprintf("%.2f GB / %.2f GB", swapUsed, swapTotal)),
 		"",
-		formatLine("CPU Usage", fmt.Sprintf("%.2f%%", float64(cpuGauge.Percent))),
-		formatLine("GPU Usage", fmt.Sprintf("%d%%", int(lastGPUMetrics.ActivePercent))),
-		formatLine("ANE Usage", fmt.Sprintf("%d%%", int(lastCPUMetrics.ANEW/8.0*100))),
-		formatLine("Power", fmt.Sprintf("%.2f W (Avg %.0f W)", lastCPUMetrics.PackageW, avgWatts)),
-		formatLine("Thermals", thermalStr),
-		formatLine("Network", fmt.Sprintf("↑ %s/s ↓ %s/s", formatBytes(lastNetDiskMetrics.OutBytesPerSec, networkUnit), formatBytes(lastNetDiskMetrics.InBytesPerSec, networkUnit))),
-		formatLine("Disk", fmt.Sprintf("R %s/s W %s/s", formatBytes(lastNetDiskMetrics.ReadKBytesPerSec*1024, diskUnit), formatBytes(lastNetDiskMetrics.WriteKBytesPerSec*1024, diskUnit))),
-		formatLine("DRAM BW", fmt.Sprintf("R %.1f / W %.1f / %.1f GB/s", lastCPUMetrics.DRAMReadBW, lastCPUMetrics.DRAMWriteBW, lastCPUMetrics.DRAMBWCombined)),
+		formatLine(i18n.T("Info_CPUUsage"), fmt.Sprintf("%.2f%%", float64(cpuGauge.Percent))),
+		formatLine(i18n.T("Info_GPUUsage"), fmt.Sprintf("%d%%", int(lastGPUMetrics.ActivePercent))),
+		formatLine(i18n.T("Info_ANEUsage"), fmt.Sprintf("%d%%", int(lastCPUMetrics.ANEW/8.0*100))),
+		formatLine(i18n.T("Info_Power"), fmt.Sprintf("%.2f W (Avg %.0f W)", lastCPUMetrics.PackageW, avgWatts)),
+		formatLine(i18n.T("Info_Thermals"), thermalStr),
+		formatLine(i18n.T("Info_Network"), fmt.Sprintf("↑ %s/s ↓ %s/s", formatBytes(lastNetDiskMetrics.OutBytesPerSec, networkUnit), formatBytes(lastNetDiskMetrics.InBytesPerSec, networkUnit))),
+		formatLine(i18n.T("Info_Disk"), fmt.Sprintf("R %s/s W %s/s", formatBytes(lastNetDiskMetrics.ReadKBytesPerSec*1024, diskUnit), formatBytes(lastNetDiskMetrics.WriteKBytesPerSec*1024, diskUnit))),
+		formatLine(i18n.T("Info_DRAMBW"), fmt.Sprintf("R %.1f / W %.1f / %.1f GB/s", lastCPUMetrics.DRAMReadBW, lastCPUMetrics.DRAMWriteBW, lastCPUMetrics.DRAMBWCombined)),
 	}
 
 	// Fan section
 	if len(lastCPUMetrics.Fans) > 0 {
 		infoLines = append(infoLines, "")
 		for _, fan := range lastCPUMetrics.Fans {
-			modeStr := "Auto"
+			modeStr := i18n.T("Info_Auto")
 			if fan.Mode == 1 {
-				modeStr = "Manual"
+				modeStr = i18n.T("Info_Manual")
 			}
 			infoLines = append(infoLines, formatLine(fan.Name, fmt.Sprintf("%d RPM (%s, %d-%d)", fan.ActualRPM, modeStr, fan.MinRPM, fan.MaxRPM)))
 		}
@@ -105,9 +111,9 @@ func buildInfoLines(themeColor string) []string {
 
 	tbIn := formatBytes(lastTBInBytes, networkUnit)
 	tbOut := formatBytes(lastTBOutBytes, networkUnit)
-	infoLines = append(infoLines, formatLine("TB Net", fmt.Sprintf("↑ %s/s ↓ %s/s", tbOut, tbIn)))
+	infoLines = append(infoLines, formatLine(i18n.T("Info_TBNet"), fmt.Sprintf("↑ %s/s ↓ %s/s", tbOut, tbIn)))
 
-	infoLines = append(infoLines, formatLine("RDMA", rdmaLabel))
+	infoLines = append(infoLines, formatLine(i18n.T("Info_RDMA"), rdmaLabel))
 
 	infoLines = append(infoLines, buildThunderboltInfoLines(themeColor)...)
 
@@ -124,9 +130,9 @@ func buildNetworkLinkLines(formatLine func(string, string) string) []string {
 
 	for _, eth := range ethInfo {
 		if eth.LinkUp {
-			lines = append(lines, formatLine("Ethernet", fmt.Sprintf("%s (%s)", FormatLinkSpeed(eth.LinkSpeedMbps), eth.Name)))
+			lines = append(lines, formatLine(i18n.T("Info_Ethernet"), fmt.Sprintf("%s (%s)", FormatLinkSpeed(eth.LinkSpeedMbps), eth.Name)))
 		} else {
-			lines = append(lines, formatLine("Ethernet", fmt.Sprintf("Disconnected (%s)", eth.Name)))
+			lines = append(lines, formatLine(i18n.T("Info_Ethernet"), fmt.Sprintf(i18n.T("Info_Disconnected"), eth.Name)))
 		}
 	}
 	if wifiInfo != nil {
@@ -135,9 +141,9 @@ func buildNetworkLinkLines(formatLine func(string, string) string) []string {
 			if gen == "" {
 				gen = wifiInfo.PHYMode
 			}
-			lines = append(lines, formatLine("Wi-Fi", fmt.Sprintf("%s @ %dMbps (%s)", gen, wifiInfo.TxRateMbps, wifiInfo.InterfaceName)))
+			lines = append(lines, formatLine(i18n.T("Info_WiFi"), fmt.Sprintf("%s @ %dMbps (%s)", gen, wifiInfo.TxRateMbps, wifiInfo.InterfaceName)))
 		} else {
-			lines = append(lines, formatLine("Wi-Fi", fmt.Sprintf("Disconnected (%s)", wifiInfo.InterfaceName)))
+			lines = append(lines, formatLine(i18n.T("Info_WiFi"), fmt.Sprintf("Disconnected (%s)", wifiInfo.InterfaceName)))
 		}
 	}
 	return lines
@@ -306,7 +312,7 @@ func renderInfoText(infoLines, asciiArt []string, layout infoLayout, themeColor 
 
 	// Show scroll indicator if needed
 	if infoScrollOffset > 0 {
-		fmt.Fprintf(&combinedText, "%s[↑ Scroll up (k/↑)](fg:%s)\n", paddingStr, themeColor)
+		fmt.Fprintf(&combinedText, "%s[%s (k/↑)](fg:%s)\n", paddingStr, i18n.T("Info_ScrollUp"), themeColor)
 	}
 
 	// Helper for stripping tags to calculate visible length
@@ -314,6 +320,16 @@ func renderInfoText(infoLines, asciiArt []string, layout infoLayout, themeColor 
 		re := regexp.MustCompile(`\[(.*?)\]\(.*?\)`)
 		return re.ReplaceAllString(s, "$1")
 	}
+
+	// Calculate the maximum visible length dynamically
+	maxVisibleLen := 48
+	for _, l := range infoLines {
+		vLen := runewidth.StringWidth(stripTags(l))
+		if vLen > maxVisibleLen {
+			maxVisibleLen = vLen
+		}
+	}
+	textColWidth := maxVisibleLen + 2
 
 	for i := layout.startLine; i < layout.endLine; i++ {
 		asciiLine := ""
@@ -332,9 +348,7 @@ func renderInfoText(infoLines, asciiArt []string, layout infoLayout, themeColor 
 		}
 
 		if layout.showAscii {
-			visibleLen := len(stripTags(infoLine))
-
-			textColWidth := 48
+			visibleLen := runewidth.StringWidth(stripTags(infoLine))
 			paddingSpaces := textColWidth - visibleLen
 			if paddingSpaces < 2 {
 				paddingSpaces = 2
@@ -352,7 +366,7 @@ func renderInfoText(infoLines, asciiArt []string, layout infoLayout, themeColor 
 
 	// Show scroll indicator if there's more below
 	if layout.endLine < layout.totalLines {
-		fmt.Fprintf(&combinedText, "%s[↓ Scroll down (j/↓)](fg:%s)\n", paddingStr, themeColor)
+		fmt.Fprintf(&combinedText, "%s[%s (j/↓)](fg:%s)\n", paddingStr, i18n.T("Info_ScrollDown"), themeColor)
 	}
 
 	return combinedText.String()

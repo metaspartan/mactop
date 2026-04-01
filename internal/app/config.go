@@ -66,6 +66,7 @@ type OverlayConfig struct {
 }
 
 type AppConfig struct {
+	Language      string             `json:"language,omitempty"`
 	DefaultLayout string             `json:"default_layout"`
 	Theme         string             `json:"theme"`
 	Background    string             `json:"background,omitempty"`

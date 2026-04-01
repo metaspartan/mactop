@@ -155,6 +155,17 @@ static NSString *hexFromColor(NSColor *color) {
   int b = (int)(c.blueComponent * 255 + 0.5);
   return [NSString stringWithFormat:@"#%02X%02X%02X", r, g, b];
 }
+extern char *GoI18nT(char *id);
+
+static NSString *localize(NSString *key) {
+  const char *cKey = [key UTF8String];
+  char *cVal = GoI18nT((char *)cKey);
+  if (!cVal)
+    return key;
+  NSString *res = [NSString stringWithUTF8String:cVal];
+  free(cVal);
+  return res;
+}
 
 static NSColor *cpuColor(void) {
   NSColor *c = colorFromHex(g_config.cpu_color);
@@ -1010,77 +1021,77 @@ static void buildMenu(void) {
     [menu addItem:makeBrandingItem()];
     [menu addItem:[NSMenuItem separatorItem]];
 
-    g_delegate.modelItem = makeHeaderItem(@"Apple Silicon");
+    g_delegate.modelItem = makeHeaderItem(localize(@"Menu_AppleSilicon"));
     [menu addItem:g_delegate.modelItem];
     [menu addItem:[NSMenuItem separatorItem]];
 
-    [menu addItem:makeHeaderItem(@"CPU")];
-    g_delegate.cpuUsageItem = makeMetricItem(@"Usage:", @"\u2014");
+    [menu addItem:makeHeaderItem(localize(@"Menu_CPU"))];
+    g_delegate.cpuUsageItem = makeMetricItem(localize(@"Menu_Usage"), @"\u2014");
     [menu addItem:g_delegate.cpuUsageItem];
-    g_delegate.cpuEClusterItem = makeMetricItem(@"E-Cluster:", @"\u2014");
+    g_delegate.cpuEClusterItem = makeMetricItem(localize(@"Menu_ECluster"), @"\u2014");
     [menu addItem:g_delegate.cpuEClusterItem];
-    g_delegate.cpuPClusterItem = makeMetricItem(@"P-Cluster:", @"\u2014");
+    g_delegate.cpuPClusterItem = makeMetricItem(localize(@"Menu_PCluster"), @"\u2014");
     [menu addItem:g_delegate.cpuPClusterItem];
-    g_delegate.cpuSClusterItem = makeMetricItem(@"S-Cluster:", @"\u2014");
+    g_delegate.cpuSClusterItem = makeMetricItem(localize(@"Menu_SCluster"), @"\u2014");
     [menu addItem:g_delegate.cpuSClusterItem];
     g_delegate.cpuSClusterItem.hidden =
         YES; // Hidden until S-cluster data arrives
-    g_delegate.cpuWattsItem = makeMetricItem(@"Power:", @"\u2014");
+    g_delegate.cpuWattsItem = makeMetricItem(localize(@"Menu_Power"), @"\u2014");
     [menu addItem:g_delegate.cpuWattsItem];
-    g_delegate.cpuTempItem = makeMetricItem(@"Temp:", @"\u2014");
+    g_delegate.cpuTempItem = makeMetricItem(localize(@"Menu_Temp"), @"\u2014");
     [menu addItem:g_delegate.cpuTempItem];
     [menu addItem:[NSMenuItem separatorItem]];
 
-    [menu addItem:makeHeaderItem(@"GPU")];
-    g_delegate.gpuUsageItem = makeMetricItem(@"Usage:", @"\u2014");
+    [menu addItem:makeHeaderItem(localize(@"Menu_GPU"))];
+    g_delegate.gpuUsageItem = makeMetricItem(localize(@"Menu_Usage"), @"\u2014");
     [menu addItem:g_delegate.gpuUsageItem];
-    g_delegate.gpuWattsItem = makeMetricItem(@"Power:", @"\u2014");
+    g_delegate.gpuWattsItem = makeMetricItem(localize(@"Menu_Power"), @"\u2014");
     [menu addItem:g_delegate.gpuWattsItem];
-    g_delegate.gpuTflopsItem = makeMetricItem(@"TFLOPs:", @"\u2014");
+    g_delegate.gpuTflopsItem = makeMetricItem(localize(@"Menu_TFLOPs"), @"\u2014");
     [menu addItem:g_delegate.gpuTflopsItem];
-    g_delegate.gpuTempItem = makeMetricItem(@"Temp:", @"\u2014");
+    g_delegate.gpuTempItem = makeMetricItem(localize(@"Menu_Temp"), @"\u2014");
     [menu addItem:g_delegate.gpuTempItem];
     [menu addItem:[NSMenuItem separatorItem]];
 
-    [menu addItem:makeHeaderItem(@"MEMORY")];
-    g_delegate.memUsageItem = makeMetricItem(@"RAM:", @"\u2014");
+    [menu addItem:makeHeaderItem(localize(@"Menu_MEMORY"))];
+    g_delegate.memUsageItem = makeMetricItem(localize(@"Menu_RAM"), @"\u2014");
     [menu addItem:g_delegate.memUsageItem];
-    g_delegate.memSwapItem = makeMetricItem(@"Swap:", @"\u2014");
+    g_delegate.memSwapItem = makeMetricItem(localize(@"Menu_Swap"), @"\u2014");
     [menu addItem:g_delegate.memSwapItem];
-    g_delegate.dramBwItem = makeMetricItem(@"DRAM BW:", @"\u2014");
+    g_delegate.dramBwItem = makeMetricItem(localize(@"Menu_DRAMBW"), @"\u2014");
     [menu addItem:g_delegate.dramBwItem];
     [menu addItem:[NSMenuItem separatorItem]];
 
-    [menu addItem:makeHeaderItem(@"NETWORK")];
-    g_delegate.netItem = makeMetricItem(@"Network:", @"\u2014");
+    [menu addItem:makeHeaderItem(localize(@"Menu_NETWORK"))];
+    g_delegate.netItem = makeMetricItem(localize(@"Menu_Network"), @"\u2014");
     [menu addItem:g_delegate.netItem];
-    g_delegate.rdmaItem = makeMetricItem(@"RDMA:", @"\u2014");
+    g_delegate.rdmaItem = makeMetricItem(localize(@"Menu_RDMA"), @"\u2014");
     [menu addItem:g_delegate.rdmaItem];
     [menu addItem:[NSMenuItem separatorItem]];
 
-    [menu addItem:makeHeaderItem(@"DISK")];
-    g_delegate.diskItem = makeMetricItem(@"Disk:", @"\u2014");
+    [menu addItem:makeHeaderItem(localize(@"Menu_DISK"))];
+    g_delegate.diskItem = makeMetricItem(localize(@"Menu_Disk"), @"\u2014");
     [menu addItem:g_delegate.diskItem];
     [menu addItem:[NSMenuItem separatorItem]];
 
-    [menu addItem:makeHeaderItem(@"POWER")];
-    g_delegate.powerTotalItem = makeMetricItem(@"Total:", @"\u2014");
+    [menu addItem:makeHeaderItem(localize(@"Menu_POWER"))];
+    g_delegate.powerTotalItem = makeMetricItem(localize(@"Menu_Total"), @"\u2014");
     [menu addItem:g_delegate.powerTotalItem];
-    g_delegate.powerPackageItem = makeMetricItem(@"System:", @"\u2014");
+    g_delegate.powerPackageItem = makeMetricItem(localize(@"Menu_System"), @"\u2014");
     [menu addItem:g_delegate.powerPackageItem];
-    g_delegate.powerCpuItem = makeMetricItem(@"CPU:", @"\u2014");
+    g_delegate.powerCpuItem = makeMetricItem([NSString stringWithFormat:@"%@:", localize(@"Menu_CPU")], @"\u2014");
     [menu addItem:g_delegate.powerCpuItem];
-    g_delegate.powerGpuItem = makeMetricItem(@"GPU:", @"\u2014");
+    g_delegate.powerGpuItem = makeMetricItem([NSString stringWithFormat:@"%@:", localize(@"Menu_GPU")], @"\u2014");
     [menu addItem:g_delegate.powerGpuItem];
-    g_delegate.powerAneItem = makeMetricItem(@"ANE:", @"\u2014");
+    g_delegate.powerAneItem = makeMetricItem([NSString stringWithFormat:@"%@:", localize(@"Overlay_ANE")], @"\u2014");
     [menu addItem:g_delegate.powerAneItem];
-    g_delegate.powerDramItem = makeMetricItem(@"DRAM:", @"\u2014");
+    g_delegate.powerDramItem = makeMetricItem([NSString stringWithFormat:@"%@:", localize(@"Overlay_Memory")], @"\u2014"); // Equivalent to DRAM:
     [menu addItem:g_delegate.powerDramItem];
-    g_delegate.thermalItem = makeMetricItem(@"Thermal:", @"\u2014");
+    g_delegate.thermalItem = makeMetricItem(localize(@"Menu_Thermal"), @"\u2014");
     [menu addItem:g_delegate.thermalItem];
     [menu addItem:[NSMenuItem separatorItem]];
 
-    [menu addItem:makeHeaderItem(@"HISTORY")];
+    [menu addItem:makeHeaderItem(localize(@"Menu_HISTORY"))];
     NSImage *emptySparkCPU = drawSparklineChart(
         cpuHistory, SPARKLINE_HISTORY_SIZE, cpuColor(), @"CPU", 0, nil);
     g_delegate.cpuSparkItem = makeSparkItem(emptySparkCPU);
@@ -1100,7 +1111,7 @@ static void buildMenu(void) {
     [menu addItem:g_delegate.memSparkItem];
     [menu addItem:[NSMenuItem separatorItem]];
 
-    g_delegate.fanHeaderItem = makeHeaderItem(@"FANS");
+    g_delegate.fanHeaderItem = makeHeaderItem(localize(@"Menu_FANS"));
     [menu addItem:g_delegate.fanHeaderItem];
     g_delegate.fan0Item = makeMetricItem(@"Fan 0:", @"\u2014");
     [menu addItem:g_delegate.fan0Item];
@@ -1114,25 +1125,25 @@ static void buildMenu(void) {
     [menu addItem:g_delegate.fanSepItem];
 
     NSMenuItem *settingsItem =
-        [[NSMenuItem alloc] initWithTitle:@"Settings\u2026"
+        [[NSMenuItem alloc] initWithTitle:localize(@"Menu_Settings")
                                    action:@selector(openSettings:)
                             keyEquivalent:@","];
     settingsItem.target = g_delegate;
     [menu addItem:settingsItem];
     [menu addItem:[NSMenuItem separatorItem]];
     NSMenuItem *ghItem =
-        [[NSMenuItem alloc] initWithTitle:@"Open GitHub Info\u2026"
+        [[NSMenuItem alloc] initWithTitle:localize(@"Menu_OpenGitHub")
                                    action:@selector(openGitHub:)
                             keyEquivalent:@""];
     ghItem.target = g_delegate;
     [menu addItem:ghItem];
     NSMenuItem *tuiItem =
-        [[NSMenuItem alloc] initWithTitle:@"Open mactop TUI\u2026"
+        [[NSMenuItem alloc] initWithTitle:localize(@"Menu_OpenTUI")
                                    action:@selector(openTUI:)
                             keyEquivalent:@"t"];
     tuiItem.target = g_delegate;
     [menu addItem:tuiItem];
-    NSMenuItem *quitItem = [[NSMenuItem alloc] initWithTitle:@"Quit mactop"
+    NSMenuItem *quitItem = [[NSMenuItem alloc] initWithTitle:localize(@"Menu_Quit")
                                                       action:@selector(quitApp:)
                                                keyEquivalent:@"q"];
     quitItem.target = g_delegate;
@@ -1280,14 +1291,14 @@ void cleanupMenuBar(void) {
         stringWithFormat:@"%s  (%@)", metrics.model_name, coreStr];
 
     MactopMetricView *v = (MactopMetricView *)self.cpuUsageItem.view;
-    [v setTwoToneLabel:@"Usage:"
+    [v setTwoToneLabel:localize(@"Menu_Usage")
                  value:[NSString
                            stringWithFormat:@"%.1f%%", metrics.cpu_percent]];
     // E-Cluster: hide when e_core_count is 0 (M5+ has no E-cores)
     if (metrics.e_core_count > 0) {
       self.cpuEClusterItem.hidden = NO;
       v = (MactopMetricView *)self.cpuEClusterItem.view;
-      [v setTwoToneLabel:@"E-Cluster:"
+      [v setTwoToneLabel:localize(@"Menu_ECluster")
                    value:[NSString stringWithFormat:@"%d MHz (%.1f%%)",
                                                     metrics.ecluster_freq_mhz,
                                                     metrics.ecluster_active]];
@@ -1295,7 +1306,7 @@ void cleanupMenuBar(void) {
       self.cpuEClusterItem.hidden = YES;
     }
     v = (MactopMetricView *)self.cpuPClusterItem.view;
-    [v setTwoToneLabel:@"P-Cluster:"
+    [v setTwoToneLabel:localize(@"Menu_PCluster")
                  value:[NSString stringWithFormat:@"%d MHz (%.1f%%)",
                                                   metrics.pcluster_freq_mhz,
                                                   metrics.pcluster_active]];
@@ -1304,35 +1315,35 @@ void cleanupMenuBar(void) {
     if (metrics.scluster_freq_mhz > 0 || metrics.scluster_active > 0) {
       self.cpuSClusterItem.hidden = NO;
       v = (MactopMetricView *)self.cpuSClusterItem.view;
-      [v setTwoToneLabel:@"S-Cluster:"
+      [v setTwoToneLabel:localize(@"Menu_SCluster")
                    value:[NSString stringWithFormat:@"%d MHz (%.1f%%)",
                                                     metrics.scluster_freq_mhz,
                                                     metrics.scluster_active]];
     }
     v = (MactopMetricView *)self.cpuWattsItem.view;
-    [v setTwoToneLabel:@"Power:"
+    [v setTwoToneLabel:localize(@"Menu_Power")
                  value:[NSString
                            stringWithFormat:@"%.2f W", metrics.cpu_watts]];
     v = (MactopMetricView *)self.cpuTempItem.view;
-    [v setTwoToneLabel:@"Temp:"
+    [v setTwoToneLabel:localize(@"Menu_Temp")
                  value:[NSString stringWithFormat:@"%.1f°C", metrics.cpu_temp]];
 
     v = (MactopMetricView *)self.gpuUsageItem.view;
-    [v setTwoToneLabel:@"Usage:"
+    [v setTwoToneLabel:localize(@"Menu_Usage")
                  value:[NSString stringWithFormat:@"%.1f%% (%d MHz)",
                                                   metrics.gpu_percent,
                                                   metrics.gpu_freq_mhz]];
     v = (MactopMetricView *)self.gpuWattsItem.view;
-    [v setTwoToneLabel:@"Power:"
+    [v setTwoToneLabel:localize(@"Menu_Power")
                  value:[NSString
                            stringWithFormat:@"%.2f W", metrics.gpu_watts]];
     double activeTF = (metrics.gpu_percent / 100.0) * metrics.tflops_fp32;
     v = (MactopMetricView *)self.gpuTflopsItem.view;
-    [v setTwoToneLabel:@"TFLOPs:"
+    [v setTwoToneLabel:localize(@"Menu_TFLOPs")
                  value:[NSString stringWithFormat:@"%.2f / %.2f FP32", activeTF,
                                                   metrics.tflops_fp32]];
     v = (MactopMetricView *)self.gpuTempItem.view;
-    [v setTwoToneLabel:@"Temp:"
+    [v setTwoToneLabel:localize(@"Menu_Temp")
                  value:[NSString stringWithFormat:@"%.1f°C", metrics.gpu_temp]];
 
     double memUsedGB =
@@ -1340,7 +1351,7 @@ void cleanupMenuBar(void) {
     double memTotalGB =
         (double)metrics.mem_total_bytes / (1024.0 * 1024.0 * 1024.0);
     v = (MactopMetricView *)self.memUsageItem.view;
-    [v setTwoToneLabel:@"RAM:"
+    [v setTwoToneLabel:localize(@"Menu_RAM")
                  value:[NSString stringWithFormat:@"%.1f / %.0f GB (%.1f%%)",
                                                   memUsedGB, memTotalGB,
                                                   memPct]];
@@ -1349,17 +1360,17 @@ void cleanupMenuBar(void) {
     double swapTotalGB =
         (double)metrics.swap_total_bytes / (1024.0 * 1024.0 * 1024.0);
     v = (MactopMetricView *)self.memSwapItem.view;
-    [v setTwoToneLabel:@"Swap:"
+    [v setTwoToneLabel:localize(@"Menu_Swap")
                  value:[NSString stringWithFormat:@"%.1f / %.1f GB", swapUsedGB,
                                                   swapTotalGB]];
     v = (MactopMetricView *)self.dramBwItem.view;
-    [v setTwoToneLabel:@"DRAM BW:"
+    [v setTwoToneLabel:localize(@"Menu_DRAMBW")
                  value:[NSString
                            stringWithFormat:@"%.1f GB/s",
                                             metrics.dram_bw_combined_gbs]];
 
     v = (MactopMetricView *)self.netItem.view;
-    [v setTwoToneLabel:@"Network:"
+    [v setTwoToneLabel:localize(@"Menu_Network")
                  value:[NSString
                            stringWithFormat:@"↓ %@  ↑ %@",
                                             formatThroughput(
@@ -1368,42 +1379,42 @@ void cleanupMenuBar(void) {
                                                 metrics
                                                     .net_out_bytes_per_sec)]];
     v = (MactopMetricView *)self.rdmaItem.view;
-    [v setTwoToneLabel:@"RDMA:"
+    [v setTwoToneLabel:localize(@"Menu_RDMA")
                  value:[NSString stringWithUTF8String:metrics.rdma_status]];
 
     v = (MactopMetricView *)self.diskItem.view;
-    [v setTwoToneLabel:@"Disk:"
+    [v setTwoToneLabel:localize(@"Menu_Disk")
                  value:[NSString
                            stringWithFormat:@"R %.0f KB/s  W %.0f KB/s",
                                             metrics.disk_read_kb_per_sec,
                                             metrics.disk_write_kb_per_sec]];
 
     v = (MactopMetricView *)self.powerTotalItem.view;
-    [v setTwoToneLabel:@"Total:"
+    [v setTwoToneLabel:localize(@"Menu_Total")
                  value:[NSString
                            stringWithFormat:@"%.2f W", metrics.total_watts]];
     v = (MactopMetricView *)self.powerPackageItem.view;
-    [v setTwoToneLabel:@"System:"
+    [v setTwoToneLabel:localize(@"Menu_System")
                  value:[NSString
                            stringWithFormat:@"%.2f W", metrics.package_watts]];
     v = (MactopMetricView *)self.powerCpuItem.view;
-    [v setTwoToneLabel:@"CPU:"
+    [v setTwoToneLabel:[NSString stringWithFormat:@"%@:", localize(@"Menu_CPU")]
                  value:[NSString
                            stringWithFormat:@"%.2f W", metrics.cpu_watts]];
     v = (MactopMetricView *)self.powerGpuItem.view;
-    [v setTwoToneLabel:@"GPU:"
+    [v setTwoToneLabel:[NSString stringWithFormat:@"%@:", localize(@"Menu_GPU")]
                  value:[NSString
                            stringWithFormat:@"%.2f W", metrics.gpu_watts]];
     v = (MactopMetricView *)self.powerAneItem.view;
-    [v setTwoToneLabel:@"ANE:"
+    [v setTwoToneLabel:[NSString stringWithFormat:@"%@:", localize(@"Overlay_ANE")]
                  value:[NSString
                            stringWithFormat:@"%.2f W", metrics.ane_watts]];
     v = (MactopMetricView *)self.powerDramItem.view;
-    [v setTwoToneLabel:@"DRAM:"
+    [v setTwoToneLabel:[NSString stringWithFormat:@"%@:", localize(@"Overlay_Memory")]
                  value:[NSString
                            stringWithFormat:@"%.2f W", metrics.dram_watts]];
     v = (MactopMetricView *)self.thermalItem.view;
-    [v setTwoToneLabel:@"Thermal:"
+    [v setTwoToneLabel:localize(@"Menu_Thermal")
                  value:[NSString stringWithUTF8String:metrics.thermal_state]];
 
     // Sparklines

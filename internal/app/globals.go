@@ -70,6 +70,7 @@ var (
 	filterPID       int     // Monitor a specific process by PID (0 = all)
 	cliFgColor      string  // Foreground color from --foreground flag (used for = assignments)
 	cliBgColor      string  // Background color from --bg flag
+	cliLanguage     string  // Language override flag
 	fanControl      bool    // Enable interactive fan speed control (requires --fan-control flag)
 	overlay         bool    // Show floating overlay HUD window
 	overlayWorker   bool    // Hidden: run as overlay worker process

@@ -1,0 +1,218 @@
+Overlay_FPS = "FPS"
+Overlay_FrameInfo = "フレーム間隔"
+Overlay_CPU = "CPU"
+Overlay_GPU = "GPU"
+Overlay_ANE = "ANE"
+Overlay_Memory = "メモリ"
+Overlay_Swap = "スワップ"
+Overlay_Power = "電力"
+Overlay_Bandwidth = "DRAM帯域幅"
+Overlay_GPUFreq = "GPU周波数"
+Overlay_Temps = "温度"
+Overlay_Thermal = "熱状態"
+Overlay_Fans = "ファン"
+Overlay_Network = "ネットワーク"
+
+TUI_InfoLayoutColorExit = " 情報: i | レイアウト: l | 色: c | 背景: b | 終了: q "
+TUI_LayoutInfo = " %d/%d レイアウト (%s) "
+TUI_LayoutInfoShort = " %d/%d "
+TUI_ModelInfo = "モデル: %s"
+TUI_CoresInfo = "%d コア (%dP, %dE, %dS) | GPU: %d コア | %s"
+TUI_TotalPower = "合計電力: %.1fW"
+TUI_AppTotalPower = "合計: %.1fW | CPU: %.1fW (ANE: %.1fW) GPU: %.1fW"
+TUI_AppleSilicon = "Apple Silicon"
+TUI_HelpMenu = "mactop ヘルプメニュー"
+TUI_Loading = "読み込み中..."
+TUI_LoadingTB = "Thunderbolt情報を読み込み中..."
+TUI_Fans = " ⊚ ファン "
+TUI_Temperatures = " 🌡 温度 "
+TUI_ProcessList = "プロセスリスト"
+TUI_UnknownModel = "不明なモデル"
+TUI_ECPUUsage = "E-CPU使用率"
+TUI_PCPUUsage = "P-CPU使用率"
+TUI_GPUUsage = "GPU使用率"
+TUI_MemoryUsage = "メモリ使用率"
+TUI_ANEUsage = "ANE使用率"
+TUI_PowerUsage = "電力使用量"
+TUI_NetworkDisk = "ネットワークとディスク"
+TUI_ThunderboltRDMA = "Thunderbolt / RDMA"
+TUI_MactopTitle = " mactop "
+TUI_GPUUsageHistory = "GPU使用率の履歴"
+TUI_TBNet = "TB ネットワーク ↓0/s ↑0/s"
+TUI_PowerHistory = "電力の履歴"
+TUI_MemorySwapHistory = "メモリ/スワップの履歴"
+TUI_CPUUsageHistory = "CPU使用率の履歴"
+TUI_ConfirmKill = " 確認 "
+TUI_ConfirmYes = "はい"
+TUI_ConfirmNo = "いいえ"
+
+Info_OS = "OS"
+Info_Host = "ホスト"
+Info_Kernel = "カーネル"
+Info_Uptime = "稼働時間"
+Info_Shell = "シェル"
+Info_CPU = "CPU"
+Info_GPU = "GPU"
+Info_TFLOPs = "TFLOPs"
+Info_Memory = "メモリ"
+Info_Swap = "スワップ"
+Info_CPUUsage = "CPU使用率"
+Info_GPUUsage = "GPU使用率"
+Info_ANEUsage = "ANE使用率"
+Info_Power = "電力"
+Info_Thermals = "温度"
+Info_Network = "ネットワーク"
+Info_Disk = "ディスク"
+Info_DRAMBW = "DRAM帯域幅"
+Info_TBNet = "TB ネットワーク"
+Info_RDMA = "RDMA"
+Info_Ethernet = "イーサネット"
+Info_WiFi = "Wi-Fi"
+
+Metrics_MemoryUsed = "%.1fGB / %.1fGB %.1f%%"
+Metrics_SwapUsed = "スワップ: %.1fGB / %.1fGB %.1f%%"
+Metrics_DiskIO = "[入] %.1f%s [出] %.1f%s"
+Metrics_NetIO = "[入] %s [出] %s"
+Metrics_TFLOPs = "FP32 TFLOPs: %.1f"
+Metrics_Freq = "周波数: %d MHz"
+Metrics_RPM = "%d RPM"
+Metrics_ThermalNominal = "正常"
+Metrics_ThermalFair = "注意"
+Metrics_ThermalSerious = "深刻"
+Metrics_ThermalCritical = "危険"
+Metrics_ThermalUnknown = "不明"
+Metrics_RDMAActive = "アクティブ"
+Metrics_RDMAInactive = "非アクティブ"
+Metrics_CPUGaugeCompact = "CPU %.0f%% %s"
+Metrics_CPUGauge = "%d コア %s %.2f%%%s (%s)"
+Metrics_ANEGaugeCompact = "ANE %.1fW"
+Metrics_ANEGauge = "ANE使用率: %.2f%% @ %.2f W"
+Metrics_PowerChartTitleCompact = "電力"
+Metrics_PowerChartTextCompact = "C:%.1fW G:%.1fW\nA:%.1fW D:%.1fW\n合:%.1fW %s"
+Metrics_PowerChartText = "CPU: %.2f W | GPU: %.2f W\nANE: %.2f W | DRAM: %.2f W\nシステム: %.2f W\n合計: %.2f W\n温度: %s\n稼働時間: %s"
+Metrics_NetworkDiskTitle = "ネットワークとディスク"
+Metrics_MemGaugeCompact = "メモリ %.0f/%.0fG 帯域 %.1f GB/s"
+Metrics_MemGauge = "メモリ: %.2f GB / %.2f GB (スワップ: %.2f/%.2f GB) 帯域: %.1f GB/s"
+
+Process_PID = "PID"
+Process_USER = "ユーザー"
+Process_VIRT = "仮想"
+Process_RES = "物理"
+Process_CPU = "CPU"
+Process_GPU = "GPU"
+Process_MEM = "メモリ"
+Process_TIME = "時間"
+Process_CMD = "コマンド"
+
+TUI_ProcessListFull = "プロセスリスト (↑/↓ スクロール, / 検索, f 停止, F9 終了)"
+TUI_ProcessListFrozen = " プロセスリスト [停止中] (fで再開) "
+TUI_ProcessListSearch = " 検索: %s_ (Escでクリア) "
+TUI_ProcessListKill = " プロセスリスト - 終了確認 (PID %d) "
+TUI_ProcessListPID = " プロセスリスト [PID %d] (↑/↓ スクロール, / 検索, f 停止, F9 終了) "
+TUI_Cores = "%d コア"
+TUI_ECores = "%d E-Core"
+TUI_PCores = "%d P-Core"
+TUI_SCores = "%d S-Core"
+TUI_GPUCores = "%s GPU コア"
+Metrics_NetLink = "通信 (%s): ↑ %s/s ↓ %s/s"
+Metrics_Net = "通信: ↑ %s/s ↓ %s/s"
+Metrics_IO = "I/O: 読 %s/s 書 %s/s"
+Metrics_DiskFree = "%s: %s/%s (%s 空き)"
+Metrics_GPUGaugeTemp = "GPU使用率: %d%% @ %d MHz (%s)"
+Metrics_GPUGaugeFreq = "GPU使用率: %d%% @ %d MHz"
+Metrics_GPUSparkline = "GPU履歴: %d%% (平均: %.1f%%)"
+Metrics_GPUHistoryChart = "GPU使用率の履歴 (平均: %.1f%%)"
+Metrics_GPUGaugeCompactTemp = "GPU %d%% %s"
+Metrics_GPUGaugeCompactFreq = "GPU %d%% %dMHz"
+Metrics_GPUSparklineCompact = "GPU %d%% (%.0f%%)"
+
+Help_FullText = """
+mactopはCarsen KlockによってGo言語で開発されたApple Silicon用オープンソース監視ツールです！
+
+リポジトリ: github.com/metaspartan/mactop
+
+----現在の設定----
+Prometheusメトリクス: %s
+バージョン: %s
+レイアウト: %s
+文字色: %s
+背景色: %s
+更新間隔: %dms
+
+----操作方法----
+- r: UIデータを手動で更新
+- c: UIカラーテーマを変更
+- b: UI背景色を変更
+- p: パーティーモード（カラーサイクル）切替
+- l: 18種類のレイアウトを切り替え
+- i: 情報画面の表示切替
+- Shift + F: ファン制御＆熱レイアウト表示
+- F9: 選択したプロセスを強制終了 (y/n確認)
+- f: プロセスリストを固定
+- /: プロセス検索
+- g/G: 一番上/一番下へ移動
+- + / -: 更新間隔を調整（早く/遅く）
+- h / ?: ヘルプメニュー表示切替
+- j/k または ↓/↑: スクロール
+- q または <C-c>: アプリケーション終了
+
+----起動オプション----
+--help, -h: ヘルプ表示
+--version, -v: バージョン表示
+--interval, -i: 更新間隔(ms)。デフォルト1000。
+--prometheus, -p: Prometheusメトリクスポート設定 (--prometheus=9090)
+--headless: UIなしのヘッドレスモード (stdoutへ出力)
+--format: ヘッドレスの出力形式 (json, yaml, xml, csv, toon)
+--pretty: ヘッドレスでの整形出力
+--count: ヘッドレスでの取得回数 (0 = 無限)
+--dump-ioreport, -d: 全IOReportチャンネルを出力して終了
+--unit-network: ネットワーク単位 (auto, byte, kb, mb, gb)
+--unit-disk: ディスク単位 (auto, byte, kb, mb, gb)
+--unit-temp: 温度単位 (celsius, fahrenheit)
+--foreground: UI文字色設定
+--bg: UI背景色設定
+--pid: 特定プロセスの監視 (--pid 1234)
+--fan-control: インタラクティブなファン速度制御 (SMC変更)*
+--menubar: macOSメニューバーステータス項目モード
+
+テーマファイル設定：色変更は ~/.mactop/theme.json を作成してください
+"""
+
+Info_Auto = "自動"
+Info_Manual = "手動"
+Info_Disconnected = "切断 (%s)"
+Info_Enabled = "有効"
+Info_Disabled = "無効"
+Info_ScrollUp = "↑ スクロールアップ"
+Info_ScrollDown = "↓ スクロールダウン"
+
+
+Menu_Usage = "使用割合:"
+Menu_ECluster = "高効率コア:"
+Menu_PCluster = "高性能コア:"
+Menu_SCluster = "新コア:"
+Menu_Power = "電力:"
+Menu_Temp = "温度:"
+Menu_TFLOPs = "TFLOPs:"
+Menu_RAM = "メモリ:"
+Menu_Swap = "スワップ:"
+Menu_DRAMBW = "DRAM帯域幅:"
+Menu_Network = "ネットワーク:"
+Menu_RDMA = "RDMA:"
+Menu_Disk = "ディスク:"
+Menu_Total = "合計:"
+Menu_System = "システム:"
+Menu_Thermal = "熱状態:"
+Menu_Settings = "設定..."
+Menu_OpenGitHub = "GitHub情報を開く..."
+Menu_OpenTUI = "mactop TUIを開く..."
+Menu_Quit = "mactopを終了"
+Menu_AppleSilicon = "Appleシリコン"
+Menu_CPU = "CPU"
+Menu_GPU = "GPU"
+Menu_MEMORY = "メモリ"
+Menu_NETWORK = "ネットワーク"
+Menu_DISK = "ディスク"
+Menu_POWER = "電力"
+Menu_HISTORY = "履歴"
+Menu_FANS = "ファン"
