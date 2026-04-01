@@ -77,6 +77,7 @@ var (
 	overlayOpacity  float64 // Overlay window opacity (0.15-1.0)
 	dumpTemps       bool    // Diagnostic: dump all SMC temperature keys
 	dumpDebug       bool    // Diagnostic: dump IOReport/HID/SMC/NVMe debug info
+	dumpFPS         bool    // Diagnostic: dump CGDisplayStream FPS info
 	interruptChan   = make(chan struct{}, 10)
 
 	cachedTermWidth    int

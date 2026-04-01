@@ -9,6 +9,8 @@
 #include <stdatomic.h>
 #include <stdint.h>
 #include <math.h>
+#include <sys/sysctl.h>
+#include <unistd.h>
 
 #import <Foundation/Foundation.h>
 #import <CoreGraphics/CoreGraphics.h>
@@ -200,4 +202,171 @@ uint32_t getDisplayFPS(void) { return atomic_load(&g_dfpsFPS); }
 // getDisplayFrameIntervalUs returns the average frame interval in microseconds.
 uint32_t getDisplayFrameIntervalUs(void) {
   return atomic_load(&g_dfpsFrameIntervalUs);
+}
+
+// ---------- Diagnostic dump ----------
+
+// CGPreflightScreenCaptureAccess was added in macOS 10.15
+typedef bool (*CGPreflightScreenCaptureAccess_fn)(void);
+
+// dumpDisplayFPSDiagnostics prints comprehensive display and CGDisplayStream
+// diagnostic info to stdout so remote users can paste the output for debugging.
+void dumpDisplayFPSDiagnostics(void) {
+  printf("=== mactop Display FPS Diagnostics ===\n\n");
+
+  // --- macOS version ---
+  NSProcessInfo *pi = [NSProcessInfo processInfo];
+  NSOperatingSystemVersion ver = [pi operatingSystemVersion];
+  printf("macOS Version:    %ld.%ld.%ld\n",
+         (long)ver.majorVersion, (long)ver.minorVersion, (long)ver.patchVersion);
+
+  // --- Hardware model ---
+  size_t hwLen = 0;
+  sysctlbyname("hw.model", NULL, &hwLen, NULL, 0);
+  if (hwLen > 0) {
+    char *model = malloc(hwLen);
+    if (model && sysctlbyname("hw.model", model, &hwLen, NULL, 0) == 0) {
+      printf("Hardware Model:   %s\n", model);
+    }
+    free(model);
+  }
+
+  // --- CPU brand ---
+  size_t cpuLen = 0;
+  sysctlbyname("machdep.cpu.brand_string", NULL, &cpuLen, NULL, 0);
+  if (cpuLen > 0) {
+    char *cpu = malloc(cpuLen);
+    if (cpu && sysctlbyname("machdep.cpu.brand_string", cpu, &cpuLen, NULL, 0) == 0) {
+      printf("CPU:              %s\n", cpu);
+    }
+    free(cpu);
+  }
+  printf("\n");
+
+  // --- Screen recording permission ---
+  void *cg = dlopen("/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics", RTLD_LAZY);
+  if (cg) {
+    CGPreflightScreenCaptureAccess_fn preflightFn =
+        (CGPreflightScreenCaptureAccess_fn)dlsym(cg, "CGPreflightScreenCaptureAccess");
+    if (preflightFn) {
+      bool hasAccess = preflightFn();
+      printf("Screen Recording: %s\n", hasAccess ? "GRANTED" : "NOT GRANTED (may block CGDisplayStream)");
+    } else {
+      printf("Screen Recording: (CGPreflightScreenCaptureAccess not available)\n");
+    }
+  }
+  printf("\n");
+
+  // --- Active displays ---
+  CGDirectDisplayID displays[16];
+  uint32_t displayCount = 0;
+  CGGetActiveDisplayList(16, displays, &displayCount);
+  printf("Active Displays:  %u\n\n", displayCount);
+
+  for (uint32_t d = 0; d < displayCount; d++) {
+    CGDirectDisplayID did = displays[d];
+    size_t pw = CGDisplayPixelsWide(did);
+    size_t ph = CGDisplayPixelsHigh(did);
+    bool isMain = CGDisplayIsMain(did);
+    bool isBuiltin = CGDisplayIsBuiltin(did);
+
+    printf("  Display %u (ID: 0x%08x)%s%s\n", d, did,
+           isMain ? " [MAIN]" : "",
+           isBuiltin ? " [BUILTIN]" : " [EXTERNAL]");
+    printf("    Resolution:   %zux%zu px\n", pw, ph);
+
+    // Refresh rate from display mode
+    CGDisplayModeRef mode = CGDisplayCopyDisplayMode(did);
+    if (mode) {
+      double refreshRate = CGDisplayModeGetRefreshRate(mode);
+      size_t modeW = CGDisplayModeGetPixelWidth(mode);
+      size_t modeH = CGDisplayModeGetPixelHeight(mode);
+      printf("    Pixel Size:   %zux%zu (backing)\n", modeW, modeH);
+      if (refreshRate > 0) {
+        printf("    Refresh Rate: %.1f Hz\n", refreshRate);
+      } else {
+        printf("    Refresh Rate: Variable/ProMotion (reported as 0)\n");
+      }
+      CGDisplayModeRelease(mode);
+    }
+    printf("\n");
+  }
+
+  // --- Symbol loading ---
+  printf("--- CGDisplayStream Symbol Loading ---\n");
+  bool symsOK = dfps_loadSymbols();
+  printf("  CGDisplayStreamCreateWithDispatchQueue: %s\n", fn_DFPSCreate ? "OK" : "MISSING");
+  printf("  CGDisplayStreamStart:                   %s\n", fn_DFPSStart ? "OK" : "MISSING");
+  printf("  CGDisplayStreamStop:                    %s\n", fn_DFPSStop ? "OK" : "MISSING");
+  printf("  CGDisplayStreamUpdateGetDropCount:      %s\n", fn_DFPSGetDrops ? "OK" : "MISSING");
+  printf("  kCGDisplayStreamMinimumFrameTime:       %s\n", kDFPSMinFrameTime ? "OK" : "MISSING");
+  printf("  kCGDisplayStreamShowCursor:             %s\n", kDFPSShowCursor ? "OK" : "MISSING");
+  printf("  kCGDisplayStreamQueueDepth:             %s\n", kDFPSQueueDepth ? "OK" : "MISSING");
+  printf("  kCGDisplayStreamSourceRect:             %s\n", kDFPSSourceRect ? "OK" : "N/A (optional)");
+  printf("  Overall:                                %s\n\n", symsOK ? "PASS" : "FAIL");
+
+  if (!symsOK) {
+    printf("Cannot proceed with stream tests — required symbols not found.\n");
+    return;
+  }
+
+  // --- Stream creation test at multiple output sizes ---
+  printf("--- Stream Creation Tests (main display 0x%08x) ---\n", (unsigned)displays[0]);
+  CGDirectDisplayID mainDisplay = displays[0];
+  dispatch_queue_t testQ = dispatch_queue_create("com.mactop.fpsdiag", DISPATCH_QUEUE_SERIAL);
+
+  // Track whether we got any frame callbacks
+  static _Atomic uint32_t g_diagFrameCount = 0;
+
+  int testSizes[] = {1, 2, 4, 8, 16, 32};
+  int nSizes = sizeof(testSizes) / sizeof(testSizes[0]);
+
+  for (int t = 0; t < nSizes; t++) {
+    int sz = testSizes[t];
+
+    NSDictionary *props = @{
+      (__bridge NSString *)kDFPSMinFrameTime : @(0.0),
+      (__bridge NSString *)kDFPSShowCursor : @(NO),
+      (__bridge NSString *)kDFPSQueueDepth : @(1),
+    };
+
+    atomic_store(&g_diagFrameCount, 0);
+
+    CGDisplayStreamRef_t stream = fn_DFPSCreate(
+        mainDisplay, sz, sz, 'BGRA', (__bridge CFDictionaryRef)props, testQ,
+        ^(int status, uint64_t dt __attribute__((unused)),
+          IOSurfaceRef_t sf __attribute__((unused)),
+          CGDisplayStreamUpdateRef_t ur __attribute__((unused))) {
+          if (status == kDFPSStatusComplete) {
+            atomic_fetch_add(&g_diagFrameCount, 1);
+          }
+        });
+
+    if (!stream) {
+      printf("  %3dx%-3d  → ❌ CREATION FAILED (fn_Create returned NULL)\n", sz, sz);
+      continue;
+    }
+
+    int startRet = fn_DFPSStart(stream);
+    if (startRet != 0) {
+      printf("  %3dx%-3d  → ❌ START FAILED (code %d)\n", sz, sz, startRet);
+      CFRelease(stream);
+      continue;
+    }
+
+    // Wait 2 seconds for frame callbacks to arrive
+    usleep(2000000);
+
+    uint32_t frames = atomic_load(&g_diagFrameCount);
+    if (frames > 0) {
+      printf("  %3dx%-3d  → ✅ %u frames in 2s (~%u FPS)\n", sz, sz, frames, frames / 2);
+    } else {
+      printf("  %3dx%-3d  → ⚠️  0 frames in 2s (hardware scaler may reject this size)\n", sz, sz);
+    }
+
+    fn_DFPSStop(stream);
+    CFRelease(stream);
+  }
+
+  printf("\n=== End Diagnostics ===\n");
 }

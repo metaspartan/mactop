@@ -154,9 +154,28 @@ mactop --headless --format toon
 - `--unit-temp`: Temperature unit: celsius, fahrenheit (default: celsius)
 - `--fan-control`: Enable interactive fan speed control (**⚠️ writes to SMC** — use with caution, may require sudo on some macOS versions)
 - `--menubar`: Run as a macOS menu bar status item alongside the TUI.
-- `--overlay`: Run as a floating overlay HUD window with FPS metrics.
+- `--overlay`: Run as a floating overlay HUD window with FPS metrics. (**Requires Screen Recording permission** — see [Permissions](#permissions) below)
+- `--dump-fps`: Diagnostic tool that dumps display info, screen recording permission status, and tests CGDisplayStream at multiple output sizes. Useful for troubleshooting FPS display issues.
+- `--dump-temps`: Diagnostic: dump all raw SMC temperature keys and exit.
+- `--dump-debug`: Diagnostic: dump IOReport/HID/SMC/NVMe debug info and exit.
 - `--version` or `-v`: Print the version of mactop.
 - `--help` or `-h`: Show a help message about these flags and how to run mactop.
+
+## Permissions
+
+mactop uses native Apple APIs and **does not require sudo** for core functionality (CPU, GPU, power, memory, temperatures, fans).
+
+### Screen Recording (required for FPS overlay)
+
+The `--overlay` mode uses `CGDisplayStream` to track display frame rates (FPS and frame interval). On **macOS 15 (Sequoia) and later**, this requires **Screen Recording** permission for your terminal app:
+
+1. Open **System Settings → Privacy & Security → Screen Recording**
+2. Enable the toggle for your terminal app (Terminal.app, Ghostty, iTerm2, Warp, etc.)
+3. Restart your terminal if prompted
+
+Without this permission, the overlay will still work but FPS and frame interval metrics will show `0` / `-`.
+
+> **Tip:** Run `mactop --dump-fps` to verify screen recording access and test CGDisplayStream on your hardware. This is useful for troubleshooting if FPS metrics still aren't appearing.
 
 ## Theme File Support
 

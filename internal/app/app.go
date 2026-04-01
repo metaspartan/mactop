@@ -579,6 +579,10 @@ func runAlternateMode() bool {
 		DumpIOReportDebug()
 		return true
 	}
+	if dumpFPS {
+		DumpDisplayFPSDiagnostics()
+		return true
+	}
 	if menubarWorker {
 		startMenuBarWorker()
 		return true
@@ -1350,7 +1354,7 @@ func parseCommandLineFlags() {
 	flag.StringVar(&tempUnit, "unit-temp", "celsius", "Temperature unit: celsius, fahrenheit")
 	flag.BoolVar(&menubar, "menubar", false, "Run as macOS menu bar status item (no TUI)")
 	flag.BoolVar(&menubarWorker, "menubar-worker", false, "Internal: Run as menu bar worker process")
-	flag.BoolVar(&overlay, "overlay", false, "Show floating overlay HUD window on top of all apps")
+	flag.BoolVar(&overlay, "overlay", false, "Show floating overlay HUD window on top of all apps (requires Screen Recording permission for FPS)")
 	flag.BoolVar(&overlayWorker, "overlay-worker", false, "Internal: Run as overlay worker process")
 	flag.StringVar(&overlaySections, "overlay-sections", "", "Comma-separated visible sections for overlay (e.g. cpu,gpu,memory)")
 	flag.Float64Var(&overlayOpacity, "overlay-opacity", 0.88, "Overlay window opacity (0.15-1.0)")
@@ -1358,6 +1362,7 @@ func parseCommandLineFlags() {
 	flag.BoolVar(&fanControl, "fan-control", false, "Enable interactive fan speed control (⚠️  writes to SMC)")
 	flag.BoolVar(&dumpTemps, "dump-temps", false, "Diagnostic: dump all raw SMC temperature keys and exit")
 	flag.BoolVar(&dumpDebug, "dump-debug", false, "Diagnostic: dump IOReport/HID/SMC/NVMe debug info and exit")
+	flag.BoolVar(&dumpFPS, "dump-fps", false, "Diagnostic: dump display info and test CGDisplayStream FPS at multiple sizes")
 }
 
 func setupMainBlockLayout(termWidth, termHeight int) {

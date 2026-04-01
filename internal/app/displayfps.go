@@ -10,6 +10,7 @@ int startDisplayFPSCounter(void);
 void stopDisplayFPSCounter(void);
 unsigned int getDisplayFPS(void);
 unsigned int getDisplayFrameIntervalUs(void);
+void dumpDisplayFPSDiagnostics(void);
 */
 import "C"
 
@@ -39,4 +40,11 @@ func GetDisplayFPSMetrics() DisplayFPSMetrics {
 		FPS:             fps,
 		FrameIntervalMs: float64(intervalUs) / 1000.0,
 	}
+}
+
+// DumpDisplayFPSDiagnostics prints comprehensive CGDisplayStream diagnostic info
+// including display hardware, screen recording permissions, symbol loading status,
+// and stream creation tests at multiple output sizes.
+func DumpDisplayFPSDiagnostics() {
+	C.dumpDisplayFPSDiagnostics()
 }
