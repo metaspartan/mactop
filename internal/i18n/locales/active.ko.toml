@@ -43,6 +43,7 @@ TUI_PowerHistory = "전력 기록"
 TUI_MemorySwapHistory = "메모리/스왑 기록"
 TUI_CPUUsageHistory = "CPU 사용 기록"
 TUI_ConfirmKill = " 확인 "
+TUI_ConfirmKillBody = "프로세스 종료 확인"
 TUI_ConfirmYes = "예"
 TUI_ConfirmNo = "아니오"
 

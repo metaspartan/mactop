@@ -43,6 +43,7 @@ TUI_PowerHistory = "功耗历史"
 TUI_MemorySwapHistory = "内存/交换历史"
 TUI_CPUUsageHistory = "CPU 使用历史"
 TUI_ConfirmKill = " 确认结束 "
+TUI_ConfirmKillBody = "确认终止"
 TUI_ConfirmYes = "是"
 TUI_ConfirmNo = "否"
 

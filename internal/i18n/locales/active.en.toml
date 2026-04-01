@@ -43,6 +43,7 @@ TUI_PowerHistory = "Power History"
 TUI_MemorySwapHistory = "Memory/Swap History"
 TUI_CPUUsageHistory = "CPU Usage History"
 TUI_ConfirmKill = " CONFIRM "
+TUI_ConfirmKillBody = "CONFIRM KILL"
 TUI_ConfirmYes = "Yes"
 TUI_ConfirmNo = "No"
 

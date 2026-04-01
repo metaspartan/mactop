@@ -43,6 +43,7 @@ TUI_PowerHistory = "電力の履歴"
 TUI_MemorySwapHistory = "メモリ/スワップの履歴"
 TUI_CPUUsageHistory = "CPU使用率の履歴"
 TUI_ConfirmKill = " 確認 "
+TUI_ConfirmKillBody = "強制終了の確認"
 TUI_ConfirmYes = "はい"
 TUI_ConfirmNo = "いいえ"
 

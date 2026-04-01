@@ -91,6 +91,7 @@ import "C"
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io"
 	"os"
@@ -404,8 +405,10 @@ func startOverlayProcess() error {
 	expandedStr := strings.Join(overlayCfg.ExpandedOrder, ",")
 
 	effectiveOpacity := overlayOpacity
-	if overlayCfg.Opacity != nil && overlayOpacity == 0.88 {
-		// Use config opacity only if CLI wasn't explicitly set
+	opacityFlag := flag.Lookup("overlay-opacity")
+	cliSetOpacity := opacityFlag != nil && opacityFlag.Value.String() != opacityFlag.DefValue
+	if overlayCfg.Opacity != nil && !cliSetOpacity {
+		// Use config opacity only if CLI flag wasn't explicitly provided
 		effectiveOpacity = *overlayCfg.Opacity
 	}
 

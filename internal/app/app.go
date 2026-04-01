@@ -197,7 +197,7 @@ func setupUI() {
 	cpuCoreWidget.Title = coreTitle
 	cpuGauge.Title = coreTitle
 
-	confirmModal = w.NewModal(i18n.T("TUI_ConfirmKill"))
+	confirmModal = w.NewModal(i18n.T("TUI_ConfirmKillBody"))
 	confirmModal.Title = i18n.T("TUI_ConfirmKill")
 	confirmModal.Border = true
 	confirmModal.BorderRounded = true

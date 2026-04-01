@@ -43,6 +43,7 @@ TUI_PowerHistory = "Historique Énergie"
 TUI_MemorySwapHistory = "Historique Mém/Échan"
 TUI_CPUUsageHistory = "Historique Uti. CPU"
 TUI_ConfirmKill = " CONFIRMER "
+TUI_ConfirmKillBody = "CONFIRMER L'ARRÊT"
 TUI_ConfirmYes = "Oui"
 TUI_ConfirmNo = "Non"
 

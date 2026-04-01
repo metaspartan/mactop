@@ -43,6 +43,7 @@ TUI_PowerHistory = "Leistung Verlauf"
 TUI_MemorySwapHistory = "Speicher/Swap Verlauf"
 TUI_CPUUsageHistory = "CPU Auslastung Verlauf"
 TUI_ConfirmKill = " BESTÄTIGEN "
+TUI_ConfirmKillBody = "BEENDEN BESTÄTIGEN"
 TUI_ConfirmYes = "Ja"
 TUI_ConfirmNo = "Nein"
 
