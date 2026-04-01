@@ -1953,33 +1953,33 @@ static void readNVMeSMARTTemps(void) {
     }
     if (devChars) CFRelease(devChars);
 
-    // Create plugin interface for SMART reading
+    // Create plugin interface, read SMART data, and release as fast as possible.
+    // AppleNVMeSMARTUserClient only allows one plugin connection at a time,
+    // so holding it open blocks other tools (e.g. smartctl).
     IOCFPlugInInterface **plugin = NULL;
     SInt32 score = 0;
+    NVMeSMARTData smartData;
+    memset(&smartData, 0, sizeof(smartData));
+    IOReturn readResult = kIOReturnError;
+
     kr = IOCreatePlugInInterfaceForService(svc, smartFactory,
                                            kIOCFPlugInInterfaceID,
                                            &plugin, &score);
-    if (kr != kIOReturnSuccess || !plugin) {
-      IOObjectRelease(svc);
-      continue;
+    if (kr == kIOReturnSuccess && plugin) {
+      IONVMeSMARTInterface **smartInterface = NULL;
+      HRESULT res = (*plugin)->QueryInterface(plugin,
+          CFUUIDGetUUIDBytes(smartInterfaceID), (LPVOID *)&smartInterface);
+      (*plugin)->Release(plugin);
+
+      if (res == S_OK && smartInterface) {
+        readResult = (*smartInterface)->SMARTReadData(smartInterface, &smartData);
+        (*smartInterface)->Release(smartInterface);
+      }
     }
 
-    // Query for the NVMe SMART interface
-    IONVMeSMARTInterface **smartInterface = NULL;
-    HRESULT res = (*plugin)->QueryInterface(plugin,
-        CFUUIDGetUUIDBytes(smartInterfaceID), (LPVOID *)&smartInterface);
-    (*plugin)->Release(plugin);
+    IOObjectRelease(svc);
 
-    if (res != S_OK || !smartInterface) {
-      IOObjectRelease(svc);
-      continue;
-    }
-
-    // Read SMART data
-    NVMeSMARTData smartData;
-    memset(&smartData, 0, sizeof(smartData));
-    IOReturn readResult = (*smartInterface)->SMARTReadData(smartInterface, &smartData);
-
+    // Process SMART data outside the plugin lock
     if (readResult == kIOReturnSuccess) {
       // Temperature: bytes 1-2, little-endian uint16 in Kelvin
       uint16_t tempK = (uint16_t)smartData.temperature[0] |
@@ -1995,9 +1995,6 @@ static void readNVMeSMARTTemps(void) {
         }
       }
     }
-
-    (*smartInterface)->Release(smartInterface);
-    IOObjectRelease(svc);
   }
   IOObjectRelease(iter);
 

@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	"math"
 	"os"
 	"strings"
 	"syscall"
@@ -182,9 +183,9 @@ func formatBytes(val float64, unitType string) string {
 func formatTemp(celsius float64) string {
 	if strings.ToLower(tempUnit) == "fahrenheit" {
 		f := (celsius * 9 / 5) + 32
-		return fmt.Sprintf("%d°F", int(f))
+		return fmt.Sprintf("%d°F", int(math.Round(f)))
 	}
-	return fmt.Sprintf("%d°C", int(celsius))
+	return fmt.Sprintf("%d°C", int(math.Round(celsius)))
 }
 
 // isCompactLayout returns true if the current layout is one of the compact layouts (tiny, micro, nano, pico)
