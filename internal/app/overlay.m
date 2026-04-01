@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 
 #define OVERLAY_SPARKLINE_HISTORY 60
 
@@ -70,7 +71,74 @@ typedef struct {
   int show_network;
   int show_gpu_freq;
   double opacity;
+  char collapsed_sections[256]; // comma-separated ordered section names
+  char expanded_order[512];     // comma-separated ordered section names
 } overlay_config_t;
+
+// ---------- Section ordering ----------
+
+// Section ID enum for data-driven rendering
+typedef enum {
+  kSectionFPS = 0,
+  kSectionFrame,
+  kSectionCPU,
+  kSectionGPU,
+  kSectionANE,
+  kSectionMemory,
+  kSectionSwap,
+  kSectionPower,
+  kSectionBandwidth,
+  kSectionGPUFreq,
+  kSectionTemps,
+  kSectionThermal,
+  kSectionFans,
+  kSectionNetwork,
+  kSectionCount // sentinel
+} OverlaySectionID;
+
+// Parsed ordered section lists
+static OverlaySectionID g_collapsedSections[kSectionCount];
+static int g_collapsedCount = 0;
+static OverlaySectionID g_expandedSections[kSectionCount];
+static int g_expandedCount = 0;
+
+static OverlaySectionID sectionIDFromName(const char *name) {
+  if (strcmp(name, "fps") == 0) return kSectionFPS;
+  if (strcmp(name, "frame") == 0) return kSectionFrame;
+  if (strcmp(name, "cpu") == 0) return kSectionCPU;
+  if (strcmp(name, "gpu") == 0) return kSectionGPU;
+  if (strcmp(name, "ane") == 0) return kSectionANE;
+  if (strcmp(name, "memory") == 0) return kSectionMemory;
+  if (strcmp(name, "swap") == 0) return kSectionSwap;
+  if (strcmp(name, "power") == 0) return kSectionPower;
+  if (strcmp(name, "bandwidth") == 0) return kSectionBandwidth;
+  if (strcmp(name, "gpu_freq") == 0) return kSectionGPUFreq;
+  if (strcmp(name, "temps") == 0) return kSectionTemps;
+  if (strcmp(name, "thermal") == 0) return kSectionThermal;
+  if (strcmp(name, "fans") == 0) return kSectionFans;
+  if (strcmp(name, "network") == 0) return kSectionNetwork;
+  return kSectionCount; // invalid
+}
+
+static void parseSectionList(const char *csv, OverlaySectionID *out, int *count) {
+  *count = 0;
+  if (!csv || csv[0] == '\0') return;
+
+  char buf[512];
+  strncpy(buf, csv, sizeof(buf) - 1);
+  buf[sizeof(buf) - 1] = '\0';
+
+  char *token = strtok(buf, ",");
+  while (token && *count < kSectionCount) {
+    // Trim leading whitespace
+    while (*token == ' ') token++;
+    OverlaySectionID sid = sectionIDFromName(token);
+    if (sid != kSectionCount) {
+      out[(*count)++] = sid;
+    }
+    token = strtok(NULL, ",");
+  }
+}
 
 // ---------- Global state ----------
 
@@ -87,6 +155,8 @@ static overlay_config_t g_overlay_config = {
     .show_network = 1,
     .show_gpu_freq = 1,
     .opacity = 0.88,
+    .collapsed_sections = "fps,frame,cpu,gpu,memory",
+    .expanded_order = "fps,frame,cpu,gpu,ane,memory,swap,power,bandwidth,gpu_freq,temps,thermal,fans,network",
 };
 
 static overlay_metrics_t g_overlay_metrics;
@@ -95,6 +165,177 @@ static double gpuSparkHistory[OVERLAY_SPARKLINE_HISTORY] = {0};
 static double fpsSparkHistory[OVERLAY_SPARKLINE_HISTORY] = {0};
 static double frameIntSparkHistory[OVERLAY_SPARKLINE_HISTORY] = {0};
 static BOOL g_overlay_expanded = NO;
+static BOOL g_showSettings = NO;
+
+// Gear icon hit rect (set during drawRect, tested in mouseDown)
+static NSRect g_gearHitRect = {0};
+
+// Settings panel: which collapsed sections are toggled
+// We track the full set: user toggles these, and on save we rebuild collapsed_sections
+static BOOL g_settingsCollapsed[kSectionCount];
+static BOOL g_settingsExpanded[kSectionCount];
+static BOOL g_settingsInited = NO;
+
+static const char *sectionDisplayName(OverlaySectionID sid) {
+  switch (sid) {
+    case kSectionFPS: return "FPS";
+    case kSectionFrame: return "Frame Interval";
+    case kSectionCPU: return "CPU";
+    case kSectionGPU: return "GPU";
+    case kSectionANE: return "ANE";
+    case kSectionMemory: return "Memory";
+    case kSectionSwap: return "Swap";
+    case kSectionPower: return "Power";
+    case kSectionBandwidth: return "DRAM Bandwidth";
+    case kSectionGPUFreq: return "GPU Frequency";
+    case kSectionTemps: return "Temperatures";
+    case kSectionThermal: return "Thermal State";
+    case kSectionFans: return "Fans";
+    case kSectionNetwork: return "Network";
+    default: return "?";
+  }
+}
+
+static const char *sectionConfigName(OverlaySectionID sid) {
+  switch (sid) {
+    case kSectionFPS: return "fps";
+    case kSectionFrame: return "frame";
+    case kSectionCPU: return "cpu";
+    case kSectionGPU: return "gpu";
+    case kSectionANE: return "ane";
+    case kSectionMemory: return "memory";
+    case kSectionSwap: return "swap";
+    case kSectionPower: return "power";
+    case kSectionBandwidth: return "bandwidth";
+    case kSectionGPUFreq: return "gpu_freq";
+    case kSectionTemps: return "temps";
+    case kSectionThermal: return "thermal";
+    case kSectionFans: return "fans";
+    case kSectionNetwork: return "network";
+    default: return "";
+  }
+}
+
+// Initialize settings toggles from current parsed section lists
+static void initSettingsFromConfig(void) {
+  memset(g_settingsCollapsed, 0, sizeof(g_settingsCollapsed));
+  memset(g_settingsExpanded, 0, sizeof(g_settingsExpanded));
+  for (int i = 0; i < g_collapsedCount; i++) {
+    g_settingsCollapsed[g_collapsedSections[i]] = YES;
+  }
+  for (int i = 0; i < g_expandedCount; i++) {
+    g_settingsExpanded[g_expandedSections[i]] = YES;
+  }
+  g_settingsInited = YES;
+}
+
+// Save current settings toggles back to config.json
+static void saveSettingsToConfig(void) {
+  // Rebuild collapsed_sections string
+  char collapsed[256] = {0};
+  char expanded[512] = {0};
+  int cLen = 0, eLen = 0;
+
+  // Collapsed: iterate canonical order, include if toggled
+  OverlaySectionID canonicalOrder[] = {
+    kSectionFPS, kSectionFrame, kSectionCPU, kSectionGPU, kSectionANE,
+    kSectionMemory, kSectionSwap, kSectionPower, kSectionBandwidth,
+    kSectionGPUFreq, kSectionTemps, kSectionThermal, kSectionFans, kSectionNetwork
+  };
+  int nCanonical = sizeof(canonicalOrder) / sizeof(canonicalOrder[0]);
+
+  for (int i = 0; i < nCanonical; i++) {
+    if (g_settingsCollapsed[canonicalOrder[i]]) {
+      const char *name = sectionConfigName(canonicalOrder[i]);
+      if (cLen > 0) collapsed[cLen++] = ',';
+      int nLen = (int)strlen(name);
+      if (cLen + nLen < 255) {
+        memcpy(collapsed + cLen, name, nLen);
+        cLen += nLen;
+      }
+    }
+  }
+  collapsed[cLen] = '\0';
+
+  for (int i = 0; i < nCanonical; i++) {
+    if (g_settingsExpanded[canonicalOrder[i]]) {
+      const char *name = sectionConfigName(canonicalOrder[i]);
+      if (eLen > 0) expanded[eLen++] = ',';
+      int nLen = (int)strlen(name);
+      if (eLen + nLen < 511) {
+        memcpy(expanded + eLen, name, nLen);
+        eLen += nLen;
+      }
+    }
+  }
+  expanded[eLen] = '\0';
+
+  // Update the live config
+  strncpy(g_overlay_config.collapsed_sections, collapsed, 255);
+  g_overlay_config.collapsed_sections[255] = '\0';
+  strncpy(g_overlay_config.expanded_order, expanded, 511);
+  g_overlay_config.expanded_order[511] = '\0';
+  parseSectionList(g_overlay_config.collapsed_sections, g_collapsedSections, &g_collapsedCount);
+  parseSectionList(g_overlay_config.expanded_order, g_expandedSections, &g_expandedCount);
+
+  // Write to ~/.mactop/config.json
+  // We read the existing config, update overlay section, and write back
+  const char *home = getenv("HOME");
+  if (!home) return;
+
+  char configDir[512], configPath[512];
+  snprintf(configDir, sizeof(configDir), "%s/.mactop", home);
+  snprintf(configPath, sizeof(configPath), "%s/config.json", configDir);
+  mkdir(configDir, 0755);
+
+  // Read existing config
+  NSData *existingData = [NSData dataWithContentsOfFile:
+      [NSString stringWithUTF8String:configPath]];
+  NSMutableDictionary *config;
+  if (existingData) {
+    config = [NSJSONSerialization JSONObjectWithData:existingData options:NSJSONReadingMutableContainers error:nil];
+    if (!config || ![config isKindOfClass:[NSDictionary class]]) {
+      config = [NSMutableDictionary dictionary];
+    }
+  } else {
+    config = [NSMutableDictionary dictionary];
+  }
+
+  // Build overlay section
+  NSMutableArray *collapsedArr = [NSMutableArray array];
+  for (int i = 0; i < nCanonical; i++) {
+    if (g_settingsCollapsed[canonicalOrder[i]]) {
+      [collapsedArr addObject:[NSString stringWithUTF8String:sectionConfigName(canonicalOrder[i])]];
+    }
+  }
+  NSMutableArray *expandedArr = [NSMutableArray array];
+  for (int i = 0; i < nCanonical; i++) {
+    if (g_settingsExpanded[canonicalOrder[i]]) {
+      [expandedArr addObject:[NSString stringWithUTF8String:sectionConfigName(canonicalOrder[i])]];
+    }
+  }
+
+  NSMutableDictionary *overlayDict = [NSMutableDictionary dictionary];
+  overlayDict[@"collapsed_sections"] = collapsedArr;
+  overlayDict[@"expanded_order"] = expandedArr;
+  overlayDict[@"opacity"] = @(g_overlay_config.opacity);
+  config[@"overlay"] = overlayDict;
+
+  // Write back
+  NSData *jsonData = [NSJSONSerialization dataWithJSONObject:config
+      options:NSJSONWritingPrettyPrinted | NSJSONWritingSortedKeys error:nil];
+  if (jsonData) {
+    [jsonData writeToFile:[NSString stringWithUTF8String:configPath] atomically:YES];
+  }
+}
+
+// Settings panel: hit rects for checkboxes (stored during drawRect, checked in mouseDown)
+#define MAX_SETTINGS_ROWS 28
+static NSRect g_settingsHitRects[MAX_SETTINGS_ROWS];
+static int g_settingsHitSectionID[MAX_SETTINGS_ROWS]; // OverlaySectionID
+static BOOL g_settingsHitIsCollapsed[MAX_SETTINGS_ROWS]; // true=collapsed toggle, false=expanded toggle
+static int g_settingsHitCount = 0;
+static NSRect g_settingsDoneRect = {0};
 
 static void pushSparkHistory(double *buf, double val) {
   memmove(buf, buf + 1, (OVERLAY_SPARKLINE_HISTORY - 1) * sizeof(double));
@@ -397,6 +638,41 @@ static NSInteger g_opacityFlashCountdown = 0; // Show opacity indicator for N fr
 // Allow dragging the window by dragging anywhere on the overlay
 - (void)mouseDown:(NSEvent *)event {
   NSPoint pt = [self convertPoint:[event locationInWindow] fromView:nil];
+
+  // Gear icon click — toggle settings panel
+  if (NSPointInRect(pt, g_gearHitRect)) {
+    if (!g_settingsInited) initSettingsFromConfig();
+    g_showSettings = !g_showSettings;
+    updateOverlayMetrics(&g_overlay_metrics);
+    return;
+  }
+
+  // Settings panel interactions
+  if (g_showSettings) {
+    // Done button
+    if (NSPointInRect(pt, g_settingsDoneRect)) {
+      saveSettingsToConfig();
+      g_showSettings = NO;
+      updateOverlayMetrics(&g_overlay_metrics);
+      return;
+    }
+    // Checkbox toggles
+    for (int i = 0; i < g_settingsHitCount; i++) {
+      if (NSPointInRect(pt, g_settingsHitRects[i])) {
+        OverlaySectionID sid = (OverlaySectionID)g_settingsHitSectionID[i];
+        if (g_settingsHitIsCollapsed[i]) {
+          g_settingsCollapsed[sid] = !g_settingsCollapsed[sid];
+        } else {
+          g_settingsExpanded[sid] = !g_settingsExpanded[sid];
+        }
+        [self setNeedsDisplay:YES];
+        return;
+      }
+    }
+    return; // Consume click in settings mode (no dragging)
+  }
+
+  // Toggle expand/collapse chevron
   NSRect toggleRect = NSMakeRect(self.bounds.size.width / 2.0 - 40, self.bounds.size.height - 35, 80, 35);
   if (NSPointInRect(pt, toggleRect)) {
     g_overlay_expanded = !g_overlay_expanded;
@@ -575,6 +851,22 @@ static void drawMiniBar(CGFloat x, CGFloat y, CGFloat w, CGFloat h,
       drawAtPoint:NSMakePoint(padX + titleSize.width + 5 + dotSize.width + 5,
                                y + 0.5)
       withAttributes:subHeaderAttrs];
+
+  // Gear icon (right-aligned in header)
+  {
+    NSString *gear = @"⚙";
+    NSDictionary *gearAttrs = @{
+      NSFontAttributeName : [NSFont systemFontOfSize:16 weight:NSFontWeightRegular],
+      NSForegroundColorAttributeName : g_showSettings
+          ? overlayNeonGreen()
+          : [NSColor colorWithWhite:0.55 alpha:1.0]
+    };
+    NSSize gearSize = [gear sizeWithAttributes:gearAttrs];
+    CGFloat gearX = padX + contentW - gearSize.width;
+    CGFloat gearY = y - 1;
+    [gear drawAtPoint:NSMakePoint(gearX, gearY) withAttributes:gearAttrs];
+    g_gearHitRect = NSMakeRect(gearX - 6, gearY - 4, gearSize.width + 12, gearSize.height + 8);
+  }
   y += 26;
 
   // Core summary line
@@ -597,6 +889,170 @@ static void drawMiniBar(CGFloat x, CGFloat y, CGFloat w, CGFloat h,
   [coreSummary drawAtPoint:NSMakePoint(padX, y)
                withAttributes:smallAttrs];
   y += 22;
+
+  // ---- Settings Panel ----
+  if (g_showSettings) {
+    g_settingsHitCount = 0;
+
+    // Separator
+    [[NSColor colorWithWhite:1.0 alpha:0.08] set];
+    [NSBezierPath fillRect:NSMakeRect(padX, y, contentW, 1)];
+    y += 8;
+
+    NSFont *sectionTitleFont = [NSFont systemFontOfSize:14 weight:NSFontWeightBold];
+    NSFont *checkLabelFont = [NSFont systemFontOfSize:13 weight:NSFontWeightMedium];
+    CGFloat checkRowH = 26;
+    CGFloat checkSize = 14;
+
+    // Canonical sections to show in settings
+    OverlaySectionID allSections[] = {
+      kSectionFPS, kSectionFrame, kSectionCPU, kSectionGPU, kSectionANE,
+      kSectionMemory, kSectionSwap, kSectionPower, kSectionBandwidth,
+      kSectionGPUFreq, kSectionTemps, kSectionThermal, kSectionFans, kSectionNetwork
+    };
+    int nSections = sizeof(allSections) / sizeof(allSections[0]);
+
+    // --- Collapsed Mode ---
+    {
+      NSString *header = @"Collapsed Mode";
+      NSDictionary *hdrAttrs = @{
+        NSFontAttributeName : sectionTitleFont,
+        NSForegroundColorAttributeName : overlayNeonGreen()
+      };
+      [header drawAtPoint:NSMakePoint(padX, y) withAttributes:hdrAttrs];
+      y += 22;
+
+      for (int i = 0; i < nSections; i++) {
+        OverlaySectionID sid = allSections[i];
+        BOOL isOn = g_settingsCollapsed[sid];
+
+        // Checkbox
+        NSRect checkRect = NSMakeRect(padX, y + (checkRowH - checkSize) / 2.0, checkSize, checkSize);
+        NSBezierPath *box = [NSBezierPath bezierPathWithRoundedRect:checkRect xRadius:3 yRadius:3];
+        if (isOn) {
+          [overlayNeonGreen() setFill];
+          [box fill];
+          // Checkmark
+          NSBezierPath *check = [NSBezierPath bezierPath];
+          [check moveToPoint:NSMakePoint(checkRect.origin.x + 3, checkRect.origin.y + checkSize / 2.0)];
+          [check lineToPoint:NSMakePoint(checkRect.origin.x + checkSize * 0.4, checkRect.origin.y + checkSize - 3)];
+          [check lineToPoint:NSMakePoint(checkRect.origin.x + checkSize - 2, checkRect.origin.y + 3)];
+          [[NSColor colorWithRed:0.05 green:0.05 blue:0.05 alpha:1.0] setStroke];
+          [check setLineWidth:2.0];
+          [check setLineCapStyle:NSLineCapStyleRound];
+          [check setLineJoinStyle:NSLineJoinStyleRound];
+          [check stroke];
+        } else {
+          [[NSColor colorWithWhite:0.3 alpha:1.0] setStroke];
+          [box setLineWidth:1.5];
+          [box stroke];
+        }
+
+        // Label
+        NSString *label = [NSString stringWithUTF8String:sectionDisplayName(sid)];
+        NSDictionary *lblAttrs = @{
+          NSFontAttributeName : checkLabelFont,
+          NSForegroundColorAttributeName : isOn ? overlayBrightText() : [NSColor colorWithWhite:0.45 alpha:1.0]
+        };
+        [label drawAtPoint:NSMakePoint(padX + checkSize + 8, y + 4) withAttributes:lblAttrs];
+
+        // Store hit rect for click handling
+        if (g_settingsHitCount < MAX_SETTINGS_ROWS) {
+          g_settingsHitRects[g_settingsHitCount] = NSMakeRect(padX, y, contentW, checkRowH);
+          g_settingsHitSectionID[g_settingsHitCount] = sid;
+          g_settingsHitIsCollapsed[g_settingsHitCount] = YES;
+          g_settingsHitCount++;
+        }
+
+        y += checkRowH;
+      }
+    }
+
+    y += 6;
+    [[NSColor colorWithWhite:1.0 alpha:0.06] set];
+    [NSBezierPath fillRect:NSMakeRect(padX, y, contentW, 1)];
+    y += 8;
+
+    // --- Expanded Mode ---
+    {
+      NSString *header = @"Expanded Mode";
+      NSDictionary *hdrAttrs = @{
+        NSFontAttributeName : sectionTitleFont,
+        NSForegroundColorAttributeName : overlayNeonGreen()
+      };
+      [header drawAtPoint:NSMakePoint(padX, y) withAttributes:hdrAttrs];
+      y += 22;
+
+      for (int i = 0; i < nSections; i++) {
+        OverlaySectionID sid = allSections[i];
+        BOOL isOn = g_settingsExpanded[sid];
+
+        NSRect checkRect = NSMakeRect(padX, y + (checkRowH - checkSize) / 2.0, checkSize, checkSize);
+        NSBezierPath *box = [NSBezierPath bezierPathWithRoundedRect:checkRect xRadius:3 yRadius:3];
+        if (isOn) {
+          [overlayAccentCyan() setFill];
+          [box fill];
+          NSBezierPath *check = [NSBezierPath bezierPath];
+          [check moveToPoint:NSMakePoint(checkRect.origin.x + 3, checkRect.origin.y + checkSize / 2.0)];
+          [check lineToPoint:NSMakePoint(checkRect.origin.x + checkSize * 0.4, checkRect.origin.y + checkSize - 3)];
+          [check lineToPoint:NSMakePoint(checkRect.origin.x + checkSize - 2, checkRect.origin.y + 3)];
+          [[NSColor colorWithRed:0.05 green:0.05 blue:0.05 alpha:1.0] setStroke];
+          [check setLineWidth:2.0];
+          [check setLineCapStyle:NSLineCapStyleRound];
+          [check setLineJoinStyle:NSLineJoinStyleRound];
+          [check stroke];
+        } else {
+          [[NSColor colorWithWhite:0.3 alpha:1.0] setStroke];
+          [box setLineWidth:1.5];
+          [box stroke];
+        }
+
+        NSString *label = [NSString stringWithUTF8String:sectionDisplayName(sid)];
+        NSDictionary *lblAttrs = @{
+          NSFontAttributeName : checkLabelFont,
+          NSForegroundColorAttributeName : isOn ? overlayBrightText() : [NSColor colorWithWhite:0.45 alpha:1.0]
+        };
+        [label drawAtPoint:NSMakePoint(padX + checkSize + 8, y + 4) withAttributes:lblAttrs];
+
+        if (g_settingsHitCount < MAX_SETTINGS_ROWS) {
+          g_settingsHitRects[g_settingsHitCount] = NSMakeRect(padX, y, contentW, checkRowH);
+          g_settingsHitSectionID[g_settingsHitCount] = sid;
+          g_settingsHitIsCollapsed[g_settingsHitCount] = NO;
+          g_settingsHitCount++;
+        }
+
+        y += checkRowH;
+      }
+    }
+
+    y += 10;
+
+    // Done button
+    {
+      CGFloat btnW = 120;
+      CGFloat btnH = 32;
+      CGFloat btnX = (W - btnW) / 2.0;
+      NSRect btnRect = NSMakeRect(btnX, y, btnW, btnH);
+      g_settingsDoneRect = btnRect;
+
+      NSBezierPath *btnPath = [NSBezierPath bezierPathWithRoundedRect:btnRect xRadius:8 yRadius:8];
+      [overlayNeonGreen() setFill];
+      [btnPath fill];
+
+      NSString *doneText = @"Done";
+      NSDictionary *doneAttrs = @{
+        NSFontAttributeName : [NSFont systemFontOfSize:14 weight:NSFontWeightBold],
+        NSForegroundColorAttributeName : [NSColor colorWithRed:0.05 green:0.05 blue:0.05 alpha:1.0]
+      };
+      NSSize doneSize = [doneText sizeWithAttributes:doneAttrs];
+      [doneText drawAtPoint:NSMakePoint(btnX + (btnW - doneSize.width) / 2.0, y + (btnH - doneSize.height) / 2.0)
+          withAttributes:doneAttrs];
+      y += btnH + 10;
+    }
+
+    // No toggle arrow in settings mode — done button handles dismiss
+    return;
+  }
 
   // Separator
   [[NSColor colorWithWhite:1.0 alpha:0.08] set];
@@ -657,14 +1113,12 @@ static void drawMiniBar(CGFloat x, CGFloat y, CGFloat w, CGFloat h,
         y += rowH;
       };
 
-  // FPS (first metric — always rendered, full-width sparkline)
-  uint32_t fps = atomic_load(&g_fpsValue);
-  uint32_t frameIntUs = atomic_load(&g_frameIntervalUs);
-  {
+  // Section draw blocks — each renders one section at the current y position
+  void (^drawSectionFPS)(void) = ^{
+    uint32_t fps = atomic_load(&g_fpsValue);
     NSString *fpsLabel = @"FPS";
     [fpsLabel drawAtPoint:NSMakePoint(padX, y + 4) withAttributes:labelAttrs];
 
-    // FPS value right-aligned
     NSString *fpsVal = [NSString stringWithFormat:@"%u", fps];
     NSDictionary *fpsAttrs = @{
       NSFontAttributeName : valueFont,
@@ -674,37 +1128,33 @@ static void drawMiniBar(CGFloat x, CGFloat y, CGFloat w, CGFloat h,
     [fpsVal drawAtPoint:NSMakePoint(padX + contentW - fpsSize.width, y + 3)
         withAttributes:fpsAttrs];
 
-    // Full-width sparkline between label and value
-    // Auto-scale max to highest observed FPS (handles 120Hz+ ProMotion displays)
     double fpsMax = 60.0;
     for (int i = 0; i < OVERLAY_SPARKLINE_HISTORY; i++) {
       if (fpsSparkHistory[i] > fpsMax) fpsMax = fpsSparkHistory[i];
     }
-    fpsMax = ceil(fpsMax / 30.0) * 30.0; // Round up to nearest 30 (60/90/120/150/240)
+    fpsMax = ceil(fpsMax / 30.0) * 30.0;
     if (fpsMax < 60.0) fpsMax = 60.0;
-    CGFloat fpsLabelW = 50; // space for "FPS" label
-    CGFloat fpsValW = fpsSize.width + 8; // space for value + gap
+    CGFloat fpsLabelW = 50;
+    CGFloat fpsValW = fpsSize.width + 8;
     CGFloat fpsSparkW = contentW - fpsLabelW - fpsValW;
     drawMiniSparkline(fpsSparkHistory, OVERLAY_SPARKLINE_HISTORY,
                       padX + fpsLabelW, y + 2, fpsSparkW,
                       sparkH, overlayAccentCyan(), fpsMax);
     y += rowH;
-  }
+  };
 
-  // Frame Interval (ms) — own row with sparkline, always rendered alongside FPS
-  {
+  void (^drawSectionFrame)(void) = ^{
+    uint32_t frameIntUs = atomic_load(&g_frameIntervalUs);
+    double frameMs = frameIntUs / 1000.0;
     NSString *fiLabel = @"Frame";
     [fiLabel drawAtPoint:NSMakePoint(padX, y + 4) withAttributes:labelAttrs];
 
-    // Frame interval value right-aligned with color coding
-    double frameMs = frameIntUs / 1000.0;
     NSString *fiVal;
     if (frameIntUs > 0) {
       fiVal = [NSString stringWithFormat:@"%.1fms", frameMs];
     } else {
       fiVal = @"—";
     }
-    // Color-code: green <11ms (>90fps), yellow 11-20ms (50-90fps), red >20ms (<50fps)
     NSColor *fiColor;
     if (frameIntUs == 0) {
       fiColor = overlayDimText();
@@ -723,42 +1173,34 @@ static void drawMiniBar(CGFloat x, CGFloat y, CGFloat w, CGFloat h,
     [fiVal drawAtPoint:NSMakePoint(padX + contentW - fiSize.width, y + 3)
         withAttributes:fiAttrs];
 
-    // Sparkline — auto-scale to max observed frame interval
-    double fiMax = 16.7; // Start at 60fps baseline
+    double fiMax = 16.7;
     for (int i = 0; i < OVERLAY_SPARKLINE_HISTORY; i++) {
       if (frameIntSparkHistory[i] > fiMax) fiMax = frameIntSparkHistory[i];
     }
-    fiMax = ceil(fiMax / 5.0) * 5.0; // Round up to nearest 5ms
+    fiMax = ceil(fiMax / 5.0) * 5.0;
     if (fiMax < 10.0) fiMax = 10.0;
-    CGFloat fiLabelW = 65; // space for "Frame" label
+    CGFloat fiLabelW = 65;
     CGFloat fiValW = fiSize.width + 8;
     CGFloat fiSparkW = contentW - fiLabelW - fiValW;
-    // Use inverted color: high frame time = bad, so use warm color for sparkline
     drawMiniSparkline(frameIntSparkHistory, OVERLAY_SPARKLINE_HISTORY,
                       padX + fiLabelW, y + 2, fiSparkW,
                       sparkH, overlayAccentOrange(), fiMax);
     y += rowH;
-  }
+  };
 
-  // CPU
-  if (cfg.show_cpu) {
-    drawMetricBar(@"CPU", m.cpu_percent, overlayAccentGreen(), cpuSparkHistory,
-                  YES);
-  }
+  void (^drawSectionCPU)(void) = ^{
+    drawMetricBar(@"CPU", m.cpu_percent, overlayAccentGreen(), cpuSparkHistory, YES);
+  };
 
-  // GPU
-  if (cfg.show_gpu) {
-    drawMetricBar(@"GPU", m.gpu_percent, overlayAccentOrange(), gpuSparkHistory,
-                  YES);
-  }
+  void (^drawSectionGPU)(void) = ^{
+    drawMetricBar(@"GPU", m.gpu_percent, overlayAccentOrange(), gpuSparkHistory, YES);
+  };
 
-  // ANE
-  if (cfg.show_ane && g_overlay_expanded) {
+  void (^drawSectionANE)(void) = ^{
     drawMetricBar(@"ANE", m.ane_percent, overlayAccentCyan(), NULL, NO);
-  }
+  };
 
-  // Memory
-  if (cfg.show_memory) {
+  void (^drawSectionMemory)(void) = ^{
     double memGB = (double)m.mem_used_bytes / (1024.0 * 1024.0 * 1024.0);
     double totalGB = (double)m.mem_total_bytes / (1024.0 * 1024.0 * 1024.0);
     double memPct = totalGB > 0 ? (memGB / totalGB) * 100.0 : 0;
@@ -776,9 +1218,10 @@ static void drawMiniBar(CGFloat x, CGFloat y, CGFloat w, CGFloat h,
     [memStr drawAtPoint:NSMakePoint(padX + contentW - valSize.width, y + 3)
         withAttributes:valAttrs];
     y += rowH;
+  };
 
-    // Swap — only show when swap is actually being used
-    if (m.swap_used_bytes > 0 && m.swap_total_bytes > 0 && g_overlay_expanded) {
+  void (^drawSectionSwap)(void) = ^{
+    if (m.swap_used_bytes > 0 && m.swap_total_bytes > 0) {
       double swapGB =
           (double)m.swap_used_bytes / (1024.0 * 1024.0 * 1024.0);
       double swapTotalGB =
@@ -799,87 +1242,69 @@ static void drawMiniBar(CGFloat x, CGFloat y, CGFloat w, CGFloat h,
           withAttributes:swapValAttrs];
       y += rowH;
     }
-  }
+  };
 
-  // Separator
-  if (g_overlay_expanded) {
-    [[NSColor colorWithWhite:1.0 alpha:0.06] set];
-    [NSBezierPath fillRect:NSMakeRect(padX, y, contentW, 1)];
-    y += 5;
+  void (^drawSectionPower)(void) = ^{
+    NSString *powerStr =
+        [NSString stringWithFormat:@"%.1fW", m.package_watts];
+    drawMetricKV(@"Power", powerStr, overlayAccentYellow());
+    drawMetricKV(@"  CPU", [NSString stringWithFormat:@"%.1fW", m.cpu_watts], overlayDimText());
+    drawMetricKV(@"  GPU", [NSString stringWithFormat:@"%.1fW", m.gpu_watts], overlayDimText());
+    drawMetricKV(@"  ANE", [NSString stringWithFormat:@"%.1fW", m.ane_watts], overlayDimText());
+    drawMetricKV(@"  DRAM", [NSString stringWithFormat:@"%.1fW", m.dram_watts], overlayDimText());
+  };
 
-    // Power
-    if (cfg.show_power) {
-      NSString *powerStr =
-          [NSString stringWithFormat:@"%.1fW", m.package_watts];
-      drawMetricKV(@"Power", powerStr, overlayAccentYellow());
+  void (^drawSectionBandwidth)(void) = ^{
+    NSString *bwStr =
+        [NSString stringWithFormat:@"%.1f GB/s", m.dram_bw_combined_gbs];
+    drawMetricKV(@"DRAM BW", bwStr, overlayAccentBlue());
+  };
 
-      // Individual power breakdown — always show all to prevent jumping
-      drawMetricKV(@"  CPU", [NSString stringWithFormat:@"%.1fW", m.cpu_watts], overlayDimText());
-      drawMetricKV(@"  GPU", [NSString stringWithFormat:@"%.1fW", m.gpu_watts], overlayDimText());
-      drawMetricKV(@"  ANE", [NSString stringWithFormat:@"%.1fW", m.ane_watts], overlayDimText());
-      drawMetricKV(@"  DRAM", [NSString stringWithFormat:@"%.1fW", m.dram_watts], overlayDimText());
+  void (^drawSectionGPUFreq)(void) = ^{
+    NSString *freqStr;
+    if (m.tflops_fp32 > 0) {
+      freqStr = [NSString
+          stringWithFormat:@"%dMHz • %.1f TFLOPS", m.gpu_freq_mhz,
+                           m.tflops_fp32];
+    } else {
+      freqStr = [NSString stringWithFormat:@"%d MHz", m.gpu_freq_mhz];
     }
+    drawMetricKV(@"GPU Freq", freqStr, overlayAccentOrange());
+  };
 
-    // DRAM Bandwidth
-    if (cfg.show_bandwidth) {
-      NSString *bwStr =
-          [NSString stringWithFormat:@"%.1f GB/s", m.dram_bw_combined_gbs];
-      drawMetricKV(@"DRAM BW", bwStr, overlayAccentBlue());
+  void (^drawSectionTemps)(void) = ^{
+    NSString *tempStr;
+    if (m.gpu_temp > 0) {
+      tempStr = [NSString
+          stringWithFormat:@"CPU %.0f°C  GPU %.0f°C", m.cpu_temp, m.gpu_temp];
+    } else {
+      tempStr = [NSString stringWithFormat:@"%.0f°C", m.cpu_temp];
     }
+    NSColor *tempColor = overlayBrightText();
+    if (m.cpu_temp >= 90 || m.gpu_temp >= 90)
+      tempColor = overlayAccentRed();
+    else if (m.cpu_temp >= 70 || m.gpu_temp >= 70)
+      tempColor = overlayAccentYellow();
+    drawMetricKV(@"Temps", tempStr, tempColor);
+  };
 
-    // GPU Freq + TFLOPs
-    if (cfg.show_gpu_freq) {
-      NSString *freqStr;
-      if (m.tflops_fp32 > 0) {
-        freqStr = [NSString
-            stringWithFormat:@"%dMHz • %.1f TFLOPS", m.gpu_freq_mhz,
-                             m.tflops_fp32];
-      } else {
-        freqStr = [NSString stringWithFormat:@"%d MHz", m.gpu_freq_mhz];
-      }
-      drawMetricKV(@"GPU Freq", freqStr, overlayAccentOrange());
-    }
+  void (^drawSectionThermal)(void) = ^{
+    NSString *thermalStr =
+        [NSString stringWithUTF8String:m.thermal_state];
+    if (thermalStr.length == 0)
+      thermalStr = @"Unknown";
+    NSColor *thermalColor = overlayAccentGreen();
+    if ([thermalStr containsString:@"Critical"])
+      thermalColor = overlayAccentRed();
+    else if ([thermalStr containsString:@"Serious"])
+      thermalColor = overlayAccentRed();
+    else if ([thermalStr containsString:@"Fair"])
+      thermalColor = overlayAccentYellow();
+    drawMetricKV(@"Thermal", thermalStr, thermalColor);
+  };
 
-    // Separator
-    [[NSColor colorWithWhite:1.0 alpha:0.06] set];
-    [NSBezierPath fillRect:NSMakeRect(padX, y, contentW, 1)];
-    y += 5;
-
-    // Temps
-    if (cfg.show_temps) {
-      NSString *tempStr;
-      if (m.gpu_temp > 0) {
-        tempStr = [NSString
-            stringWithFormat:@"CPU %.0f°C  GPU %.0f°C", m.cpu_temp, m.gpu_temp];
-      } else {
-        tempStr = [NSString stringWithFormat:@"%.0f°C", m.cpu_temp];
-      }
-      NSColor *tempColor = overlayBrightText();
-      if (m.cpu_temp >= 90 || m.gpu_temp >= 90)
-        tempColor = overlayAccentRed();
-      else if (m.cpu_temp >= 70 || m.gpu_temp >= 70)
-        tempColor = overlayAccentYellow();
-      drawMetricKV(@"Temps", tempStr, tempColor);
-    }
-
-    // Thermal state
-    if (cfg.show_thermals) {
-      NSString *thermalStr =
-          [NSString stringWithUTF8String:m.thermal_state];
-      if (thermalStr.length == 0)
-        thermalStr = @"Unknown";
-      NSColor *thermalColor = overlayAccentGreen();
-      if ([thermalStr containsString:@"Critical"])
-        thermalColor = overlayAccentRed();
-      else if ([thermalStr containsString:@"Serious"])
-        thermalColor = overlayAccentRed();
-      else if ([thermalStr containsString:@"Fair"])
-        thermalColor = overlayAccentYellow();
-      drawMetricKV(@"Thermal", thermalStr, thermalColor);
-    }
-
-    // Fans
-    if (cfg.show_fans && m.fan_count > 0) {
+  void (^drawSectionFans)(void) = ^{
+    if (m.fan_count > 0) {
       NSMutableString *fanStr = [NSMutableString string];
       for (int i = 0; i < m.fan_count && i < 4; i++) {
         if (i > 0)
@@ -888,14 +1313,94 @@ static void drawMiniBar(CGFloat x, CGFloat y, CGFloat w, CGFloat h,
       }
       drawMetricKV(@"Fans", fanStr, overlayDimText());
     }
+  };
 
-    // Network
-    if (cfg.show_network) {
-      NSString *netStr = [NSString
-          stringWithFormat:@"↓%@ ↑%@",
-                           formatOverlayThroughput(m.net_in_bytes_per_sec),
-                           formatOverlayThroughput(m.net_out_bytes_per_sec)];
-      drawMetricKV(@"Network", netStr, overlayDimText());
+  void (^drawSectionNetwork)(void) = ^{
+    NSString *netStr = [NSString
+        stringWithFormat:@"↓%@ ↑%@",
+                         formatOverlayThroughput(m.net_in_bytes_per_sec),
+                         formatOverlayThroughput(m.net_out_bytes_per_sec)];
+    drawMetricKV(@"Network", netStr, overlayDimText());
+  };
+
+  // Dispatch table: section ID → draw block
+  void (^sectionDrawers[kSectionCount])(void);
+  sectionDrawers[kSectionFPS] = drawSectionFPS;
+  sectionDrawers[kSectionFrame] = drawSectionFrame;
+  sectionDrawers[kSectionCPU] = drawSectionCPU;
+  sectionDrawers[kSectionGPU] = drawSectionGPU;
+  sectionDrawers[kSectionANE] = drawSectionANE;
+  sectionDrawers[kSectionMemory] = drawSectionMemory;
+  sectionDrawers[kSectionSwap] = drawSectionSwap;
+  sectionDrawers[kSectionPower] = drawSectionPower;
+  sectionDrawers[kSectionBandwidth] = drawSectionBandwidth;
+  sectionDrawers[kSectionGPUFreq] = drawSectionGPUFreq;
+  sectionDrawers[kSectionTemps] = drawSectionTemps;
+  sectionDrawers[kSectionThermal] = drawSectionThermal;
+  sectionDrawers[kSectionFans] = drawSectionFans;
+  sectionDrawers[kSectionNetwork] = drawSectionNetwork;
+
+  // Choose which section list to iterate based on collapsed/expanded
+  if (g_overlay_expanded) {
+    // Expanded mode: iterate expanded section list
+    BOOL needsSeparator = NO;
+    for (int i = 0; i < g_expandedCount; i++) {
+      OverlaySectionID sid = g_expandedSections[i];
+
+      // Draw separator before "detail" sections (power/bandwidth/gpu_freq and temps/thermal/fans/network)
+      if (!needsSeparator && (sid == kSectionPower || sid == kSectionBandwidth || sid == kSectionGPUFreq)) {
+        [[NSColor colorWithWhite:1.0 alpha:0.06] set];
+        [NSBezierPath fillRect:NSMakeRect(padX, y, contentW, 1)];
+        y += 5;
+        needsSeparator = YES;
+      }
+
+      // Check show flags for backward compatibility with --overlay-sections
+      BOOL shouldDraw = YES;
+      switch (sid) {
+        case kSectionCPU: shouldDraw = cfg.show_cpu; break;
+        case kSectionGPU: shouldDraw = cfg.show_gpu; break;
+        case kSectionANE: shouldDraw = cfg.show_ane; break;
+        case kSectionMemory: shouldDraw = cfg.show_memory; break;
+        case kSectionPower: shouldDraw = cfg.show_power; break;
+        case kSectionTemps: shouldDraw = cfg.show_temps; break;
+        case kSectionThermal: shouldDraw = cfg.show_thermals; break;
+        case kSectionFans: shouldDraw = cfg.show_fans; break;
+        case kSectionBandwidth: shouldDraw = cfg.show_bandwidth; break;
+        case kSectionNetwork: shouldDraw = cfg.show_network; break;
+        case kSectionGPUFreq: shouldDraw = cfg.show_gpu_freq; break;
+        default: break;
+      }
+
+      if (shouldDraw && sectionDrawers[sid]) {
+        sectionDrawers[sid]();
+      }
+    }
+  } else {
+    // Collapsed mode: iterate collapsed section list only
+    for (int i = 0; i < g_collapsedCount; i++) {
+      OverlaySectionID sid = g_collapsedSections[i];
+
+      // Check show flags for backward compatibility
+      BOOL shouldDraw = YES;
+      switch (sid) {
+        case kSectionCPU: shouldDraw = cfg.show_cpu; break;
+        case kSectionGPU: shouldDraw = cfg.show_gpu; break;
+        case kSectionANE: shouldDraw = cfg.show_ane; break;
+        case kSectionMemory: shouldDraw = cfg.show_memory; break;
+        case kSectionPower: shouldDraw = cfg.show_power; break;
+        case kSectionTemps: shouldDraw = cfg.show_temps; break;
+        case kSectionThermal: shouldDraw = cfg.show_thermals; break;
+        case kSectionFans: shouldDraw = cfg.show_fans; break;
+        case kSectionBandwidth: shouldDraw = cfg.show_bandwidth; break;
+        case kSectionNetwork: shouldDraw = cfg.show_network; break;
+        case kSectionGPUFreq: shouldDraw = cfg.show_gpu_freq; break;
+        default: break;
+      }
+
+      if (shouldDraw && sectionDrawers[sid]) {
+        sectionDrawers[sid]();
+      }
     }
   }
 
@@ -1029,6 +1534,9 @@ int initOverlay(void) {
 void setOverlayConfig(overlay_config_t *cfg) {
   if (cfg) {
     g_overlay_config = *cfg;
+    // Parse ordered section lists from the config strings
+    parseSectionList(g_overlay_config.collapsed_sections, g_collapsedSections, &g_collapsedCount);
+    parseSectionList(g_overlay_config.expanded_order, g_expandedSections, &g_expandedCount);
   }
 }
 
@@ -1053,31 +1561,92 @@ void updateOverlayMetrics(overlay_metrics_t *m) {
     CGFloat baseH = topPad + 60 + 10; // Header block (title + core + sep)
     int rows = 0;
 
-    rows++; // FPS row (always present — shows 0 when unavailable)
-    rows++; // Frame interval row (always present alongside FPS)
-
-    if (g_overlay_config.show_cpu) rows++;
-    if (g_overlay_config.show_gpu) rows++;
-    if (g_overlay_config.show_ane && g_overlay_expanded) rows++;
-    if (g_overlay_config.show_memory) {
-      rows++;
-      if (localMetrics.swap_used_bytes > 0 && localMetrics.swap_total_bytes > 0 && g_overlay_expanded)
-        rows++;
+    if (g_showSettings) {
+      // Settings panel: 2 section headers (22px each) + 28 checkbox rows (26px each)
+      // + separator (14px) + done button (42px) + padding
+      CGFloat settingsH = baseH + 8 + 22 + (14 * 26) + 14 + 22 + (14 * 26) + 10 + 42 + 10;
+      botPad = 0;
+      CGFloat newH = settingsH;
+      NSRect frame = g_overlayWindow.frame;
+      if ((int)frame.size.height != (int)newH) {
+        CGFloat dy = newH - frame.size.height;
+        frame.origin.y -= dy;
+        frame.size.height = newH;
+        [NSAnimationContext runAnimationGroup:^(NSAnimationContext *context) {
+            context.duration = 0.25;
+            context.timingFunction = [CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionEaseInEaseOut];
+            [[g_overlayWindow animator] setFrame:frame display:YES];
+        } completionHandler:^{
+            NSView *bgView = g_overlayWindow.contentView;
+            bgView.frame = NSMakeRect(0, 0, frame.size.width, newH);
+            g_contentView.frame = NSMakeRect(0, 0, frame.size.width, newH);
+            [g_contentView setNeedsDisplay:YES];
+        }];
+      } else {
+        [g_contentView setNeedsDisplay:YES];
+      }
+      return;
     }
 
+    // Count rows based on which section list is active
     if (g_overlay_expanded) {
-      baseH += 10; // separator
-      if (g_overlay_config.show_power) {
-        rows += 5; // Total + CPU + GPU + ANE + DRAM (always show all)
-      }
-      if (g_overlay_config.show_bandwidth) rows++;
-      if (g_overlay_config.show_gpu_freq) rows++;
-      baseH += 10; // separator
+      BOOL addedDetailSep = NO;
+      for (int i = 0; i < g_expandedCount; i++) {
+        OverlaySectionID sid = g_expandedSections[i];
 
-      if (g_overlay_config.show_temps) rows++;
-      if (g_overlay_config.show_thermals) rows++;
-      if (g_overlay_config.show_fans && localMetrics.fan_count > 0) rows++;
-      if (g_overlay_config.show_network) rows++;
+        // Add separator space before detail sections
+        if (!addedDetailSep && (sid == kSectionPower || sid == kSectionBandwidth || sid == kSectionGPUFreq)) {
+          baseH += 10;
+          addedDetailSep = YES;
+        }
+
+        switch (sid) {
+          case kSectionPower:
+            if (g_overlay_config.show_power) rows += 5;
+            break;
+          case kSectionSwap:
+            if (localMetrics.swap_used_bytes > 0 && localMetrics.swap_total_bytes > 0) rows++;
+            break;
+          case kSectionFans:
+            if (g_overlay_config.show_fans && localMetrics.fan_count > 0) rows++;
+            break;
+          case kSectionCPU: if (g_overlay_config.show_cpu) rows++; break;
+          case kSectionGPU: if (g_overlay_config.show_gpu) rows++; break;
+          case kSectionANE: if (g_overlay_config.show_ane) rows++; break;
+          case kSectionMemory: if (g_overlay_config.show_memory) rows++; break;
+          case kSectionTemps: if (g_overlay_config.show_temps) rows++; break;
+          case kSectionThermal: if (g_overlay_config.show_thermals) rows++; break;
+          case kSectionBandwidth: if (g_overlay_config.show_bandwidth) rows++; break;
+          case kSectionNetwork: if (g_overlay_config.show_network) rows++; break;
+          case kSectionGPUFreq: if (g_overlay_config.show_gpu_freq) rows++; break;
+          default: rows++; break; // FPS, Frame
+        }
+      }
+    } else {
+      for (int i = 0; i < g_collapsedCount; i++) {
+        OverlaySectionID sid = g_collapsedSections[i];
+        switch (sid) {
+          case kSectionPower:
+            if (g_overlay_config.show_power) rows += 5;
+            break;
+          case kSectionSwap:
+            if (localMetrics.swap_used_bytes > 0 && localMetrics.swap_total_bytes > 0) rows++;
+            break;
+          case kSectionFans:
+            if (g_overlay_config.show_fans && localMetrics.fan_count > 0) rows++;
+            break;
+          case kSectionCPU: if (g_overlay_config.show_cpu) rows++; break;
+          case kSectionGPU: if (g_overlay_config.show_gpu) rows++; break;
+          case kSectionANE: if (g_overlay_config.show_ane) rows++; break;
+          case kSectionMemory: if (g_overlay_config.show_memory) rows++; break;
+          case kSectionTemps: if (g_overlay_config.show_temps) rows++; break;
+          case kSectionThermal: if (g_overlay_config.show_thermals) rows++; break;
+          case kSectionBandwidth: if (g_overlay_config.show_bandwidth) rows++; break;
+          case kSectionNetwork: if (g_overlay_config.show_network) rows++; break;
+          case kSectionGPUFreq: if (g_overlay_config.show_gpu_freq) rows++; break;
+          default: rows++; break; // FPS, Frame
+        }
+      }
     }
 
     botPad = 28; // Space at the bottom for the toggle pill

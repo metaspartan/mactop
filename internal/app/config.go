@@ -48,6 +48,23 @@ type MenuBarConfig struct {
 	MemColor        string `json:"mem_color,omitempty"`         // Hex color for Memory bar (default: systemOrange)
 }
 
+// OverlayConfig controls the appearance and behavior of the --overlay HUD
+type OverlayConfig struct {
+	// CollapsedSections defines which sections are visible in collapsed mode.
+	// Valid values: fps, frame, cpu, gpu, ane, memory
+	// Default: ["fps", "frame", "cpu", "gpu", "memory"]
+	CollapsedSections []string `json:"collapsed_sections,omitempty"`
+
+	// ExpandedOrder defines the section display order in expanded mode.
+	// Valid values: fps, frame, cpu, gpu, ane, memory, swap, power,
+	//              bandwidth, gpu_freq, temps, thermal, fans, network
+	// Default: all sections in canonical order
+	ExpandedOrder []string `json:"expanded_order,omitempty"`
+
+	// Opacity overrides the overlay opacity (0.15-1.0)
+	Opacity *float64 `json:"opacity,omitempty"`
+}
+
 type AppConfig struct {
 	DefaultLayout string             `json:"default_layout"`
 	Theme         string             `json:"theme"`
@@ -57,6 +74,7 @@ type AppConfig struct {
 	SortReverse   bool               `json:"sort_reverse"`
 	CustomTheme   *CustomThemeConfig `json:"custom_theme,omitempty"`
 	MenuBar       *MenuBarConfig     `json:"menubar,omitempty"`
+	Overlay       *OverlayConfig     `json:"overlay,omitempty"`
 }
 
 // intOrDefault returns v if > 0, otherwise def.
@@ -116,6 +134,59 @@ func loadMenuBarConfig() MenuBarConfig {
 	}
 	if m.MemColor != "" {
 		cfg.MemColor = m.MemColor
+	}
+	return cfg
+}
+
+// Canonical overlay section names
+var (
+	overlayDefaultCollapsed = []string{"fps", "frame", "cpu", "gpu", "memory"}
+	overlayDefaultExpanded  = []string{
+		"fps", "frame", "cpu", "gpu", "ane", "memory", "swap",
+		"power", "bandwidth", "gpu_freq", "temps", "thermal", "fans", "network",
+	}
+	overlayValidSections = map[string]bool{
+		"fps": true, "frame": true, "cpu": true, "gpu": true, "ane": true,
+		"memory": true, "swap": true, "power": true, "bandwidth": true,
+		"gpu_freq": true, "temps": true, "thermal": true, "fans": true, "network": true,
+	}
+)
+
+// filterValidSections returns only recognized section names from the input
+func filterValidSections(sections []string) []string {
+	var result []string
+	for _, s := range sections {
+		if overlayValidSections[strings.ToLower(strings.TrimSpace(s))] {
+			result = append(result, strings.ToLower(strings.TrimSpace(s)))
+		}
+	}
+	return result
+}
+
+// loadOverlayConfig returns the overlay config with defaults applied
+func loadOverlayConfig() OverlayConfig {
+	cfg := OverlayConfig{
+		CollapsedSections: overlayDefaultCollapsed,
+		ExpandedOrder:     overlayDefaultExpanded,
+	}
+	if currentConfig.Overlay == nil {
+		return cfg
+	}
+	o := currentConfig.Overlay
+	if len(o.CollapsedSections) > 0 {
+		filtered := filterValidSections(o.CollapsedSections)
+		if len(filtered) > 0 {
+			cfg.CollapsedSections = filtered
+		}
+	}
+	if len(o.ExpandedOrder) > 0 {
+		filtered := filterValidSections(o.ExpandedOrder)
+		if len(filtered) > 0 {
+			cfg.ExpandedOrder = filtered
+		}
+	}
+	if o.Opacity != nil {
+		cfg.Opacity = o.Opacity
 	}
 	return cfg
 }

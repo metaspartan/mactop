@@ -61,6 +61,8 @@ typedef struct {
     int show_network;
     int show_gpu_freq;
     double opacity;
+    char collapsed_sections[256]; // comma-separated ordered section names for collapsed mode
+    char expanded_order[512];     // comma-separated ordered section names for expanded mode
 } overlay_config_t;
 
 int initOverlay(void);
@@ -122,7 +124,7 @@ func applyOverlayConfig(sections string) {
 		ccfg.opacity = C.double(overlayOpacity)
 	}
 
-	// If sections are specified, disable all then enable only requested
+	// If sections are specified via CLI, disable all then enable only requested
 	if sections != "" {
 		ccfg.show_cpu = 0
 		ccfg.show_gpu = 0
@@ -141,7 +143,34 @@ func applyOverlayConfig(sections string) {
 		}
 	}
 
+	// Apply ordered section lists from config or env
+	collapsedStr := os.Getenv("MACTOP_OVERLAY_COLLAPSED")
+	expandedStr := os.Getenv("MACTOP_OVERLAY_EXPANDED")
+	if collapsedStr == "" {
+		collapsedStr = strings.Join(overlayDefaultCollapsed, ",")
+	}
+	if expandedStr == "" {
+		expandedStr = strings.Join(overlayDefaultExpanded, ",")
+	}
+
+	// Copy to C struct
+	copyToCCharBuf(unsafe.Pointer(&ccfg.collapsed_sections), collapsedStr, 256)
+	copyToCCharBuf(unsafe.Pointer(&ccfg.expanded_order), expandedStr, 512)
+
 	C.setOverlayConfig(&ccfg)
+}
+
+// copyToCCharBuf copies a Go string into a C char buffer at the given pointer
+func copyToCCharBuf(dst unsafe.Pointer, src string, maxLen int) {
+	bytes := []byte(src)
+	if len(bytes) >= maxLen {
+		bytes = bytes[:maxLen-1]
+	}
+	p := (*[512]C.char)(dst)
+	for i, b := range bytes {
+		p[i] = C.char(b)
+	}
+	p[len(bytes)] = 0
 }
 
 // setOverlaySectionFlag is a helper to reduce cyclomatic complexity
@@ -333,10 +362,22 @@ func startOverlayProcess() error {
 	}
 
 	cmd := exec.Command(exe, "--overlay-worker")
-	// Pass section filter via environment variable
+	// Pass section filter and config via environment variables
+	overlayCfg := loadOverlayConfig()
+	collapsedStr := strings.Join(overlayCfg.CollapsedSections, ",")
+	expandedStr := strings.Join(overlayCfg.ExpandedOrder, ",")
+
+	effectiveOpacity := overlayOpacity
+	if overlayCfg.Opacity != nil && overlayOpacity == 0.88 {
+		// Use config opacity only if CLI wasn't explicitly set
+		effectiveOpacity = *overlayCfg.Opacity
+	}
+
 	cmd.Env = append(os.Environ(),
 		"MACTOP_OVERLAY_SECTIONS="+overlaySections,
-		fmt.Sprintf("MACTOP_OVERLAY_OPACITY=%.2f", overlayOpacity),
+		fmt.Sprintf("MACTOP_OVERLAY_OPACITY=%.2f", effectiveOpacity),
+		"MACTOP_OVERLAY_COLLAPSED="+collapsedStr,
+		"MACTOP_OVERLAY_EXPANDED="+expandedStr,
 	)
 
 	stdin, err := cmd.StdinPipe()

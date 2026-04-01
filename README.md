@@ -177,6 +177,67 @@ Without this permission, the overlay will still work but FPS and frame interval 
 
 > **Tip:** Run `mactop --dump-fps` to verify screen recording access and test CGDisplayStream on your hardware. This is useful for troubleshooting if FPS metrics still aren't appearing.
 
+## Overlay Customization
+
+The overlay HUD (`--overlay`) supports customization via `~/.mactop/config.json`. You can control which metrics appear in collapsed mode, their order in expanded mode, and the overlay opacity.
+
+### Collapsed Mode Sections
+
+Choose which metrics appear when the overlay is collapsed (default: FPS, Frame, CPU, GPU, Memory):
+
+```json
+{
+  "overlay": {
+    "collapsed_sections": ["fps", "cpu", "gpu", "memory"]
+  }
+}
+```
+
+### Expanded Mode Section Order
+
+Reorder sections in expanded mode. Sections appear in the order listed:
+
+```json
+{
+  "overlay": {
+    "expanded_order": [
+      "fps", "frame", "cpu", "gpu", "memory",
+      "power", "temps", "thermal", "fans",
+      "bandwidth", "gpu_freq", "ane", "network"
+    ]
+  }
+}
+```
+
+### Available Sections
+
+| Section | Description |
+|---------|-------------|
+| `fps` | Display FPS counter with sparkline |
+| `frame` | Frame interval (ms) with sparkline |
+| `cpu` | CPU usage bar with sparkline |
+| `gpu` | GPU usage bar with sparkline |
+| `ane` | ANE (Neural Engine) usage bar |
+| `memory` | Memory usage bar |
+| `swap` | Swap usage (only shown when swap is active) |
+| `power` | Power breakdown (Package + CPU/GPU/ANE/DRAM) |
+| `bandwidth` | DRAM bandwidth (GB/s) |
+| `gpu_freq` | GPU frequency and TFLOPs |
+| `temps` | CPU and GPU temperatures |
+| `thermal` | Thermal state |
+| `fans` | Fan RPM (only shown when fans present) |
+| `network` | Network throughput |
+
+### Persisted Opacity
+
+```json
+{
+  "overlay": {
+    "opacity": 0.75
+  }
+}
+```
+
 ## Theme File Support
 
 Create `~/.mactop/theme.json` to customize colors:
