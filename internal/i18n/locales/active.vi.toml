@@ -1,0 +1,328 @@
+Overlay_FPS = "FPS"
+Overlay_FrameInfo = "Khoảng khung hình"
+Overlay_CPU = "CPU"
+Overlay_GPU = "GPU"
+Overlay_ANE = "ANE"
+Overlay_Memory = "Bộ nhớ"
+Overlay_Swap = "Swap"
+Overlay_Power = "Công suất"
+Overlay_Bandwidth = "Băng thông DRAM"
+Overlay_GPUFreq = "Tần số GPU"
+Overlay_Temps = "Nhiệt độ"
+Overlay_Thermal = "Trạng thái nhiệt"
+Overlay_Fans = "Quạt"
+Overlay_Network = "Mạng"
+
+TUI_InfoLayoutColorExit = " Thông tin: i | Bố cục: l | Màu: c | Nền: b | Thoát: q "
+TUI_LayoutInfo = " %d/%d bố cục (%s) "
+TUI_LayoutInfoShort = " %d/%d "
+TUI_ModelInfo = "Model: %s"
+TUI_CoresInfo = "%d lõi (%dP, %dE, %dS) | GPU: %d lõi | %s"
+TUI_TotalPower = "Tổng công suất: %.1fW"
+TUI_AppTotalPower = "Tổng: %.1fW | CPU: %.1fW (ANE: %.1fW) GPU: %.1fW"
+TUI_AppleSilicon = "Apple Silicon"
+TUI_HelpMenu = "Trợ giúp mactop"
+TUI_Loading = "Đang tải..."
+TUI_LoadingTB = "Đang tải thông tin Thunderbolt..."
+TUI_Fans = " ⊚ Quạt "
+TUI_Temperatures = " 🌡 Nhiệt độ "
+TUI_ProcessList = "Danh sách tiến trình"
+TUI_UnknownModel = "Model không xác định"
+TUI_ECPUUsage = "Sử dụng E-CPU"
+TUI_PCPUUsage = "Sử dụng P-CPU"
+TUI_GPUUsage = "Sử dụng GPU"
+TUI_MemoryUsage = "Sử dụng bộ nhớ"
+TUI_ANEUsage = "Sử dụng ANE"
+TUI_PowerUsage = "Tiêu thụ năng lượng"
+TUI_NetworkDisk = "Mạng & Đĩa"
+TUI_ThunderboltRDMA = "Thunderbolt / RDMA"
+TUI_MactopTitle = " mactop "
+TUI_GPUUsageHistory = "Lịch sử sử dụng GPU"
+TUI_TBNet = "TB Mạng ↓0/s ↑0/s"
+TUI_PowerHistory = "Lịch sử công suất"
+TUI_MemorySwapHistory = "Lịch sử Bộ nhớ/Swap"
+TUI_CPUUsageHistory = "Lịch sử sử dụng CPU"
+TUI_ConfirmKill = " XÁC NHẬN "
+TUI_ConfirmKillBody = "XÁC NHẬN KẾT THÚC"
+TUI_ConfirmYes = "Có"
+TUI_ConfirmNo = "Không"
+
+Info_OS = "HĐH"
+Info_Host = "Máy chủ"
+Info_Kernel = "Nhân"
+Info_Uptime = "Thời gian hoạt động"
+Info_Shell = "Shell"
+Info_CPU = "CPU"
+Info_GPU = "GPU"
+Info_TFLOPs = "TFLOPs"
+Info_Memory = "Bộ nhớ"
+Info_Swap = "Swap"
+Info_CPUUsage = "Sử dụng CPU"
+Info_GPUUsage = "Sử dụng GPU"
+Info_ANEUsage = "Sử dụng ANE"
+Info_Power = "Công suất"
+Info_Thermals = "Nhiệt"
+Info_Network = "Mạng"
+Info_Disk = "Đĩa"
+Info_DRAMBW = "BT DRAM"
+Info_TBNet = "TB Mạng"
+Info_RDMA = "RDMA"
+Info_Ethernet = "Ethernet"
+Info_WiFi = "Wi-Fi"
+
+Metrics_MemoryUsed = "%.1fGB / %.1fGB %.1f%%"
+Metrics_SwapUsed = "Swap: %.1fGB / %.1fGB %.1f%%"
+Metrics_DiskIO = "[Vào] %.1f%s [Ra] %.1f%s"
+Metrics_NetIO = "[Vào] %s [Ra] %s"
+Metrics_TFLOPs = "FP32 TFLOPs: %.1f"
+Metrics_Freq = "Tần số: %d MHz"
+Metrics_RPM = "%d RPM"
+Metrics_ThermalNominal = "Bình thường"
+Metrics_ThermalFair = "Khá"
+Metrics_ThermalSerious = "Nghiêm trọng"
+Metrics_ThermalCritical = "Nguy hiểm"
+Metrics_ThermalUnknown = "Không rõ"
+Metrics_RDMAActive = "Hoạt động"
+Metrics_RDMAInactive = "Không hoạt động"
+Metrics_CPUGaugeCompact = "CPU %.0f%% %s"
+Metrics_CPUGauge = "%d lõi %s %.2f%%%s (%s)"
+Metrics_ANEGaugeCompact = "ANE %.1fW"
+Metrics_ANEGauge = "Sử dụng ANE: %.2f%% @ %.2f W"
+Metrics_PowerChartTitleCompact = "Công suất"
+Metrics_PowerChartTextCompact = "C:%.1fW G:%.1fW\nA:%.1fW D:%.1fW\nTổng:%.1fW %s"
+Metrics_PowerChartText = "CPU: %.2f W | GPU: %.2f W\nANE: %.2f W | DRAM: %.2f W\nHệ thống: %.2f W\nTổng: %.2f W\nNhiệt: %s\nThời gian: %s"
+Metrics_NetworkDiskTitle = "Mạng & Đĩa"
+Metrics_MemGaugeCompact = "BN %.0f/%.0fG BT %.1f GB/s"
+Metrics_MemGauge = "Bộ nhớ: %.2f GB / %.2f GB (Swap: %.2f/%.2f GB) BT: %.1f GB/s"
+
+Process_PID = "PID"
+Process_USER = "NGƯỜI DÙNG"
+Process_VIRT = "ẢO"
+Process_RES = "THỰC"
+Process_CPU = "CPU"
+Process_GPU = "GPU"
+Process_MEM = "BN"
+Process_TIME = "THỜI GIAN"
+Process_CMD = "LỆNH"
+
+TUI_ProcessListFull = "Danh sách tiến trình (↑/↓ cuộn, / tìm, f đóng băng, F9 kết thúc)"
+TUI_ProcessListFrozen = " Danh sách tiến trình [ĐÓNG BĂNG] (f để tiếp tục) "
+TUI_ProcessListSearch = " Tìm: %s_ (Esc để xóa) "
+TUI_ProcessListKill = " Danh sách tiến trình - XÁC NHẬN KẾT THÚC (PID %d) "
+TUI_ProcessListPID = " Danh sách tiến trình [PID %d] (↑/↓ cuộn, / tìm, f đóng băng, F9 kết thúc) "
+TUI_Cores = "%d lõi"
+TUI_ECores = "%d E-Core"
+TUI_PCores = "%d P-Core"
+TUI_SCores = "%d S-Core"
+TUI_GPUCores = "%s lõi GPU"
+Metrics_NetLink = "Mạng (%s): ↑ %s/s ↓ %s/s"
+Metrics_Net = "Mạng: ↑ %s/s ↓ %s/s"
+Metrics_IO = "I/O: Đ %s/s G %s/s"
+Metrics_DiskFree = "%s: %s/%s (%s trống)"
+Metrics_GPUGaugeTemp = "Sử dụng GPU: %d%% @ %d MHz (%s)"
+Metrics_GPUGaugeFreq = "Sử dụng GPU: %d%% @ %d MHz"
+Metrics_GPUSparkline = "Lịch sử GPU: %d%% (TB: %.1f%%)"
+Metrics_GPUHistoryChart = "Lịch sử sử dụng GPU (TB: %.1f%%)"
+Metrics_GPUGaugeCompactTemp = "GPU %d%% %s"
+Metrics_GPUGaugeCompactFreq = "GPU %d%% %dMHz"
+Metrics_GPUSparklineCompact = "GPU %d%% (%.0f%%)"
+
+Help_FullText = """
+mactop là công cụ giám sát mã nguồn mở cho Apple Silicon được tạo bởi Carsen Klock bằng Go!
+
+Kho mã: github.com/metaspartan/mactop
+
+----Cài đặt hiện tại----
+Prometheus Metrics: %s
+Phiên bản: %s
+Bố cục: %s
+Màu chữ: %s
+Màu nền: %s
+Tần suất cập nhật: %dms
+
+----Điều khiển----
+- r: Làm mới dữ liệu UI thủ công
+- c: Đổi chủ đề màu
+- b: Đổi màu nền
+- p: Chế độ tiệc (vòng lặp màu)
+- l: Chuyển đổi 18 bố cục
+- i: Hiện/ẩn bảng thông tin
+- Shift + F: Điều khiển quạt và bảng nhiệt
+- F9: Kết thúc tiến trình đã chọn (c/k)
+- f: Đóng băng danh sách tiến trình
+- /: Tìm kiếm tiến trình
+- g/G: Nhảy đầu/cuối danh sách
+- + hoặc -: Điều chỉnh tần suất cập nhật
+- h hoặc ?: Hiện/ẩn trợ giúp
+- j/k hoặc ↓/↑: Cuộn văn bản
+- q hoặc <C-c>: Thoát
+
+----Tùy chọn khởi động----
+--help, -h: Hiển thị trợ giúp
+--version, -v: Hiển thị phiên bản
+--interval, -i: Tần suất cập nhật (ms). Mặc định: 1000.
+--prometheus, -p: Cổng Prometheus metrics
+--headless: Chạy không giao diện (xuất stdout)
+--format: Định dạng xuất (json, yaml, xml, csv, toon)
+--pretty: Xuất có định dạng
+--count: Số mẫu (0 = vô hạn)
+--dump-ioreport, -d: Hiển thị kênh IOReport
+--unit-network: Đơn vị mạng: auto, byte, kb, mb, gb
+--unit-disk: Đơn vị đĩa: auto, byte, kb, mb, gb
+--unit-temp: Đơn vị nhiệt: celsius, fahrenheit
+--foreground: Màu chữ UI
+--bg: Màu nền UI
+--pid: Giám sát PID cụ thể (--pid 1234)
+--fan-control: Điều khiển quạt tương tác (SMC)*
+--menubar: Chế độ thanh menu macOS
+
+Tệp chủ đề: Tạo ~/.mactop/theme.json cho màu tùy chỉnh.
+"""
+
+Info_Auto = "Tự động"
+Info_Manual = "Thủ công"
+Info_Disconnected = "Ngắt kết nối (%s)"
+Info_Enabled = "Bật"
+Info_Disabled = "Tắt"
+Info_ScrollUp = "↑ Cuộn lên"
+Info_ScrollDown = "↓ Cuộn xuống"
+
+
+Menu_Usage = "Sử dụng:"
+Menu_ECluster = "E-Cluster:"
+Menu_PCluster = "P-Cluster:"
+Menu_SCluster = "S-Cluster:"
+Menu_Power = "Công suất:"
+Menu_Temp = "Nhiệt:"
+Menu_TFLOPs = "TFLOPs:"
+Menu_RAM = "RAM:"
+Menu_Swap = "Swap:"
+Menu_DRAMBW = "BT DRAM:"
+Menu_Network = "Mạng:"
+Menu_RDMA = "RDMA:"
+Menu_Disk = "Đĩa:"
+Menu_Total = "Tổng:"
+Menu_System = "Hệ thống:"
+Menu_Thermal = "Nhiệt:"
+Menu_Settings = "Cài đặt..."
+Menu_OpenGitHub = "Mở thông tin GitHub..."
+Menu_OpenTUI = "Mở TUI mactop..."
+Menu_Quit = "Thoát mactop"
+Menu_AppleSilicon = "Apple Silicon"
+Menu_CPU = "CPU"
+Menu_GPU = "GPU"
+Menu_MEMORY = "BỘ NHỚ"
+Menu_NETWORK = "MẠNG"
+Menu_DISK = "ĐĨA"
+Menu_POWER = "CÔNG SUẤT"
+Menu_HISTORY = "LỊCH SỬ"
+Menu_FANS = "QUẠT"
+
+CLI_HelpText = """
+Cách dùng: mactop [tùy chọn]
+
+Tùy chọn:
+  -h, --help              Hiển thị trợ giúp này
+  -v, --version           Hiển thị phiên bản mactop
+  -i, --interval <ms>     Đặt tần suất cập nhật bằng mili giây (mặc định: 1000)
+  --foreground <màu>      Đặt màu chữ UI (tên hoặc hex, vd. green, #9580FF)
+  --bg <màu>              Đặt màu nền UI (tên hoặc hex, vd. mocha-base, #22212C)
+  -p, --prometheus <cổng> Chạy máy chủ Prometheus trên cổng chỉ định (vd. :9090)
+      --headless          Chạy không giao diện (không TUI, JSON ra stdout)
+      --format <dạng>     Đặt định dạng xuất (json, yaml, xml, csv, toon)
+      --pretty            Định dạng đầu ra headless
+      --count <n>         Số mẫu ở chế độ headless (0 = vô hạn)
+      --dump-ioreport, -d Hiển thị tất cả kênh IOReport và thoát
+      --unit-network <đv> Đơn vị mạng: auto, byte, kb, mb, gb (mặc định: auto)
+      --unit-disk <đv>    Đơn vị đĩa: auto, byte, kb, mb, gb (mặc định: auto)
+      --unit-temp <đv>    Đơn vị nhiệt: celsius, fahrenheit (mặc định: celsius)
+      --pid <pid>         Giám sát tiến trình cụ thể theo PID
+      --menubar           Chạy như mục thanh menu macOS (không TUI)
+      --overlay           Hiển thị cửa sổ HUD nổi trên tất cả ứng dụng
+      --overlay-sections  Phần hiển thị phân tách bằng dấu phẩy (vd. cpu,gpu,memory,power)
+      --overlay-opacity   Độ mờ cửa sổ overlay, 0.15-1.0 (mặc định: 0.88)
+      --fan-control       Bật điều khiển quạt tương tác (ghi vào SMC)
+      --dump-temps        Chẩn đoán: hiện tất cả khóa nhiệt SMC và thoát
+      --dump-debug        Chẩn đoán: hiện thông tin gỡ lỗi IOReport/HID/SMC/NVMe và thoát
+
+Tệp chủ đề:
+  Tạo ~/.mactop/theme.json với màu hex tùy chỉnh:
+  {"foreground": "#9580FF", "background": "#22212C"}
+
+Thêm thông tin: https://github.com/metaspartan/mactop bởi Carsen Klock.
+"""
+CLI_Version = "phiên bản mactop: %s"
+CLI_DumpingIOReport = "Đang xuất kênh IOReport..."
+CLI_TestInputReceived = "Đã nhận đầu vào thử nghiệm: %s"
+CLI_ErrorForegroundRequiresValue = "Lỗi: --foreground yêu cầu giá trị màu"
+CLI_ErrorBackgroundRequiresValue = "Lỗi: --bg yêu cầu giá trị màu"
+CLI_ErrorPrometheusRequiresValue = "Lỗi: --prometheus yêu cầu số cổng"
+CLI_ErrorIntervalRequiresValue = "Lỗi: --interval yêu cầu giá trị khoảng thời gian"
+CLI_ErrorInvalidInterval = "Khoảng thời gian không hợp lệ: %v"
+CLI_ErrorPIDRequiresValue = "Lỗi: --pid yêu cầu giá trị PID"
+CLI_ErrorInvalidPID = "PID không hợp lệ: %v"
+CLI_TestingIOReportPowerMetrics = "Đang kiểm tra metrics công suất IOReport..."
+CLI_TestSample = "Mẫu %d:"
+CLI_TestSocTemp = "  Nhiệt SoC: %.1f°C"
+CLI_TestCPU = "  CPU: %.2fW | GPU: %.2fW (%d MHz, %.0f%% hoạt động)"
+CLI_TestANE = "  ANE: %.2fW | DRAM: %.2fW | GPU SRAM: %.2fW | Tổng: %.2fW | %s"
+
+Headless_ErrorInitMetrics = "Không thể khởi tạo metrics: %v"
+Headless_ErrorUnknownFormat = "Định dạng không xác định: %s. Sẽ dùng json."
+Headless_ErrorFormattingOutput = "Lỗi định dạng đầu ra: %v"
+Headless_ErrorPrometheusServer = "Lỗi máy chủ Prometheus: %v"
+
+Info_OSValue = "macOS %s"
+Info_TFLOPsValue = "%.1f FP32 / %.1f FP16"
+Info_NotAvailable = "Không có"
+Info_PowerValue = "%.2f W (TB %.0f W)"
+Info_NetworkValue = "↑ %s/s ↓ %s/s"
+Info_DiskValue = "Đ %s/s G %s/s"
+Info_DRAMBWValue = "Đ %.1f / G %.1f / %.1f GB/s"
+Info_FanValue = "%d RPM (%s, %d-%d)"
+Info_WiFiValue = "%s @ %dMbps (%s)"
+Info_VolumeValue = "%s / %s (%s trống)"
+
+Fan_CPUTemp = "Nhiệt CPU"
+Fan_GPUTemp = "Nhiệt GPU"
+Fan_NoFansDetected = "Không phát hiện quạt"
+Fan_NoTemperatureSensorsDetected = "Không phát hiện cảm biến nhiệt"
+Fan_ControlActive = "[⚠ ĐIỀU KHIỂN QUẠT ĐANG HOẠT ĐỘNG](fg:red,mod:bold)  [+/-](fg:%s,mod:bold) Tốc độ  [a](fg:%s,mod:bold) Tự động  [0/9](fg:%s,mod:bold) Tối thiểu/Tối đa  [R](fg:green,mod:bold) Đặt lại  [l](fg:%s) Bố cục  [F](fg:%s) Thoát"
+Fan_ReadOnly = "[Chỉ đọc](fg:%s)  Dùng --fan-control để ghi  |  [l](fg:%s,mod:bold) Bố cục  [F](fg:%s,mod:bold) Đóng chế độ quạt"
+
+Metrics_PowerSparklineGroup = "%.2f W Tổng (Tối đa: %.2f W)"
+Metrics_PowerSparklineTitle = "TB %.2f W | %s"
+Metrics_PowerHistoryDetail = "Lịch sử công suất (TB %.1fW, Tối đa %.1fW)"
+Metrics_CPUHistoryDetail = "Lịch sử sử dụng CPU (%.1f%%)"
+Metrics_MemoryHistoryDetail = "BN: %.1f/%.1fGB, Swap: %.1fGB"
+
+TUI_KillPIDTitle = " XÁC NHẬN KẾT THÚC PID %d "
+
+Menu_Tooltip = "mactop — Giám sát Apple Silicon"
+Menu_SettingsTitle = "Cài đặt thanh menu mactop"
+Menu_ShowCPUBar = "Hiện thanh CPU"
+Menu_ShowGPUBar = "Hiện thanh GPU"
+Menu_ShowANEBar = "Hiện thanh ANE"
+Menu_ShowMemoryBar = "Hiện thanh bộ nhớ"
+Menu_ShowWattageInMenuBar = "Hiện công suất trên thanh menu"
+Menu_ShowPercentages = "Hiện phần trăm"
+Menu_StatusBarWidth = "Chiều rộng thanh trạng thái:"
+Menu_StatusBarHeight = "Chiều cao thanh trạng thái:"
+Menu_BarFontSize = "Cỡ chữ thanh:"
+Menu_WattageFontSize = "Cỡ chữ công suất:"
+Menu_Colors = "Màu sắc:"
+Menu_DiskRate = "Đ %.0f KB/s  G %.0f KB/s"
+Menu_FanItem = "Quạt %d"
+
+Overlay_DRAM = "DRAM"
+Overlay_CollapsedMode = "Chế độ thu gọn"
+Overlay_ExpandedMode = "Chế độ mở rộng"
+Overlay_Done = "Xong"
+Overlay_RequiresScreenRecordingPermission = "Yêu cầu quyền ghi màn hình"
+Overlay_RequiresPermission = "Yêu cầu quyền"
+Overlay_OpacityHint = "Độ mờ: %.0f%%  (cuộn để điều chỉnh)"
+Overlay_GPUCores = "%d lõi GPU"
+Overlay_GPUFreqTFLOPs = "%dMHz • %.1f TFLOPS"
+Overlay_GPUFreqMHz = "%d MHz"
+Overlay_TempsDual = "CPU %.0f°C  GPU %.0f°C"
+Overlay_TempsSingle = "%.0f°C"

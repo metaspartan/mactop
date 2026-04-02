@@ -189,9 +189,9 @@ Info_ScrollDown = "↓ スクロールダウン"
 
 
 Menu_Usage = "使用割合:"
-Menu_ECluster = "高効率コア:"
-Menu_PCluster = "高性能コア:"
-Menu_SCluster = "新コア:"
+Menu_ECluster = "E-クラスター:"
+Menu_PCluster = "P-クラスター:"
+Menu_SCluster = "S-クラスター:"
 Menu_Power = "電力:"
 Menu_Temp = "温度:"
 Menu_TFLOPs = "TFLOPs:"

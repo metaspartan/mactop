@@ -190,9 +190,9 @@ Info_ScrollDown = "↓ 向下滚动"
 
 
 Menu_Usage = "使用率:"
-Menu_ECluster = "能效核:"
-Menu_PCluster = "性能核:"
-Menu_SCluster = "超级核:"
+Menu_ECluster = "E-集群:"
+Menu_PCluster = "P-集群:"
+Menu_SCluster = "S-集群:"
 Menu_Power = "功耗:"
 Menu_Temp = "温度:"
 Menu_TFLOPs = "TFLOPs:"
