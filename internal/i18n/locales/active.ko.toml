@@ -311,6 +311,7 @@ Menu_StatusBarHeight = "상태 막대 높이:"
 Menu_BarFontSize = "바 글꼴 크기:"
 Menu_WattageFontSize = "전력 글꼴 크기:"
 Menu_Colors = "색상:"
+Menu_BarOrder = "막대 항목 순서:"
 Menu_DiskRate = "읽기 %.0f KB/s  쓰기 %.0f KB/s"
 Menu_FanItem = "팬 %d"
 

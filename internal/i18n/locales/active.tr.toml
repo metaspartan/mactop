@@ -311,6 +311,7 @@ Menu_StatusBarHeight = "Durum Çubuğu Yüksekliği:"
 Menu_BarFontSize = "Çubuk Yazı Boyutu:"
 Menu_WattageFontSize = "Watt Yazı Boyutu:"
 Menu_Colors = "Renkler:"
+Menu_BarOrder = "Çubuk Sırası:"
 Menu_DiskRate = "O %.0f KB/s  Y %.0f KB/s"
 Menu_FanItem = "Fan %d"
 

@@ -217,6 +217,21 @@ static BOOL g_settingsCollapsed[kSectionCount];
 static BOOL g_settingsExpanded[kSectionCount];
 static BOOL g_settingsInited = NO;
 
+// Mutable order arrays for the settings panel — users drag to reorder these
+static OverlaySectionID g_settingsCollapsedOrder[kSectionCount];
+static int g_settingsCollapsedOrderCount = 0;
+static OverlaySectionID g_settingsExpandedOrder[kSectionCount];
+static int g_settingsExpandedOrderCount = 0;
+
+// Drag-to-reorder state
+static BOOL g_dragActive = NO;
+static int g_dragSourceIdx = -1;       // Index in the order array being dragged
+static BOOL g_dragIsCollapsed = YES;    // Which list is being dragged
+static int g_dragInsertIdx = -1;        // Insertion point (between rows)
+static CGFloat g_dragMouseY = 0;        // Current mouse Y in view coords
+static CGFloat g_dragListOriginY = 0;   // Y position where the list starts
+static CGFloat g_dragRowH = 26;         // Row height for drag calculations
+
 static const char *sectionDisplayName(OverlaySectionID sid) {
   switch (sid) {
     case kSectionFPS: return g_overlay_config.label_fps;
@@ -297,7 +312,15 @@ static int sectionRowCount(OverlaySectionID sid, overlay_metrics_t metrics) {
   }
 }
 
-// Initialize settings toggles from current parsed section lists
+// All canonical sections for building the settings order arrays
+static OverlaySectionID g_allCanonicalSections[] = {
+  kSectionFPS, kSectionFrame, kSectionCPU, kSectionGPU, kSectionANE,
+  kSectionMemory, kSectionSwap, kSectionPower, kSectionBandwidth,
+  kSectionGPUFreq, kSectionTemps, kSectionThermal, kSectionFans, kSectionNetwork
+};
+static int g_nCanonicalSections = sizeof(g_allCanonicalSections) / sizeof(g_allCanonicalSections[0]);
+
+// Initialize settings toggles and order arrays from current parsed section lists
 static void initSettingsFromConfig(void) {
   memset(g_settingsCollapsed, 0, sizeof(g_settingsCollapsed));
   memset(g_settingsExpanded, 0, sizeof(g_settingsExpanded));
@@ -307,40 +330,48 @@ static void initSettingsFromConfig(void) {
   for (int i = 0; i < g_expandedCount; i++) {
     g_settingsExpanded[g_expandedSections[i]] = YES;
   }
+
+  // Build order arrays: start with sections from the existing config (preserves user order),
+  // then append any canonical sections not yet in the list.
+  g_settingsCollapsedOrderCount = 0;
+  BOOL collapsedSeen[kSectionCount] = {0};
+  for (int i = 0; i < g_collapsedCount; i++) {
+    g_settingsCollapsedOrder[g_settingsCollapsedOrderCount++] = g_collapsedSections[i];
+    collapsedSeen[g_collapsedSections[i]] = YES;
+  }
+  for (int i = 0; i < g_nCanonicalSections; i++) {
+    OverlaySectionID sid = g_allCanonicalSections[i];
+    if (!collapsedSeen[sid]) {
+      g_settingsCollapsedOrder[g_settingsCollapsedOrderCount++] = sid;
+    }
+  }
+
+  g_settingsExpandedOrderCount = 0;
+  BOOL expandedSeen[kSectionCount] = {0};
+  for (int i = 0; i < g_expandedCount; i++) {
+    g_settingsExpandedOrder[g_settingsExpandedOrderCount++] = g_expandedSections[i];
+    expandedSeen[g_expandedSections[i]] = YES;
+  }
+  for (int i = 0; i < g_nCanonicalSections; i++) {
+    OverlaySectionID sid = g_allCanonicalSections[i];
+    if (!expandedSeen[sid]) {
+      g_settingsExpandedOrder[g_settingsExpandedOrderCount++] = sid;
+    }
+  }
+
   g_settingsInited = YES;
 }
 
 // Save current settings toggles back to config.json
-// Preserves the user's custom section ordering by walking the existing
-// g_collapsedSections / g_expandedSections arrays (which carry the order
-// from the config) instead of a fixed canonical order.
+// Uses the drag-reordered g_settingsCollapsedOrder / g_settingsExpandedOrder
+// arrays so user reordering is preserved.
 static void saveSettingsToConfig(void) {
-  OverlaySectionID canonicalOrder[] = {
-    kSectionFPS, kSectionFrame, kSectionCPU, kSectionGPU, kSectionANE,
-    kSectionMemory, kSectionSwap, kSectionPower, kSectionBandwidth,
-    kSectionGPUFreq, kSectionTemps, kSectionThermal, kSectionFans, kSectionNetwork
-  };
-  int nCanonical = sizeof(canonicalOrder) / sizeof(canonicalOrder[0]);
-
-  // --- Rebuild collapsed_sections preserving existing order ---
+  // --- Rebuild collapsed_sections from the reordered settings array ---
   char collapsed[256] = {0};
   int cLen = 0;
-  // First: keep sections that are still toggled, in their existing order
-  BOOL collapsedSeen[kSectionCount] = {0};
-  for (int i = 0; i < g_collapsedCount; i++) {
-    OverlaySectionID sid = g_collapsedSections[i];
+  for (int i = 0; i < g_settingsCollapsedOrderCount; i++) {
+    OverlaySectionID sid = g_settingsCollapsedOrder[i];
     if (g_settingsCollapsed[sid]) {
-      const char *name = sectionConfigName(sid);
-      if (cLen > 0) collapsed[cLen++] = ',';
-      int nLen = (int)strlen(name);
-      if (cLen + nLen < 255) { memcpy(collapsed + cLen, name, nLen); cLen += nLen; }
-      collapsedSeen[sid] = YES;
-    }
-  }
-  // Then: append any newly-toggled sections not already in the list
-  for (int i = 0; i < nCanonical; i++) {
-    OverlaySectionID sid = canonicalOrder[i];
-    if (g_settingsCollapsed[sid] && !collapsedSeen[sid]) {
       const char *name = sectionConfigName(sid);
       if (cLen > 0) collapsed[cLen++] = ',';
       int nLen = (int)strlen(name);
@@ -349,23 +380,12 @@ static void saveSettingsToConfig(void) {
   }
   collapsed[cLen] = '\0';
 
-  // --- Rebuild expanded_order preserving existing order ---
+  // --- Rebuild expanded_order from the reordered settings array ---
   char expanded[512] = {0};
   int eLen = 0;
-  BOOL expandedSeen[kSectionCount] = {0};
-  for (int i = 0; i < g_expandedCount; i++) {
-    OverlaySectionID sid = g_expandedSections[i];
+  for (int i = 0; i < g_settingsExpandedOrderCount; i++) {
+    OverlaySectionID sid = g_settingsExpandedOrder[i];
     if (g_settingsExpanded[sid]) {
-      const char *name = sectionConfigName(sid);
-      if (eLen > 0) expanded[eLen++] = ',';
-      int nLen = (int)strlen(name);
-      if (eLen + nLen < 511) { memcpy(expanded + eLen, name, nLen); eLen += nLen; }
-      expandedSeen[sid] = YES;
-    }
-  }
-  for (int i = 0; i < nCanonical; i++) {
-    OverlaySectionID sid = canonicalOrder[i];
-    if (g_settingsExpanded[sid] && !expandedSeen[sid]) {
       const char *name = sectionConfigName(sid);
       if (eLen > 0) expanded[eLen++] = ',';
       int nLen = (int)strlen(name);
@@ -435,6 +455,16 @@ static int g_settingsHitSectionID[MAX_SETTINGS_ROWS]; // OverlaySectionID
 static BOOL g_settingsHitIsCollapsed[MAX_SETTINGS_ROWS]; // true=collapsed toggle, false=expanded toggle
 static int g_settingsHitCount = 0;
 static NSRect g_settingsDoneRect = {0};
+
+// Drag handle hit rects (≡ icon on the right of each row)
+static NSRect g_dragHandleHitRects[MAX_SETTINGS_ROWS];
+static int g_dragHandleHitSectionIdx[MAX_SETTINGS_ROWS]; // Index into g_settingsCollapsed/ExpandedOrder
+static BOOL g_dragHandleHitIsCollapsed[MAX_SETTINGS_ROWS];
+static int g_dragHandleHitCount = 0;
+
+// Tracks the Y origin of collapsed and expanded lists in the settings panel
+static CGFloat g_collapsedListOriginY = 0;
+static CGFloat g_expandedListOriginY = 0;
 
 static void pushSparkHistory(double *buf, double val) {
   memmove(buf, buf + 1, (OVERLAY_SPARKLINE_HISTORY - 1) * sizeof(double));
@@ -758,6 +788,19 @@ static NSInteger g_opacityFlashCountdown = 0; // Show opacity indicator for N fr
       updateOverlayMetrics(&g_overlay_metrics);
       return;
     }
+    // Check drag handles first (takes priority over checkbox toggles)
+    for (int i = 0; i < g_dragHandleHitCount; i++) {
+      if (NSPointInRect(pt, g_dragHandleHitRects[i])) {
+        g_dragActive = YES;
+        g_dragSourceIdx = g_dragHandleHitSectionIdx[i];
+        g_dragIsCollapsed = g_dragHandleHitIsCollapsed[i];
+        g_dragInsertIdx = g_dragSourceIdx;
+        g_dragMouseY = pt.y;
+        g_dragListOriginY = g_dragIsCollapsed ? g_collapsedListOriginY : g_expandedListOriginY;
+        [self setNeedsDisplay:YES];
+        return;
+      }
+    }
     // Checkbox toggles
     for (int i = 0; i < g_settingsHitCount; i++) {
       if (NSPointInRect(pt, g_settingsHitRects[i])) {
@@ -788,6 +831,23 @@ static NSInteger g_opacityFlashCountdown = 0; // Show opacity indicator for N fr
 }
 
 - (void)mouseDragged:(NSEvent *)event {
+  if (g_dragActive) {
+    NSPoint pt = [self convertPoint:[event locationInWindow] fromView:nil];
+    g_dragMouseY = pt.y;
+
+    // Calculate insertion index based on mouse Y position
+    int count = g_dragIsCollapsed ? g_settingsCollapsedOrderCount : g_settingsExpandedOrderCount;
+    CGFloat listY = g_dragIsCollapsed ? g_collapsedListOriginY : g_expandedListOriginY;
+    CGFloat relY = pt.y - listY;
+    int insertIdx = (int)(relY / g_dragRowH + 0.5);
+    if (insertIdx < 0) insertIdx = 0;
+    if (insertIdx > count) insertIdx = count;
+    g_dragInsertIdx = insertIdx;
+
+    [self setNeedsDisplay:YES];
+    return;
+  }
+
   if (!self.dragging)
     return;
   NSPoint current = [NSEvent mouseLocation];
@@ -799,6 +859,42 @@ static NSInteger g_opacityFlashCountdown = 0; // Show opacity indicator for N fr
 }
 
 - (void)mouseUp:(NSEvent *)event {
+  if (g_dragActive) {
+    // Perform the reorder
+    OverlaySectionID *order;
+    int *count;
+    if (g_dragIsCollapsed) {
+      order = g_settingsCollapsedOrder;
+      count = &g_settingsCollapsedOrderCount;
+    } else {
+      order = g_settingsExpandedOrder;
+      count = &g_settingsExpandedOrderCount;
+    }
+
+    int src = g_dragSourceIdx;
+    int dst = g_dragInsertIdx;
+    if (src >= 0 && src < *count && dst >= 0 && dst <= *count && src != dst) {
+      // Remove the source item
+      OverlaySectionID moving = order[src];
+      // Adjust destination if it's after the source
+      if (dst > src) dst--;
+      // Shift elements
+      for (int i = src; i < *count - 1; i++) {
+        order[i] = order[i + 1];
+      }
+      // Insert at destination
+      for (int i = *count - 1; i > dst; i--) {
+        order[i] = order[i - 1];
+      }
+      order[dst] = moving;
+    }
+
+    g_dragActive = NO;
+    g_dragSourceIdx = -1;
+    g_dragInsertIdx = -1;
+    [self setNeedsDisplay:YES];
+    return;
+  }
   self.dragging = NO;
 }
 
@@ -995,6 +1091,7 @@ static void drawMiniBar(CGFloat x, CGFloat y, CGFloat w, CGFloat h,
   // ---- Settings Panel ----
   if (g_showSettings) {
     g_settingsHitCount = 0;
+    g_dragHandleHitCount = 0;
 
     // Separator
     [[NSColor colorWithWhite:1.0 alpha:0.08] set];
@@ -1005,14 +1102,10 @@ static void drawMiniBar(CGFloat x, CGFloat y, CGFloat w, CGFloat h,
     NSFont *checkLabelFont = [NSFont systemFontOfSize:13 weight:NSFontWeightMedium];
     CGFloat checkRowH = 26;
     CGFloat checkSize = 14;
+    CGFloat gripW = 20; // Width of drag handle area
 
-    // Canonical sections to show in settings
-    OverlaySectionID allSections[] = {
-      kSectionFPS, kSectionFrame, kSectionCPU, kSectionGPU, kSectionANE,
-      kSectionMemory, kSectionSwap, kSectionPower, kSectionBandwidth,
-      kSectionGPUFreq, kSectionTemps, kSectionThermal, kSectionFans, kSectionNetwork
-    };
-    int nSections = sizeof(allSections) / sizeof(allSections[0]);
+    int nCollapsed = g_settingsCollapsedOrderCount;
+    int nExpanded = g_settingsExpandedOrderCount;
 
     // --- Collapsed Mode ---
     {
@@ -1024,28 +1117,39 @@ static void drawMiniBar(CGFloat x, CGFloat y, CGFloat w, CGFloat h,
       [header drawAtPoint:NSMakePoint(padX, y) withAttributes:hdrAttrs];
       y += 22;
 
-      for (int i = 0; i < nSections; i++) {
-        OverlaySectionID sid = allSections[i];
+      g_collapsedListOriginY = y;
+
+      for (int i = 0; i < nCollapsed; i++) {
+        OverlaySectionID sid = g_settingsCollapsedOrder[i];
         BOOL isOn = g_settingsCollapsed[sid];
+        BOOL isDragSource = (g_dragActive && g_dragIsCollapsed && g_dragSourceIdx == i);
+
+        // Draw insertion indicator if dragging
+        if (g_dragActive && g_dragIsCollapsed && g_dragInsertIdx == i && g_dragInsertIdx != g_dragSourceIdx) {
+          [overlayNeonGreen() setFill];
+          [NSBezierPath fillRect:NSMakeRect(padX, y - 1.5, contentW, 3)];
+        }
+
+        // Dim the source row during drag
+        CGFloat rowAlpha = isDragSource ? 0.3 : 1.0;
 
         // Checkbox
         NSRect checkRect = NSMakeRect(padX, y + (checkRowH - checkSize) / 2.0, checkSize, checkSize);
         NSBezierPath *box = [NSBezierPath bezierPathWithRoundedRect:checkRect xRadius:3 yRadius:3];
         if (isOn) {
-          [overlayNeonGreen() setFill];
+          [[overlayNeonGreen() colorWithAlphaComponent:rowAlpha] setFill];
           [box fill];
-          // Checkmark
           NSBezierPath *check = [NSBezierPath bezierPath];
           [check moveToPoint:NSMakePoint(checkRect.origin.x + 3, checkRect.origin.y + checkSize / 2.0)];
           [check lineToPoint:NSMakePoint(checkRect.origin.x + checkSize * 0.4, checkRect.origin.y + checkSize - 3)];
           [check lineToPoint:NSMakePoint(checkRect.origin.x + checkSize - 2, checkRect.origin.y + 3)];
-          [[NSColor colorWithRed:0.05 green:0.05 blue:0.05 alpha:1.0] setStroke];
+          [[NSColor colorWithRed:0.05 green:0.05 blue:0.05 alpha:rowAlpha] setStroke];
           [check setLineWidth:2.0];
           [check setLineCapStyle:NSLineCapStyleRound];
           [check setLineJoinStyle:NSLineJoinStyleRound];
           [check stroke];
         } else {
-          [[NSColor colorWithWhite:0.3 alpha:1.0] setStroke];
+          [[NSColor colorWithWhite:0.3 alpha:rowAlpha] setStroke];
           [box setLineWidth:1.5];
           [box stroke];
         }
@@ -1054,19 +1158,54 @@ static void drawMiniBar(CGFloat x, CGFloat y, CGFloat w, CGFloat h,
         NSString *label = [NSString stringWithUTF8String:sectionDisplayName(sid)];
         NSDictionary *lblAttrs = @{
           NSFontAttributeName : checkLabelFont,
-          NSForegroundColorAttributeName : isOn ? overlayBrightText() : [NSColor colorWithWhite:0.45 alpha:1.0]
+          NSForegroundColorAttributeName : [isOn ? overlayBrightText() : [NSColor colorWithWhite:0.45 alpha:1.0] colorWithAlphaComponent:rowAlpha]
         };
         [label drawAtPoint:NSMakePoint(padX + checkSize + 8, y + 4) withAttributes:lblAttrs];
 
-        // Store hit rect for click handling
+        // Drag grip handle (≡ three horizontal lines) on right side
+        {
+          CGFloat gripX = padX + contentW - gripW;
+          CGFloat gripCenterY = y + checkRowH / 2.0;
+          CGFloat lineW = 12;
+          CGFloat lineGap = 3.5;
+          NSColor *gripColor = isDragSource
+            ? overlayNeonGreen()
+            : [NSColor colorWithWhite:0.4 alpha:rowAlpha];
+          [gripColor setStroke];
+          for (int line = -1; line <= 1; line++) {
+            NSBezierPath *gripLine = [NSBezierPath bezierPath];
+            CGFloat ly = gripCenterY + line * lineGap;
+            [gripLine moveToPoint:NSMakePoint(gripX + (gripW - lineW) / 2.0, ly)];
+            [gripLine lineToPoint:NSMakePoint(gripX + (gripW + lineW) / 2.0, ly)];
+            [gripLine setLineWidth:1.5];
+            [gripLine setLineCapStyle:NSLineCapStyleRound];
+            [gripLine stroke];
+          }
+
+          // Store drag handle hit rect
+          if (g_dragHandleHitCount < MAX_SETTINGS_ROWS) {
+            g_dragHandleHitRects[g_dragHandleHitCount] = NSMakeRect(gripX - 4, y, gripW + 8, checkRowH);
+            g_dragHandleHitSectionIdx[g_dragHandleHitCount] = i;
+            g_dragHandleHitIsCollapsed[g_dragHandleHitCount] = YES;
+            g_dragHandleHitCount++;
+          }
+        }
+
+        // Store checkbox hit rect (excluding grip area)
         if (g_settingsHitCount < MAX_SETTINGS_ROWS) {
-          g_settingsHitRects[g_settingsHitCount] = NSMakeRect(padX, y, contentW, checkRowH);
+          g_settingsHitRects[g_settingsHitCount] = NSMakeRect(padX, y, contentW - gripW - 8, checkRowH);
           g_settingsHitSectionID[g_settingsHitCount] = sid;
           g_settingsHitIsCollapsed[g_settingsHitCount] = YES;
           g_settingsHitCount++;
         }
 
         y += checkRowH;
+      }
+
+      // Insertion indicator at end of collapsed list
+      if (g_dragActive && g_dragIsCollapsed && g_dragInsertIdx == nCollapsed && g_dragInsertIdx != g_dragSourceIdx) {
+        [overlayNeonGreen() setFill];
+        [NSBezierPath fillRect:NSMakeRect(padX, y - 1.5, contentW, 3)];
       }
     }
 
@@ -1085,26 +1224,37 @@ static void drawMiniBar(CGFloat x, CGFloat y, CGFloat w, CGFloat h,
       [header drawAtPoint:NSMakePoint(padX, y) withAttributes:hdrAttrs];
       y += 22;
 
-      for (int i = 0; i < nSections; i++) {
-        OverlaySectionID sid = allSections[i];
+      g_expandedListOriginY = y;
+
+      for (int i = 0; i < nExpanded; i++) {
+        OverlaySectionID sid = g_settingsExpandedOrder[i];
         BOOL isOn = g_settingsExpanded[sid];
+        BOOL isDragSource = (g_dragActive && !g_dragIsCollapsed && g_dragSourceIdx == i);
+
+        // Draw insertion indicator if dragging
+        if (g_dragActive && !g_dragIsCollapsed && g_dragInsertIdx == i && g_dragInsertIdx != g_dragSourceIdx) {
+          [overlayNeonGreen() setFill];
+          [NSBezierPath fillRect:NSMakeRect(padX, y - 1.5, contentW, 3)];
+        }
+
+        CGFloat rowAlpha = isDragSource ? 0.3 : 1.0;
 
         NSRect checkRect = NSMakeRect(padX, y + (checkRowH - checkSize) / 2.0, checkSize, checkSize);
         NSBezierPath *box = [NSBezierPath bezierPathWithRoundedRect:checkRect xRadius:3 yRadius:3];
         if (isOn) {
-          [overlayAccentCyan() setFill];
+          [[overlayAccentCyan() colorWithAlphaComponent:rowAlpha] setFill];
           [box fill];
           NSBezierPath *check = [NSBezierPath bezierPath];
           [check moveToPoint:NSMakePoint(checkRect.origin.x + 3, checkRect.origin.y + checkSize / 2.0)];
           [check lineToPoint:NSMakePoint(checkRect.origin.x + checkSize * 0.4, checkRect.origin.y + checkSize - 3)];
           [check lineToPoint:NSMakePoint(checkRect.origin.x + checkSize - 2, checkRect.origin.y + 3)];
-          [[NSColor colorWithRed:0.05 green:0.05 blue:0.05 alpha:1.0] setStroke];
+          [[NSColor colorWithRed:0.05 green:0.05 blue:0.05 alpha:rowAlpha] setStroke];
           [check setLineWidth:2.0];
           [check setLineCapStyle:NSLineCapStyleRound];
           [check setLineJoinStyle:NSLineJoinStyleRound];
           [check stroke];
         } else {
-          [[NSColor colorWithWhite:0.3 alpha:1.0] setStroke];
+          [[NSColor colorWithWhite:0.3 alpha:rowAlpha] setStroke];
           [box setLineWidth:1.5];
           [box stroke];
         }
@@ -1112,18 +1262,52 @@ static void drawMiniBar(CGFloat x, CGFloat y, CGFloat w, CGFloat h,
         NSString *label = [NSString stringWithUTF8String:sectionDisplayName(sid)];
         NSDictionary *lblAttrs = @{
           NSFontAttributeName : checkLabelFont,
-          NSForegroundColorAttributeName : isOn ? overlayBrightText() : [NSColor colorWithWhite:0.45 alpha:1.0]
+          NSForegroundColorAttributeName : [isOn ? overlayBrightText() : [NSColor colorWithWhite:0.45 alpha:1.0] colorWithAlphaComponent:rowAlpha]
         };
         [label drawAtPoint:NSMakePoint(padX + checkSize + 8, y + 4) withAttributes:lblAttrs];
 
+        // Drag grip handle
+        {
+          CGFloat gripX = padX + contentW - gripW;
+          CGFloat gripCenterY = y + checkRowH / 2.0;
+          CGFloat lineW = 12;
+          CGFloat lineGap = 3.5;
+          NSColor *gripColor = isDragSource
+            ? overlayAccentCyan()
+            : [NSColor colorWithWhite:0.4 alpha:rowAlpha];
+          [gripColor setStroke];
+          for (int line = -1; line <= 1; line++) {
+            NSBezierPath *gripLine = [NSBezierPath bezierPath];
+            CGFloat ly = gripCenterY + line * lineGap;
+            [gripLine moveToPoint:NSMakePoint(gripX + (gripW - lineW) / 2.0, ly)];
+            [gripLine lineToPoint:NSMakePoint(gripX + (gripW + lineW) / 2.0, ly)];
+            [gripLine setLineWidth:1.5];
+            [gripLine setLineCapStyle:NSLineCapStyleRound];
+            [gripLine stroke];
+          }
+
+          if (g_dragHandleHitCount < MAX_SETTINGS_ROWS) {
+            g_dragHandleHitRects[g_dragHandleHitCount] = NSMakeRect(gripX - 4, y, gripW + 8, checkRowH);
+            g_dragHandleHitSectionIdx[g_dragHandleHitCount] = i;
+            g_dragHandleHitIsCollapsed[g_dragHandleHitCount] = NO;
+            g_dragHandleHitCount++;
+          }
+        }
+
         if (g_settingsHitCount < MAX_SETTINGS_ROWS) {
-          g_settingsHitRects[g_settingsHitCount] = NSMakeRect(padX, y, contentW, checkRowH);
+          g_settingsHitRects[g_settingsHitCount] = NSMakeRect(padX, y, contentW - gripW - 8, checkRowH);
           g_settingsHitSectionID[g_settingsHitCount] = sid;
           g_settingsHitIsCollapsed[g_settingsHitCount] = NO;
           g_settingsHitCount++;
         }
 
         y += checkRowH;
+      }
+
+      // Insertion indicator at end of expanded list
+      if (g_dragActive && !g_dragIsCollapsed && g_dragInsertIdx == nExpanded && g_dragInsertIdx != g_dragSourceIdx) {
+        [overlayNeonGreen() setFill];
+        [NSBezierPath fillRect:NSMakeRect(padX, y - 1.5, contentW, 3)];
       }
     }
 

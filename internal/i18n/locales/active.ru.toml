@@ -311,6 +311,7 @@ Menu_StatusBarHeight = "Высота строки состояния:"
 Menu_BarFontSize = "Размер шрифта панелей:"
 Menu_WattageFontSize = "Размер шрифта мощности:"
 Menu_Colors = "Цвета:"
+Menu_BarOrder = "Порядок элементов:"
 Menu_DiskRate = "Ч %.0f KB/s  З %.0f KB/s"
 Menu_FanItem = "Вентилятор %d"
 

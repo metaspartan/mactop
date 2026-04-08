@@ -310,6 +310,7 @@ Menu_StatusBarHeight = "Altura da barra de estado:"
 Menu_BarFontSize = "Tamanho da letra das barras:"
 Menu_WattageFontSize = "Tamanho da letra da potência:"
 Menu_Colors = "Cores:"
+Menu_BarOrder = "Ordem das barras:"
 Menu_DiskRate = "L %.0f KB/s  E %.0f KB/s"
 Menu_FanItem = "Ventoinha %d"
 

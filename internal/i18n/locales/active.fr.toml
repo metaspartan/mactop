@@ -311,6 +311,7 @@ Menu_StatusBarHeight = "Hauteur de la barre des menus :"
 Menu_BarFontSize = "Taille de police des barres :"
 Menu_WattageFontSize = "Taille de police de la puissance :"
 Menu_Colors = "Couleurs :"
+Menu_BarOrder = "Ordre des barres :"
 Menu_DiskRate = "L %.0f KB/s  E %.0f KB/s"
 Menu_FanItem = "Ventilateur %d"
 

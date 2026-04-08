@@ -311,6 +311,7 @@ Menu_StatusBarHeight = "स्टेटस बार ऊँचाई:"
 Menu_BarFontSize = "बार फ़ॉन्ट आकार:"
 Menu_WattageFontSize = "वॉटेज फ़ॉन्ट आकार:"
 Menu_Colors = "रंग:"
+Menu_BarOrder = "बार आइटम क्रम:"
 Menu_DiskRate = "पढ़ %.0f KB/s  लिख %.0f KB/s"
 Menu_FanItem = "पंखा %d"
 

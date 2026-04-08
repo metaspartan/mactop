@@ -311,6 +311,7 @@ Menu_StatusBarHeight = "Wysokość paska stanu:"
 Menu_BarFontSize = "Rozmiar czcionki paska:"
 Menu_WattageFontSize = "Rozmiar czcionki mocy:"
 Menu_Colors = "Kolory:"
+Menu_BarOrder = "Kolejność pasków:"
 Menu_DiskRate = "O %.0f KB/s  Z %.0f KB/s"
 Menu_FanItem = "Wentylator %d"
 

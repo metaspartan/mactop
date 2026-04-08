@@ -311,6 +311,7 @@ Menu_StatusBarHeight = "Höhe der Menüleiste:"
 Menu_BarFontSize = "Schriftgröße der Leisten:"
 Menu_WattageFontSize = "Schriftgröße der Wattanzeige:"
 Menu_Colors = "Farben:"
+Menu_BarOrder = "Balkenreihenfolge:"
 Menu_DiskRate = "L %.0f KB/s  S %.0f KB/s"
 Menu_FanItem = "Lüfter %d"
 

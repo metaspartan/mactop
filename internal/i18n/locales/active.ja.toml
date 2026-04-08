@@ -311,6 +311,7 @@ Menu_StatusBarHeight = "ステータスバーの高さ:"
 Menu_BarFontSize = "バーのフォントサイズ:"
 Menu_WattageFontSize = "ワット表示のフォントサイズ:"
 Menu_Colors = "色:"
+Menu_BarOrder = "バーの表示順:"
 Menu_DiskRate = "読 %.0f KB/s  書 %.0f KB/s"
 Menu_FanItem = "ファン %d"
 

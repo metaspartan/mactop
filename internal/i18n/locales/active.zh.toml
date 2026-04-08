@@ -312,6 +312,7 @@ Menu_StatusBarHeight = "状态栏高度:"
 Menu_BarFontSize = "条形字体大小:"
 Menu_WattageFontSize = "功耗字体大小:"
 Menu_Colors = "颜色:"
+Menu_BarOrder = "栏目排列顺序："
 Menu_DiskRate = "读 %.0f KB/s  写 %.0f KB/s"
 Menu_FanItem = "风扇 %d"
 

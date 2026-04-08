@@ -311,6 +311,7 @@ Menu_StatusBarHeight = "גובה שורת מצב:"
 Menu_BarFontSize = "גודל גופן סרגל:"
 Menu_WattageFontSize = "גודל גופן צריכה:"
 Menu_Colors = "צבעים:"
+Menu_BarOrder = "סדר פריטי הסרגל:"
 Menu_DiskRate = "ק %.0f KB/s  כ %.0f KB/s"
 Menu_FanItem = "מאוורר %d"
 

@@ -46,6 +46,7 @@ type MenuBarConfig struct {
 	GPUColor        string `json:"gpu_color,omitempty"`         // Hex color for GPU bar (default: systemCyan)
 	ANEColor        string `json:"ane_color,omitempty"`         // Hex color for ANE bar (default: systemPurple)
 	MemColor        string `json:"mem_color,omitempty"`         // Hex color for Memory bar (default: systemOrange)
+	BarOrder        string `json:"bar_order,omitempty"`         // Comma-separated order of status bar items (default: cpu,gpu,ane,memory)
 }
 
 // OverlayConfig controls the appearance and behavior of the --overlay HUD
@@ -135,6 +136,9 @@ func loadMenuBarConfig() MenuBarConfig {
 	}
 	if m.MemColor != "" {
 		cfg.MemColor = m.MemColor
+	}
+	if m.BarOrder != "" {
+		cfg.BarOrder = m.BarOrder
 	}
 	return cfg
 }

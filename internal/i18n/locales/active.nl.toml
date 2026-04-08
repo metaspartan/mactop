@@ -311,6 +311,7 @@ Menu_StatusBarHeight = "Hoogte statusbalk:"
 Menu_BarFontSize = "Lettergrootte balk:"
 Menu_WattageFontSize = "Lettergrootte wattage:"
 Menu_Colors = "Kleuren:"
+Menu_BarOrder = "Balkvolgorde:"
 Menu_DiskRate = "L %.0f KB/s  S %.0f KB/s"
 Menu_FanItem = "Ventilator %d"
 

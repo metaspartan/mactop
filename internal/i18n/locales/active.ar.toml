@@ -311,6 +311,7 @@ Menu_StatusBarHeight = "ارتفاع شريط الحالة:"
 Menu_BarFontSize = "حجم خط الشريط:"
 Menu_WattageFontSize = "حجم خط الاستهلاك:"
 Menu_Colors = "الألوان:"
+Menu_BarOrder = "ترتيب عناصر الشريط:"
 Menu_DiskRate = "ق %.0f KB/s  ك %.0f KB/s"
 Menu_FanItem = "مروحة %d"
 
