@@ -606,6 +606,36 @@ func renderLoadingScreen() {
 	ui.Render(loadingBlock, loadingText)
 }
 
+// drainSeededMetrics consumes the initial metrics pushed by seedInitialMetrics
+// and populates all UI widgets so the first render shows real data.
+func drainSeededMetrics() {
+	select {
+	case cpuMetrics := <-cpuMetricsChan:
+		lastCPUMetrics = cpuMetrics
+		updateCPUUI(cpuMetrics)
+		updateTotalPowerChart(cpuMetrics.PackageW)
+	default:
+	}
+	select {
+	case gpuMetrics := <-gpuMetricsChan:
+		lastGPUMetrics = gpuMetrics
+		updateGPUUI(gpuMetrics)
+	default:
+	}
+	select {
+	case netdiskMetrics := <-netdiskMetricsChan:
+		lastNetDiskMetrics = netdiskMetrics
+		updateNetDiskUI(netdiskMetrics)
+	default:
+	}
+	select {
+	case processes := <-processMetricsChan:
+		lastProcesses = processes
+		updateProcessList()
+	default:
+	}
+}
+
 // seedInitialMetrics takes a quick sample and pushes initial values into the metric channels.
 func seedInitialMetrics() {
 	m := sampleSocMetrics(100)
@@ -731,33 +761,7 @@ func Run() {
 	// Seed metrics and consume them to populate all widgets BEFORE the first render.
 	// This ensures users see a fully-populated TUI instead of blank/zero gauges.
 	seedInitialMetrics()
-
-	// Drain seeded data into widgets so the first render is complete
-	select {
-	case cpuMetrics := <-cpuMetricsChan:
-		lastCPUMetrics = cpuMetrics
-		updateCPUUI(cpuMetrics)
-		updateTotalPowerChart(cpuMetrics.PackageW)
-	default:
-	}
-	select {
-	case gpuMetrics := <-gpuMetricsChan:
-		lastGPUMetrics = gpuMetrics
-		updateGPUUI(gpuMetrics)
-	default:
-	}
-	select {
-	case netdiskMetrics := <-netdiskMetricsChan:
-		lastNetDiskMetrics = netdiskMetrics
-		updateNetDiskUI(netdiskMetrics)
-	default:
-	}
-	select {
-	case processes := <-processMetricsChan:
-		lastProcesses = processes
-		updateProcessList()
-	default:
-	}
+	drainSeededMetrics()
 	updateInfoUI()
 
 	// Transition from loading screen to full TUI
