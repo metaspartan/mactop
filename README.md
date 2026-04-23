@@ -527,3 +527,7 @@ This tool is not officially supported by Apple. It is provided as is, and may no
 - [gotui](https://github.com/metaspartan/gotui) for the modern terminal UI framework.
 - [asitop](https://github.com/tlkh/asitop) for the original inspiration!
 - [htop](https://github.com/htop-dev/htop) for the process list and CPU cores inspiration!
+
+## Download History
+
+[![Download History](https://skill-history.com/chart/metaspartan/mactop.svg)](https://skill-history.com/metaspartan/mactop)
