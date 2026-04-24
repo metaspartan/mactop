@@ -46,6 +46,7 @@ type MenuBarConfig struct {
 	GPUColor        string `json:"gpu_color,omitempty"`         // Hex color for GPU bar (default: systemCyan)
 	ANEColor        string `json:"ane_color,omitempty"`         // Hex color for ANE bar (default: systemPurple)
 	MemColor        string `json:"mem_color,omitempty"`         // Hex color for Memory bar (default: systemOrange)
+	LabelColor      string `json:"label_color,omitempty"`       // Hex color for letter labels, percent text, and wattage text (default: system labelColor)
 	BarOrder        string `json:"bar_order,omitempty"`         // Comma-separated order of status bar items (default: cpu,gpu,ane,memory)
 }
 
@@ -136,6 +137,9 @@ func loadMenuBarConfig() MenuBarConfig {
 	}
 	if m.MemColor != "" {
 		cfg.MemColor = m.MemColor
+	}
+	if m.LabelColor != "" {
+		cfg.LabelColor = m.LabelColor
 	}
 	if m.BarOrder != "" {
 		cfg.BarOrder = m.BarOrder

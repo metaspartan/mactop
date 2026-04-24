@@ -65,6 +65,7 @@ typedef struct {
     char gpu_color[8];
     char ane_color[8];
     char mem_color[8];
+    char label_color[8];
 } menubar_config_t;
 
 int initMenuBar(void);
@@ -156,6 +157,7 @@ func applyMenuBarConfig() {
 	copyColorToCBuf(&ccfg.gpu_color, mbCfg.GPUColor)
 	copyColorToCBuf(&ccfg.ane_color, mbCfg.ANEColor)
 	copyColorToCBuf(&ccfg.mem_color, mbCfg.MemColor)
+	copyColorToCBuf(&ccfg.label_color, mbCfg.LabelColor)
 	C.setMenuBarConfig(&ccfg)
 }
 
@@ -170,7 +172,7 @@ func cBoolToPtr(v C.int) *bool {
 //export GoSaveMenuBarConfig
 func GoSaveMenuBarConfig(statusBarWidth, statusBarHeight, sparklineWidth, sparklineHeight, showCPU, showGPU, showANE, showMem, showPower, showPercent,
 	fontSize, powerFontSize C.int,
-	cpuHex, gpuHex, aneHex, memHex *C.char) {
+	cpuHex, gpuHex, aneHex, memHex, labelHex *C.char) {
 	if currentConfig.MenuBar == nil {
 		currentConfig.MenuBar = &MenuBarConfig{}
 	}
@@ -213,6 +215,9 @@ func GoSaveMenuBarConfig(statusBarWidth, statusBarHeight, sparklineWidth, sparkl
 	}
 	if memHex != nil {
 		m.MemColor = C.GoString(memHex)
+	}
+	if labelHex != nil {
+		m.LabelColor = C.GoString(labelHex)
 	}
 
 	saveConfig()

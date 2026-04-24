@@ -71,6 +71,7 @@ typedef struct {
   char gpu_color[8];
   char ane_color[8];
   char mem_color[8];
+  char label_color[8];
 } menubar_config_t;
 
 // Go callback for persisting settings
@@ -80,7 +81,8 @@ extern void GoSaveMenuBarConfig(int statusBarWidth, int statusBarHeight,
                                 int showMem, int showPower, int showPercent,
                                 int fontSize, int powerFontSize,
                                 const char *cpuHex, const char *gpuHex,
-                                const char *aneHex, const char *memHex);
+                                const char *aneHex, const char *memHex,
+                                const char *labelHex);
 
 // Global state
 static menubar_config_t g_config = {
@@ -100,6 +102,7 @@ static menubar_config_t g_config = {
     .gpu_color = "",
     .ane_color = "",
     .mem_color = "",
+    .label_color = "",
 };
 
 // Sparkline history buffers
@@ -182,6 +185,10 @@ static NSColor *aneColor(void) {
 static NSColor *memColor(void) {
   NSColor *c = colorFromHex(g_config.mem_color);
   return c ?: [NSColor systemPurpleColor];
+}
+static NSColor *menuBarLabelColor(void) {
+  NSColor *c = colorFromHex(g_config.label_color);
+  return c ?: [NSColor labelColor];
 }
 
 static NSColor *labelDimColor(void) { return [NSColor secondaryLabelColor]; }
@@ -358,6 +365,7 @@ static NSColor *headerColor(void) { return [NSColor labelColor]; }
 @property(strong) NSColorWell *gpuColorWell;
 @property(strong) NSColorWell *aneColorWell;
 @property(strong) NSColorWell *memColorWell;
+@property(strong) NSColorWell *labelColorWell;
 @end
 
 @implementation SettingsWindowController
@@ -566,6 +574,19 @@ static NSColor *headerColor(void) { return [NSColor labelColor]; }
   _memColorWell.target = self;
   _memColorWell.action = @selector(colorChanged:);
   [view addSubview:_memColorWell];
+  y -= 34;
+
+  // Row 3: Label (text color for letters, percents, wattage)
+  NSTextField *l5 =
+      [NSTextField labelWithString:[NSString stringWithFormat:@"%@:", localize(@"Menu_LabelText")]];
+  l5.frame = NSMakeRect(x, y + 2, 80, 16);
+  [view addSubview:l5];
+
+  _labelColorWell =
+      [[NSColorWell alloc] initWithFrame:NSMakeRect(x + 85, y, 50, 24)];
+  _labelColorWell.target = self;
+  _labelColorWell.action = @selector(colorChanged:);
+  [view addSubview:_labelColorWell];
 }
 
 - (void)showWindow:(id)sender {
@@ -608,6 +629,7 @@ static NSColor *headerColor(void) { return [NSColor labelColor]; }
   _gpuColorWell.color = gpuColor();
   _aneColorWell.color = aneColor();
   _memColorWell.color = memColor();
+  _labelColorWell.color = menuBarLabelColor();
 }
 
 - (void)toggleChanged:(id)sender {
@@ -662,6 +684,8 @@ static NSColor *headerColor(void) { return [NSColor labelColor]; }
     updateColor(g_config.ane_color, _aneColorWell.color);
   if (sender == _memColorWell)
     updateColor(g_config.mem_color, _memColorWell.color);
+  if (sender == _labelColorWell)
+    updateColor(g_config.label_color, _labelColorWell.color);
   persistConfig();
 }
 
@@ -758,7 +782,7 @@ static void drawHBar(NSString *label, double pct, NSColor *color, CGFloat x,
                                                 weight:NSFontWeightBold];
   NSDictionary *la = @{
     NSFontAttributeName : lf,
-    NSForegroundColorAttributeName : [NSColor labelColor]
+    NSForegroundColorAttributeName : menuBarLabelColor()
   };
   NSSize ls = [label sizeWithAttributes:la];
   CGFloat labelW = ls.width + 4;
@@ -790,7 +814,7 @@ static void drawHBar(NSString *label, double pct, NSColor *color, CGFloat x,
                                                   weight:NSFontWeightRegular];
     NSDictionary *pa = @{
       NSFontAttributeName : pf,
-      NSForegroundColorAttributeName : [NSColor labelColor]
+      NSForegroundColorAttributeName : menuBarLabelColor()
     };
     NSString *pStr = [NSString stringWithFormat:@"%.0f%%", pct];
     CGFloat px = bx + barW + 4;
@@ -846,7 +870,7 @@ static NSImage *drawStatusBarImage(double cpu, double gpu, double ane,
                                                   weight:NSFontWeightMedium];
     wattAttrs = @{
       NSFontAttributeName : pf,
-      NSForegroundColorAttributeName : [NSColor labelColor]
+      NSForegroundColorAttributeName : menuBarLabelColor()
     };
     textW = [wattStr sizeWithAttributes:wattAttrs].width;
   }
@@ -989,7 +1013,8 @@ static void persistConfig(void) {
             g_config.show_cpu, g_config.show_gpu, g_config.show_ane,
             g_config.show_memory, g_config.show_power, g_config.show_percent,
             g_config.font_size, g_config.power_font_size, g_config.cpu_color,
-            g_config.gpu_color, g_config.ane_color, g_config.mem_color);
+            g_config.gpu_color, g_config.ane_color, g_config.mem_color,
+            g_config.label_color);
       });
 }
 
