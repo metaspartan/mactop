@@ -176,7 +176,7 @@ Prometheus Metrics: %s
 --fan-control: ควบคุมพัดลมแบบโต้ตอบ (SMC)*
 --menubar: โหมดแถบเมนู macOS
 
-ไฟล์ธีม: สร้าง ~/.mactop/theme.json สำหรับสีที่กำหนดเอง
+ไฟล์ธีม: สร้าง theme.json ใน $XDG_CONFIG_HOME/mactop หรือ ~/.mactop สำหรับสีที่กำหนดเอง
 """
 
 Info_Auto = "อัตโนมัติ"
@@ -246,7 +246,7 @@ CLI_HelpText = """
       --dump-debug        การวินิจฉัย: แสดงข้อมูลดีบัก IOReport/HID/SMC/NVMe และออก
 
 ไฟล์ธีม:
-  สร้าง ~/.mactop/theme.json ด้วยสี hex ที่กำหนดเอง:
+  สร้าง theme.json ใน $XDG_CONFIG_HOME/mactop หรือ ~/.mactop ด้วยสี hex ที่กำหนดเอง:
   {"foreground": "#9580FF", "background": "#22212C"}
 
 ข้อมูลเพิ่มเติม: https://github.com/metaspartan/mactop โดย Carsen Klock

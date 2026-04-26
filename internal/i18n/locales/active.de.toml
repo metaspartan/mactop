@@ -176,7 +176,7 @@ Aktualisierungsintervall: %dms
 --fan-control: Interaktive Lüftersteuerung (SMC)
 --menubar: Im macOS-Statusmenü ausführen
 
-Theme-Datei: Erstellen Sie ~/.mactop/theme.json für eigene Farben.
+Theme-Datei: Erstellen Sie theme.json in $XDG_CONFIG_HOME/mactop oder ~/.mactop für eigene Farben.
 """
 
 Info_Auto = "Auto"
@@ -246,7 +246,7 @@ Optionen:
       --dump-debug        Diagnose: IOReport/HID/SMC/NVMe-Debugdaten ausgeben und beenden
 
 Theme-Datei:
-  Erstellen Sie ~/.mactop/theme.json für benutzerdefinierte Hex-Farben:
+  Erstellen Sie theme.json in $XDG_CONFIG_HOME/mactop oder ~/.mactop für benutzerdefinierte Hex-Farben:
   {"foreground": "#9580FF", "background": "#22212C"}
 
 Weitere Informationen: https://github.com/metaspartan/mactop von Carsen Klock.

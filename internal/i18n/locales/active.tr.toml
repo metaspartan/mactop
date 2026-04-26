@@ -176,7 +176,7 @@ Güncelleme Aralığı: %dms
 --fan-control: Etkileşimli fan kontrolü (SMC)*
 --menubar: macOS menü çubuğu modu
 
-Tema Dosyası: Özel renkler için ~/.mactop/theme.json oluşturun.
+Tema dosyası: özel renkler için $XDG_CONFIG_HOME/mactop veya ~/.mactop içinde theme.json oluşturun.
 """
 
 Info_Auto = "Otomatik"
@@ -246,7 +246,7 @@ Seçenekler:
       --dump-debug        Tanılama: IOReport/HID/SMC/NVMe hata ayıklama bilgilerini göster ve çık
 
 Tema Dosyası:
-  Özel hex renkler için ~/.mactop/theme.json oluşturun:
+  Özel hex renkler için $XDG_CONFIG_HOME/mactop veya ~/.mactop içinde theme.json oluşturun:
   {"foreground": "#9580FF", "background": "#22212C"}
 
 Daha fazla bilgi: https://github.com/metaspartan/mactop — Carsen Klock.
