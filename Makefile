@@ -9,7 +9,7 @@ run:
 	go run main.go
 
 test:
-	go test -v ./internal/app/...
+	go test -v ./internal/app/... ./internal/i18n/...
 
 clean:
 	rm -f $(APP_NAME)

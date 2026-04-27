@@ -25,6 +25,7 @@ typedef struct {
     double cpu_temp;
     double gpu_temp;
     char thermal_state[32];
+    int thermal_level; // 0=nominal, 1=fair, 2=serious, 3=critical
     char model_name[128];
     int gpu_core_count;
     int e_core_count;
@@ -61,6 +62,23 @@ typedef struct {
     int show_network;
     int show_gpu_freq;
     double opacity;
+    char collapsed_sections[256]; // comma-separated ordered section names for collapsed mode
+    char expanded_order[512];     // comma-separated ordered section names for expanded mode
+
+    char label_fps[32];
+    char label_frame[32];
+    char label_cpu[32];
+    char label_gpu[32];
+    char label_ane[32];
+    char label_memory[32];
+    char label_swap[32];
+    char label_power[32];
+    char label_bandwidth[64];
+    char label_gpu_freq[64];
+    char label_temps[32];
+    char label_thermal[32];
+    char label_fans[32];
+    char label_network[32];
 } overlay_config_t;
 
 int initOverlay(void);
@@ -73,6 +91,7 @@ import "C"
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io"
 	"os"
@@ -83,6 +102,8 @@ import (
 	"sync"
 	"time"
 	"unsafe"
+
+	"github.com/metaspartan/mactop/v2/internal/i18n"
 )
 
 // Overlay worker state
@@ -122,7 +143,7 @@ func applyOverlayConfig(sections string) {
 		ccfg.opacity = C.double(overlayOpacity)
 	}
 
-	// If sections are specified, disable all then enable only requested
+	// If sections are specified via CLI, disable all then enable only requested
 	if sections != "" {
 		ccfg.show_cpu = 0
 		ccfg.show_gpu = 0
@@ -141,7 +162,50 @@ func applyOverlayConfig(sections string) {
 		}
 	}
 
+	// Apply ordered section lists from config or env
+	collapsedStr := os.Getenv("MACTOP_OVERLAY_COLLAPSED")
+	expandedStr := os.Getenv("MACTOP_OVERLAY_EXPANDED")
+	if collapsedStr == "" {
+		collapsedStr = strings.Join(overlayDefaultCollapsed, ",")
+	}
+	if expandedStr == "" {
+		expandedStr = strings.Join(overlayDefaultExpanded, ",")
+	}
+
+	// Copy to C struct
+	copyToCCharBuf(unsafe.Pointer(&ccfg.collapsed_sections), collapsedStr, 256)
+	copyToCCharBuf(unsafe.Pointer(&ccfg.expanded_order), expandedStr, 512)
+
+	// Populate localized section labels
+	copyToCCharBuf(unsafe.Pointer(&ccfg.label_fps), i18n.T("Overlay_FPS"), 32)
+	copyToCCharBuf(unsafe.Pointer(&ccfg.label_frame), i18n.T("Overlay_FrameInfo"), 32)
+	copyToCCharBuf(unsafe.Pointer(&ccfg.label_cpu), i18n.T("Overlay_CPU"), 32)
+	copyToCCharBuf(unsafe.Pointer(&ccfg.label_gpu), i18n.T("Overlay_GPU"), 32)
+	copyToCCharBuf(unsafe.Pointer(&ccfg.label_ane), i18n.T("Overlay_ANE"), 32)
+	copyToCCharBuf(unsafe.Pointer(&ccfg.label_memory), i18n.T("Overlay_Memory"), 32)
+	copyToCCharBuf(unsafe.Pointer(&ccfg.label_swap), i18n.T("Overlay_Swap"), 32)
+	copyToCCharBuf(unsafe.Pointer(&ccfg.label_power), i18n.T("Overlay_Power"), 32)
+	copyToCCharBuf(unsafe.Pointer(&ccfg.label_bandwidth), i18n.T("Overlay_Bandwidth"), 64)
+	copyToCCharBuf(unsafe.Pointer(&ccfg.label_gpu_freq), i18n.T("Overlay_GPUFreq"), 64)
+	copyToCCharBuf(unsafe.Pointer(&ccfg.label_temps), i18n.T("Overlay_Temps"), 32)
+	copyToCCharBuf(unsafe.Pointer(&ccfg.label_thermal), i18n.T("Overlay_Thermal"), 32)
+	copyToCCharBuf(unsafe.Pointer(&ccfg.label_fans), i18n.T("Overlay_Fans"), 32)
+	copyToCCharBuf(unsafe.Pointer(&ccfg.label_network), i18n.T("Overlay_Network"), 32)
+
 	C.setOverlayConfig(&ccfg)
+}
+
+// copyToCCharBuf copies a Go string into a C char buffer at the given pointer
+func copyToCCharBuf(dst unsafe.Pointer, src string, maxLen int) {
+	bytes := []byte(src)
+	if len(bytes) >= maxLen {
+		bytes = bytes[:maxLen-1]
+	}
+	p := unsafe.Slice((*C.char)(dst), maxLen)
+	for i, b := range bytes {
+		p[i] = C.char(b)
+	}
+	p[len(bytes)] = 0
 }
 
 // setOverlaySectionFlag is a helper to reduce cyclomatic complexity
@@ -175,7 +239,10 @@ func setOverlaySectionFlag(ccfg *C.overlay_config_t, section string) {
 // startOverlayWorker is the entry point for the child process (--overlay-worker).
 // It reads JSON metrics from stdin and updates the overlay on the main thread.
 func startOverlayWorker() {
-	runtime.LockOSThread()
+	// NOTE: runtime.LockOSThread() is called in init() to ensure goroutine 1
+	// stays on the main OS thread, which AppKit requires for NSWindow creation.
+
+	i18n.Init(os.Getenv("MACTOP_LANG"))
 
 	// Apply section filtering and opacity from environment variables
 	sections := os.Getenv("MACTOP_OVERLAY_SECTIONS")
@@ -293,6 +360,7 @@ func updateOverlayFromPayload(p MenuBarMetricsPayload) {
 		cm.thermal_state[i] = C.char(b)
 	}
 	cm.thermal_state[len(thermalBytes)] = 0
+	cm.thermal_level = C.int(p.ThermalLevel)
 
 	// RDMA Status
 	rdmaBytes := []byte(p.RDMAStatus)
@@ -333,10 +401,25 @@ func startOverlayProcess() error {
 	}
 
 	cmd := exec.Command(exe, "--overlay-worker")
-	// Pass section filter via environment variable
+	// Pass section filter and config via environment variables
+	overlayCfg := loadOverlayConfig()
+	collapsedStr := strings.Join(overlayCfg.CollapsedSections, ",")
+	expandedStr := strings.Join(overlayCfg.ExpandedOrder, ",")
+
+	effectiveOpacity := overlayOpacity
+	opacityFlag := flag.Lookup("overlay-opacity")
+	cliSetOpacity := opacityFlag != nil && opacityFlag.Value.String() != opacityFlag.DefValue
+	if overlayCfg.Opacity != nil && !cliSetOpacity {
+		// Use config opacity only if CLI flag wasn't explicitly provided
+		effectiveOpacity = *overlayCfg.Opacity
+	}
+
 	cmd.Env = append(os.Environ(),
 		"MACTOP_OVERLAY_SECTIONS="+overlaySections,
-		fmt.Sprintf("MACTOP_OVERLAY_OPACITY=%.2f", overlayOpacity),
+		fmt.Sprintf("MACTOP_OVERLAY_OPACITY=%.2f", effectiveOpacity),
+		"MACTOP_OVERLAY_COLLAPSED="+collapsedStr,
+		"MACTOP_OVERLAY_EXPANDED="+expandedStr,
+		"MACTOP_LANG="+resolvedLanguage,
 	)
 
 	stdin, err := cmd.StdinPipe()
@@ -381,6 +464,7 @@ func pushOverlayMetrics(sm SocMetrics, cpuMetrics CPUMetrics, gpuMetrics GPUMetr
 		TFLOPs:         maxFP32TFLOPs,
 		CPUPercent:     cpuPercent,
 		ThermalState:   thermalState,
+		ThermalLevel:   int(getThermalStateLevel()),
 		RDMAStatus:     rdmaStatus,
 		TotalPower:     sm.TotalPower,
 	}

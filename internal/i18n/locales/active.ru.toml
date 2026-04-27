@@ -1,0 +1,330 @@
+Overlay_FPS = "FPS"
+Overlay_FrameInfo = "Интервал кадров"
+Overlay_CPU = "CPU"
+Overlay_GPU = "GPU"
+Overlay_ANE = "ANE"
+Overlay_Memory = "Память"
+Overlay_Swap = "Swap"
+Overlay_Power = "Мощность"
+Overlay_Bandwidth = "Пропускная способность DRAM"
+Overlay_GPUFreq = "Частота GPU"
+Overlay_Temps = "Температура"
+Overlay_Thermal = "Тепловое состояние"
+Overlay_Fans = "Вентиляторы"
+Overlay_Network = "Сеть"
+
+TUI_InfoLayoutColorExit = " Инфо: i | Макет: l | Цвет: c | Фон: b | Выход: q "
+TUI_LayoutInfo = " %d/%d макет (%s) "
+TUI_LayoutInfoShort = " %d/%d "
+TUI_ModelInfo = "Модель: %s"
+TUI_CoresInfo = "%d ядер (%dP, %dE, %dS) | GPU: %d ядер | %s"
+TUI_TotalPower = "Общая мощность: %.1fW"
+TUI_AppTotalPower = "Всего: %.1fW | CPU: %.1fW (ANE: %.1fW) GPU: %.1fW"
+TUI_AppleSilicon = "Apple Silicon"
+TUI_HelpMenu = "Справка mactop"
+TUI_Loading = "Загрузка..."
+TUI_LoadingTB = "Загрузка информации Thunderbolt..."
+TUI_Fans = " ⊚ Вентиляторы "
+TUI_Temperatures = " 🌡 Температура "
+TUI_ProcessList = "Список процессов"
+TUI_UnknownModel = "Неизвестная модель"
+TUI_ECPUUsage = "Загрузка E-CPU"
+TUI_PCPUUsage = "Загрузка P-CPU"
+TUI_GPUUsage = "Загрузка GPU"
+TUI_MemoryUsage = "Использование памяти"
+TUI_ANEUsage = "Загрузка ANE"
+TUI_PowerUsage = "Энергопотребление"
+TUI_NetworkDisk = "Сеть и Диск"
+TUI_ThunderboltRDMA = "Thunderbolt / RDMA"
+TUI_MactopTitle = " mactop "
+TUI_GPUUsageHistory = "История загрузки GPU"
+TUI_TBNet = "TB Сеть ↓0/s ↑0/s"
+TUI_PowerHistory = "История мощности"
+TUI_MemorySwapHistory = "История Память/Swap"
+TUI_CPUUsageHistory = "История загрузки CPU"
+TUI_ConfirmKill = " ПОДТВЕРДИТЬ "
+TUI_ConfirmKillBody = "ПОДТВЕРДИТЬ ЗАВЕРШЕНИЕ"
+TUI_ConfirmYes = "Да"
+TUI_ConfirmNo = "Нет"
+
+Info_OS = "ОС"
+Info_Host = "Хост"
+Info_Kernel = "Ядро"
+Info_Uptime = "Время работы"
+Info_Shell = "Shell"
+Info_CPU = "CPU"
+Info_GPU = "GPU"
+Info_TFLOPs = "TFLOPs"
+Info_Memory = "Память"
+Info_Swap = "Swap"
+Info_CPUUsage = "Загрузка CPU"
+Info_GPUUsage = "Загрузка GPU"
+Info_ANEUsage = "Загрузка ANE"
+Info_Power = "Мощность"
+Info_Thermals = "Температура"
+Info_Network = "Сеть"
+Info_Disk = "Диск"
+Info_DRAMBW = "ПС DRAM"
+Info_TBNet = "TB Сеть"
+Info_RDMA = "RDMA"
+Info_Ethernet = "Ethernet"
+Info_WiFi = "Wi-Fi"
+
+Metrics_MemoryUsed = "%.1fGB / %.1fGB %.1f%%"
+Metrics_SwapUsed = "Swap: %.1fGB / %.1fGB %.1f%%"
+Metrics_DiskIO = "[Вх] %.1f%s [Вых] %.1f%s"
+Metrics_NetIO = "[Вх] %s [Вых] %s"
+Metrics_TFLOPs = "FP32 TFLOPs: %.1f"
+Metrics_Freq = "Частота: %d MHz"
+Metrics_RPM = "%d RPM"
+Metrics_ThermalNominal = "Нормально"
+Metrics_ThermalFair = "Умеренно"
+Metrics_ThermalSerious = "Серьёзно"
+Metrics_ThermalCritical = "Критично"
+Metrics_ThermalUnknown = "Неизвестно"
+Metrics_RDMAActive = "Активно"
+Metrics_RDMAInactive = "Неактивно"
+Metrics_CPUGaugeCompact = "CPU %.0f%% %s"
+Metrics_CPUGauge = "%d ядер %s %.2f%%%s (%s)"
+Metrics_ANEGaugeCompact = "ANE %.1fW"
+Metrics_ANEGauge = "Загрузка ANE: %.2f%% @ %.2f W"
+Metrics_PowerChartTitleCompact = "Мощность"
+Metrics_PowerChartTextCompact = "C:%.1fW G:%.1fW\nA:%.1fW D:%.1fW\nВсего:%.1fW %s"
+Metrics_PowerChartText = "CPU: %.2f W | GPU: %.2f W\nANE: %.2f W | DRAM: %.2f W\nСистема: %.2f W\nВсего: %.2f W\nТермо: %s\nВремя работы: %s"
+Metrics_NetworkDiskTitle = "Сеть и Диск"
+Metrics_MemGaugeCompact = "Пам %.0f/%.0fG ПС %.1f GB/s"
+Metrics_MemGauge = "Память: %.2f GB / %.2f GB (Swap: %.2f/%.2f GB) ПС: %.1f GB/s"
+
+Process_PID = "PID"
+Process_USER = "ПОЛЬЗ"
+Process_VIRT = "ВИРТ"
+Process_RES = "РЕЗ"
+Process_CPU = "CPU"
+Process_GPU = "GPU"
+Process_MEM = "ПАМ"
+Process_TIME = "ВРЕМЯ"
+Process_CMD = "КОМАНДА"
+
+TUI_ProcessListFull = "Список процессов (↑/↓ прокрутка, / поиск, f заморозить, F9 завершить)"
+TUI_ProcessListFrozen = " Список процессов [ЗАМОРОЖЕН] (f для продолжения) "
+TUI_ProcessListSearch = " Поиск: %s_ (Esc для очистки) "
+TUI_ProcessListKill = " Список процессов - ПОДТВЕРЖДЕНИЕ ЗАВЕРШЕНИЯ (PID %d) "
+TUI_ProcessListPID = " Список процессов [PID %d] (↑/↓ прокрутка, / поиск, f заморозить, F9 завершить) "
+TUI_Cores = "%d ядер"
+TUI_ECores = "%d E-Core"
+TUI_PCores = "%d P-Core"
+TUI_SCores = "%d S-Core"
+TUI_GPUCores = "%s ядер GPU"
+Metrics_NetLink = "Сеть (%s): ↑ %s/s ↓ %s/s"
+Metrics_Net = "Сеть: ↑ %s/s ↓ %s/s"
+Metrics_IO = "В/В: Ч %s/s З %s/s"
+Metrics_DiskFree = "%s: %s/%s (%s свободно)"
+Metrics_GPUGaugeTemp = "Загрузка GPU: %d%% @ %d MHz (%s)"
+Metrics_GPUGaugeFreq = "Загрузка GPU: %d%% @ %d MHz"
+Metrics_GPUSparkline = "История GPU: %d%% (Средн: %.1f%%)"
+Metrics_GPUHistoryChart = "История загрузки GPU (Средн: %.1f%%)"
+Metrics_GPUGaugeCompactTemp = "GPU %d%% %s"
+Metrics_GPUGaugeCompactFreq = "GPU %d%% %dMHz"
+Metrics_GPUSparklineCompact = "GPU %d%% (%.0f%%)"
+
+Help_FullText = """
+mactop — инструмент мониторинга для Apple Silicon с открытым исходным кодом, созданный Carsen Klock на Go!
+
+Репозиторий: github.com/metaspartan/mactop
+
+----Текущие настройки----
+Метрики Prometheus: %s
+Версия: %s
+Макет: %s
+Цвет текста: %s
+Цвет фона: %s
+Интервал обновления: %dms
+
+----Управление----
+- r: Обновить данные вручную
+- c: Сменить цветовую тему
+- b: Сменить цвет фона
+- p: Режим вечеринки (смена цветов)
+- l: Переключить макеты (18 вариантов)
+- i: Показать/скрыть информационную панель
+- Shift + F: Управление вентиляторами и термо-панель
+- F9: Завершить выбранный процесс (д/н)
+- f: Заморозить список процессов
+- /: Поиск по процессам
+- g/G: Перейти в начало/конец списка
+- + или -: Изменить интервал обновления
+- h или ?: Показать/скрыть эту справку
+- j/k или ↓/↑: Прокрутка текста
+- q или <C-c>: Выйти из приложения
+
+----Параметры запуска----
+--help, -h: Показать справку
+--version, -v: Показать версию
+--interval, -i: Интервал обновления (мс). По умолчанию: 1000.
+--prometheus, -p: Порт для метрик Prometheus
+--headless: Режим без интерфейса (вывод в stdout)
+--format: Формат вывода (json, yaml, xml, csv, toon)
+--pretty: Форматированный вывод
+--count: Количество выборок (0 = бесконечно)
+--dump-ioreport, -d: Показать все каналы IOReport
+--unit-network: Единица сети: auto, byte, kb, mb, gb
+--unit-disk: Единица диска: auto, byte, kb, mb, gb
+--unit-temp: Единица температуры: celsius, fahrenheit
+--foreground: Цвет текста UI
+--bg: Цвет фона UI
+--pid: Мониторить конкретный PID (--pid 1234)
+--fan-control: Интерактивное управление вентиляторами (SMC)*
+--menubar: Режим строки меню macOS
+
+Файл темы: Создайте ~/.mactop/theme.json для настройки цветов.
+"""
+
+Info_Auto = "Авто"
+Info_Manual = "Ручной"
+Info_Disconnected = "Отключено (%s)"
+Info_Enabled = "Включено"
+Info_Disabled = "Отключено"
+Info_ScrollUp = "↑ Прокрутить вверх"
+Info_ScrollDown = "↓ Прокрутить вниз"
+
+
+Menu_Usage = "Загрузка:"
+Menu_ECluster = "E-Cluster:"
+Menu_PCluster = "P-Cluster:"
+Menu_SCluster = "S-Cluster:"
+Menu_Power = "Мощность:"
+Menu_Temp = "Темп:"
+Menu_TFLOPs = "TFLOPs:"
+Menu_RAM = "RAM:"
+Menu_Swap = "Swap:"
+Menu_DRAMBW = "ПС DRAM:"
+Menu_Network = "Сеть:"
+Menu_RDMA = "RDMA:"
+Menu_Disk = "Диск:"
+Menu_Total = "Всего:"
+Menu_System = "Система:"
+Menu_Thermal = "Термо:"
+Menu_Settings = "Настройки..."
+Menu_OpenGitHub = "Открыть GitHub..."
+Menu_OpenTUI = "Открыть TUI mactop..."
+Menu_Quit = "Выйти из mactop"
+Menu_AppleSilicon = "Apple Silicon"
+Menu_CPU = "CPU"
+Menu_GPU = "GPU"
+Menu_MEMORY = "ПАМЯТЬ"
+Menu_NETWORK = "СЕТЬ"
+Menu_DISK = "ДИСК"
+Menu_POWER = "МОЩНОСТЬ"
+Menu_HISTORY = "ИСТОРИЯ"
+Menu_FANS = "ВЕНТИЛЯТОРЫ"
+
+CLI_HelpText = """
+Использование: mactop [параметры]
+
+Параметры:
+  -h, --help              Показать эту справку
+  -v, --version           Показать версию mactop
+  -i, --interval <мс>     Установить интервал обновления в миллисекундах (по умолчанию: 1000)
+  --foreground <цвет>     Установить цвет текста UI (имя или hex, напр. green, #9580FF)
+  --bg <цвет>             Установить цвет фона UI (имя или hex, напр. mocha-base, #22212C)
+  -p, --prometheus <порт> Запустить сервер метрик Prometheus на указанном порту (напр. :9090)
+      --headless          Запустить без интерфейса (без TUI, JSON на stdout)
+      --format <формат>   Установить формат вывода (json, yaml, xml, csv, toon)
+      --pretty            Форматированный вывод в headless режиме
+      --count <n>         Количество выборок в headless режиме (0 = бесконечно)
+      --dump-ioreport, -d Показать все доступные каналы IOReport и выйти
+      --unit-network <ед> Единица сети: auto, byte, kb, mb, gb (по умолчанию: auto)
+      --unit-disk <ед>    Единица диска: auto, byte, kb, mb, gb (по умолчанию: auto)
+      --unit-temp <ед>    Единица температуры: celsius, fahrenheit (по умолчанию: celsius)
+      --pid <pid>         Мониторить конкретный процесс по PID
+      --menubar           Запустить как элемент строки меню macOS (без TUI)
+      --overlay           Показать плавающее HUD-окно поверх всех приложений
+      --overlay-sections  Видимые секции через запятую (напр. cpu,gpu,memory,power)
+      --overlay-opacity   Прозрачность окна overlay, 0.15-1.0 (по умолчанию: 0.88)
+      --fan-control       Включить интерактивное управление вентиляторами (запись в SMC)
+      --dump-temps        Диагностика: показать все ключи температуры SMC и выйти
+      --dump-debug        Диагностика: показать отладочную информацию IOReport/HID/SMC/NVMe и выйти
+
+Файл темы:
+  Создайте ~/.mactop/theme.json с пользовательскими hex-цветами:
+  {"foreground": "#9580FF", "background": "#22212C"}
+
+Подробнее: https://github.com/metaspartan/mactop от Carsen Klock.
+"""
+CLI_Version = "версия mactop: %s"
+CLI_DumpingIOReport = "Вывод каналов IOReport..."
+CLI_TestInputReceived = "Получен тестовый ввод: %s"
+CLI_ErrorForegroundRequiresValue = "Ошибка: --foreground требует значение цвета"
+CLI_ErrorBackgroundRequiresValue = "Ошибка: --bg требует значение цвета"
+CLI_ErrorPrometheusRequiresValue = "Ошибка: --prometheus требует номер порта"
+CLI_ErrorIntervalRequiresValue = "Ошибка: --interval требует значение интервала"
+CLI_ErrorInvalidInterval = "Некорректный интервал: %v"
+CLI_ErrorPIDRequiresValue = "Ошибка: --pid требует значение PID"
+CLI_ErrorInvalidPID = "Некорректный PID: %v"
+CLI_TestingIOReportPowerMetrics = "Тестирование метрик мощности IOReport..."
+CLI_TestSample = "Выборка %d:"
+CLI_TestSocTemp = "  Темп SoC: %.1f°C"
+CLI_TestCPU = "  CPU: %.2fW | GPU: %.2fW (%d MHz, %.0f%% активно)"
+CLI_TestANE = "  ANE: %.2fW | DRAM: %.2fW | GPU SRAM: %.2fW | Всего: %.2fW | %s"
+
+Headless_ErrorInitMetrics = "Не удалось инициализировать метрики: %v"
+Headless_ErrorUnknownFormat = "Неизвестный формат: %s. Будет использован json."
+Headless_ErrorFormattingOutput = "Ошибка форматирования вывода: %v"
+Headless_ErrorPrometheusServer = "Ошибка сервера Prometheus: %v"
+
+Info_OSValue = "macOS %s"
+Info_TFLOPsValue = "%.1f FP32 / %.1f FP16"
+Info_NotAvailable = "Н/Д"
+Info_PowerValue = "%.2f W (Средн %.0f W)"
+Info_NetworkValue = "↑ %s/s ↓ %s/s"
+Info_DiskValue = "Ч %s/s З %s/s"
+Info_DRAMBWValue = "Ч %.1f / З %.1f / %.1f GB/s"
+Info_FanValue = "%d RPM (%s, %d-%d)"
+Info_WiFiValue = "%s @ %dMbps (%s)"
+Info_VolumeValue = "%s / %s (%s свободно)"
+
+Fan_CPUTemp = "Темп CPU"
+Fan_GPUTemp = "Темп GPU"
+Fan_NoFansDetected = "Вентиляторы не обнаружены"
+Fan_NoTemperatureSensorsDetected = "Датчики температуры не обнаружены"
+Fan_ControlActive = "[⚠ УПРАВЛЕНИЕ ВЕНТИЛЯТОРАМИ АКТИВНО](fg:red,mod:bold)  [+/-](fg:%s,mod:bold) Скорость  [a](fg:%s,mod:bold) Авто  [0/9](fg:%s,mod:bold) Мин/Макс  [R](fg:green,mod:bold) Сброс  [l](fg:%s) Макет  [F](fg:%s) Выход"
+Fan_ReadOnly = "[Только чтение](fg:%s)  Используйте --fan-control для записи  |  [l](fg:%s,mod:bold) Макет  [F](fg:%s,mod:bold) Закрыть вентиляторы"
+
+Metrics_PowerSparklineGroup = "%.2f W Всего (Макс: %.2f W)"
+Metrics_PowerSparklineTitle = "Средн %.2f W | %s"
+Metrics_PowerHistoryDetail = "История мощности (Средн %.1fW, Макс %.1fW)"
+Metrics_CPUHistoryDetail = "История загрузки CPU (%.1f%%)"
+Metrics_MemoryHistoryDetail = "Память: %.1f/%.1fGB, Swap: %.1fGB"
+
+TUI_KillPIDTitle = " ПОДТВЕРДИТЬ ЗАВЕРШЕНИЕ PID %d "
+
+Menu_Tooltip = "mactop — Монитор Apple Silicon"
+Menu_SettingsTitle = "Настройки строки меню mactop"
+Menu_ShowCPUBar = "Показать панель CPU"
+Menu_ShowGPUBar = "Показать панель GPU"
+Menu_ShowANEBar = "Показать панель ANE"
+Menu_ShowMemoryBar = "Показать панель памяти"
+Menu_ShowWattageInMenuBar = "Показать мощность в строке меню"
+Menu_ShowPercentages = "Показать проценты"
+Menu_StatusBarWidth = "Ширина строки состояния:"
+Menu_StatusBarHeight = "Высота строки состояния:"
+Menu_BarFontSize = "Размер шрифта панелей:"
+Menu_WattageFontSize = "Размер шрифта мощности:"
+Menu_Colors = "Цвета:"
+Menu_LabelText = "Текст метки"
+Menu_BarOrder = "Порядок элементов:"
+Menu_DiskRate = "Ч %.0f KB/s  З %.0f KB/s"
+Menu_FanItem = "Вентилятор %d"
+
+Overlay_DRAM = "DRAM"
+Overlay_CollapsedMode = "Свёрнутый режим"
+Overlay_ExpandedMode = "Развёрнутый режим"
+Overlay_Done = "Готово"
+Overlay_RequiresScreenRecordingPermission = "Требуется разрешение на запись экрана"
+Overlay_RequiresPermission = "Требуется разрешение"
+Overlay_OpacityHint = "Прозрачность: %.0f%%  (прокрутка для настройки)"
+Overlay_GPUCores = "%d ядер GPU"
+Overlay_GPUFreqTFLOPs = "%dMHz • %.1f TFLOPS"
+Overlay_GPUFreqMHz = "%d MHz"
+Overlay_TempsDual = "CPU %.0f°C  GPU %.0f°C"
+Overlay_TempsSingle = "%.0f°C"

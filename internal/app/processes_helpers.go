@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	ui "github.com/metaspartan/gotui/v5"
+	"github.com/metaspartan/mactop/v2/internal/i18n"
 )
 
 // isLightNamedTheme returns true for named themes that need dark text on header
@@ -85,15 +86,15 @@ func getProcessListTitle() (string, ui.Style) {
 	}
 
 	if killPending {
-		return fmt.Sprintf(" Process List - KILL CONFIRMATION PENDING (PID %d) ", killPID), ui.NewStyle(ui.ColorRed, CurrentBgColor, ui.ModifierBold)
+		return fmt.Sprintf(i18n.T("TUI_ProcessListKill"), killPID), ui.NewStyle(ui.ColorRed, CurrentBgColor, ui.ModifierBold)
 	} else if searchMode || searchText != "" {
-		return fmt.Sprintf(" Search: %s_ (Esc to clear) ", searchText), ui.NewStyle(titleColor, CurrentBgColor, ui.ModifierBold)
+		return fmt.Sprintf(i18n.T("TUI_ProcessListSearch"), searchText), ui.NewStyle(titleColor, CurrentBgColor, ui.ModifierBold)
 	} else if isFrozen {
-		return " Process List [FROZEN] (f to resume) ", ui.NewStyle(titleColor, CurrentBgColor, ui.ModifierBold)
+		return i18n.T("TUI_ProcessListFrozen"), ui.NewStyle(titleColor, CurrentBgColor, ui.ModifierBold)
 	} else if filterPID > 0 {
-		return fmt.Sprintf(" Process List [PID %d] (↑/↓ scroll, / search, f freeze, F9 kill) ", filterPID), ui.NewStyle(titleColor, CurrentBgColor, ui.ModifierBold)
+		return fmt.Sprintf(i18n.T("TUI_ProcessListPID"), filterPID), ui.NewStyle(titleColor, CurrentBgColor, ui.ModifierBold)
 	}
-	return "Process List (↑/↓ scroll, / search, f freeze, F9 kill)", ui.NewStyle(titleColor, CurrentBgColor)
+	return i18n.T("TUI_ProcessListFull"), ui.NewStyle(titleColor, CurrentBgColor)
 }
 
 func attemptKillProcess() {

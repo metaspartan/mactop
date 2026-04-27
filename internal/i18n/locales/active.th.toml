@@ -1,0 +1,330 @@
+Overlay_FPS = "FPS"
+Overlay_FrameInfo = "ช่วงเฟรม"
+Overlay_CPU = "CPU"
+Overlay_GPU = "GPU"
+Overlay_ANE = "ANE"
+Overlay_Memory = "หน่วยความจำ"
+Overlay_Swap = "Swap"
+Overlay_Power = "พลังงาน"
+Overlay_Bandwidth = "แบนด์วิดท์ DRAM"
+Overlay_GPUFreq = "ความถี่ GPU"
+Overlay_Temps = "อุณหภูมิ"
+Overlay_Thermal = "สถานะความร้อน"
+Overlay_Fans = "พัดลม"
+Overlay_Network = "เครือข่าย"
+
+TUI_InfoLayoutColorExit = " ข้อมูล: i | เลย์เอาท์: l | สี: c | พื้นหลัง: b | ออก: q "
+TUI_LayoutInfo = " %d/%d เลย์เอาท์ (%s) "
+TUI_LayoutInfoShort = " %d/%d "
+TUI_ModelInfo = "รุ่น: %s"
+TUI_CoresInfo = "%d คอร์ (%dP, %dE, %dS) | GPU: %d คอร์ | %s"
+TUI_TotalPower = "พลังงานรวม: %.1fW"
+TUI_AppTotalPower = "รวม: %.1fW | CPU: %.1fW (ANE: %.1fW) GPU: %.1fW"
+TUI_AppleSilicon = "Apple Silicon"
+TUI_HelpMenu = "เมนูช่วยเหลือ mactop"
+TUI_Loading = "กำลังโหลด..."
+TUI_LoadingTB = "กำลังโหลดข้อมูล Thunderbolt..."
+TUI_Fans = " ⊚ พัดลม "
+TUI_Temperatures = " 🌡 อุณหภูมิ "
+TUI_ProcessList = "รายการโปรเซส"
+TUI_UnknownModel = "รุ่นไม่ทราบ"
+TUI_ECPUUsage = "การใช้ E-CPU"
+TUI_PCPUUsage = "การใช้ P-CPU"
+TUI_GPUUsage = "การใช้ GPU"
+TUI_MemoryUsage = "การใช้หน่วยความจำ"
+TUI_ANEUsage = "การใช้ ANE"
+TUI_PowerUsage = "การใช้พลังงาน"
+TUI_NetworkDisk = "เครือข่ายและดิสก์"
+TUI_ThunderboltRDMA = "Thunderbolt / RDMA"
+TUI_MactopTitle = " mactop "
+TUI_GPUUsageHistory = "ประวัติการใช้ GPU"
+TUI_TBNet = "TB เครือข่าย ↓0/s ↑0/s"
+TUI_PowerHistory = "ประวัติพลังงาน"
+TUI_MemorySwapHistory = "ประวัติหน่วยความจำ/Swap"
+TUI_CPUUsageHistory = "ประวัติการใช้ CPU"
+TUI_ConfirmKill = " ยืนยัน "
+TUI_ConfirmKillBody = "ยืนยันการสิ้นสุด"
+TUI_ConfirmYes = "ใช่"
+TUI_ConfirmNo = "ไม่"
+
+Info_OS = "ระบบ"
+Info_Host = "โฮสต์"
+Info_Kernel = "เคอร์เนล"
+Info_Uptime = "เวลาทำงาน"
+Info_Shell = "Shell"
+Info_CPU = "CPU"
+Info_GPU = "GPU"
+Info_TFLOPs = "TFLOPs"
+Info_Memory = "หน่วยความจำ"
+Info_Swap = "Swap"
+Info_CPUUsage = "การใช้ CPU"
+Info_GPUUsage = "การใช้ GPU"
+Info_ANEUsage = "การใช้ ANE"
+Info_Power = "พลังงาน"
+Info_Thermals = "อุณหภูมิ"
+Info_Network = "เครือข่าย"
+Info_Disk = "ดิสก์"
+Info_DRAMBW = "แบนด์วิดท์ DRAM"
+Info_TBNet = "TB เครือข่าย"
+Info_RDMA = "RDMA"
+Info_Ethernet = "Ethernet"
+Info_WiFi = "Wi-Fi"
+
+Metrics_MemoryUsed = "%.1fGB / %.1fGB %.1f%%"
+Metrics_SwapUsed = "Swap: %.1fGB / %.1fGB %.1f%%"
+Metrics_DiskIO = "[เข้า] %.1f%s [ออก] %.1f%s"
+Metrics_NetIO = "[เข้า] %s [ออก] %s"
+Metrics_TFLOPs = "FP32 TFLOPs: %.1f"
+Metrics_Freq = "ความถี่: %d MHz"
+Metrics_RPM = "%d RPM"
+Metrics_ThermalNominal = "ปกติ"
+Metrics_ThermalFair = "พอใช้"
+Metrics_ThermalSerious = "รุนแรง"
+Metrics_ThermalCritical = "วิกฤต"
+Metrics_ThermalUnknown = "ไม่ทราบ"
+Metrics_RDMAActive = "ใช้งานอยู่"
+Metrics_RDMAInactive = "ไม่ใช้งาน"
+Metrics_CPUGaugeCompact = "CPU %.0f%% %s"
+Metrics_CPUGauge = "%d คอร์ %s %.2f%%%s (%s)"
+Metrics_ANEGaugeCompact = "ANE %.1fW"
+Metrics_ANEGauge = "การใช้ ANE: %.2f%% @ %.2f W"
+Metrics_PowerChartTitleCompact = "พลังงาน"
+Metrics_PowerChartTextCompact = "C:%.1fW G:%.1fW\nA:%.1fW D:%.1fW\nรวม:%.1fW %s"
+Metrics_PowerChartText = "CPU: %.2f W | GPU: %.2f W\nANE: %.2f W | DRAM: %.2f W\nระบบ: %.2f W\nรวม: %.2f W\nความร้อน: %s\nเวลาทำงาน: %s"
+Metrics_NetworkDiskTitle = "เครือข่ายและดิสก์"
+Metrics_MemGaugeCompact = "หน่วยความจำ %.0f/%.0fG BW %.1f GB/s"
+Metrics_MemGauge = "หน่วยความจำ: %.2f GB / %.2f GB (Swap: %.2f/%.2f GB) BW: %.1f GB/s"
+
+Process_PID = "PID"
+Process_USER = "ผู้ใช้"
+Process_VIRT = "เสมือน"
+Process_RES = "จริง"
+Process_CPU = "CPU"
+Process_GPU = "GPU"
+Process_MEM = "หน่วยความจำ"
+Process_TIME = "เวลา"
+Process_CMD = "คำสั่ง"
+
+TUI_ProcessListFull = "รายการโปรเซส (↑/↓ เลื่อน, / ค้นหา, f หยุด, F9 สิ้นสุด)"
+TUI_ProcessListFrozen = " รายการโปรเซส [หยุดชั่วคราว] (f เพื่อดำเนินต่อ) "
+TUI_ProcessListSearch = " ค้นหา: %s_ (Esc เพื่อล้าง) "
+TUI_ProcessListKill = " รายการโปรเซส - ยืนยันการสิ้นสุด (PID %d) "
+TUI_ProcessListPID = " รายการโปรเซส [PID %d] (↑/↓ เลื่อน, / ค้นหา, f หยุด, F9 สิ้นสุด) "
+TUI_Cores = "%d คอร์"
+TUI_ECores = "%d E-Core"
+TUI_PCores = "%d P-Core"
+TUI_SCores = "%d S-Core"
+TUI_GPUCores = "%s คอร์ GPU"
+Metrics_NetLink = "เครือข่าย (%s): ↑ %s/s ↓ %s/s"
+Metrics_Net = "เครือข่าย: ↑ %s/s ↓ %s/s"
+Metrics_IO = "I/O: อ่าน %s/s เขียน %s/s"
+Metrics_DiskFree = "%s: %s/%s (%s ว่าง)"
+Metrics_GPUGaugeTemp = "การใช้ GPU: %d%% @ %d MHz (%s)"
+Metrics_GPUGaugeFreq = "การใช้ GPU: %d%% @ %d MHz"
+Metrics_GPUSparkline = "ประวัติ GPU: %d%% (เฉลี่ย: %.1f%%)"
+Metrics_GPUHistoryChart = "ประวัติการใช้ GPU (เฉลี่ย: %.1f%%)"
+Metrics_GPUGaugeCompactTemp = "GPU %d%% %s"
+Metrics_GPUGaugeCompactFreq = "GPU %d%% %dMHz"
+Metrics_GPUSparklineCompact = "GPU %d%% (%.0f%%)"
+
+Help_FullText = """
+mactop เป็นเครื่องมือตรวจสอบโอเพนซอร์สสำหรับ Apple Silicon สร้างโดย Carsen Klock ด้วย Go!
+
+คลังโค้ด: github.com/metaspartan/mactop
+
+----การตั้งค่าปัจจุบัน----
+Prometheus Metrics: %s
+เวอร์ชัน: %s
+เลย์เอาท์: %s
+สีตัวอักษร: %s
+สีพื้นหลัง: %s
+ช่วงรีเฟรช: %dms
+
+----การควบคุม----
+- r: รีเฟรชข้อมูล UI ด้วยตนเอง
+- c: เปลี่ยนธีมสี
+- b: เปลี่ยนสีพื้นหลัง
+- p: โหมดปาร์ตี้ (วนสี)
+- l: สลับ 18 เลย์เอาท์
+- i: แสดง/ซ่อนแผงข้อมูล
+- Shift + F: ควบคุมพัดลมและแผงความร้อน
+- F9: สิ้นสุดโปรเซสที่เลือก (ใ/ม)
+- f: หยุดรายการโปรเซส
+- /: ค้นหาโปรเซส
+- g/G: ไปที่ด้านบน/ล่างของรายการ
+- + หรือ -: ปรับช่วงรีเฟรช
+- h หรือ ?: แสดง/ซ่อนเมนูช่วยเหลือ
+- j/k หรือ ↓/↑: เลื่อนข้อความ
+- q หรือ <C-c>: ออกจากแอป
+
+----ตัวเลือกการเริ่มต้น----
+--help, -h: แสดงเมนูช่วยเหลือ
+--version, -v: แสดงเวอร์ชัน
+--interval, -i: ช่วงรีเฟรช (มิลลิวินาที) ค่าเริ่มต้น: 1000
+--prometheus, -p: พอร์ต Prometheus metrics
+--headless: โหมดไม่มีหน้าจอ (ส่งออกไป stdout)
+--format: รูปแบบเอาต์พุต (json, yaml, xml, csv, toon)
+--pretty: เอาต์พุตจัดรูปแบบ
+--count: จำนวนตัวอย่าง (0 = ไม่จำกัด)
+--dump-ioreport, -d: แสดงทุกช่อง IOReport
+--unit-network: หน่วยเครือข่าย: auto, byte, kb, mb, gb
+--unit-disk: หน่วยดิสก์: auto, byte, kb, mb, gb
+--unit-temp: หน่วยอุณหภูมิ: celsius, fahrenheit
+--foreground: สีตัวอักษร UI
+--bg: สีพื้นหลัง UI
+--pid: ตรวจสอบ PID เฉพาะ (--pid 1234)
+--fan-control: ควบคุมพัดลมแบบโต้ตอบ (SMC)*
+--menubar: โหมดแถบเมนู macOS
+
+ไฟล์ธีม: สร้าง ~/.mactop/theme.json สำหรับสีที่กำหนดเอง
+"""
+
+Info_Auto = "อัตโนมัติ"
+Info_Manual = "แมนนวล"
+Info_Disconnected = "ตัดการเชื่อมต่อ (%s)"
+Info_Enabled = "เปิดใช้งาน"
+Info_Disabled = "ปิดใช้งาน"
+Info_ScrollUp = "↑ เลื่อนขึ้น"
+Info_ScrollDown = "↓ เลื่อนลง"
+
+
+Menu_Usage = "การใช้:"
+Menu_ECluster = "E-Cluster:"
+Menu_PCluster = "P-Cluster:"
+Menu_SCluster = "S-Cluster:"
+Menu_Power = "พลังงาน:"
+Menu_Temp = "อุณหภูมิ:"
+Menu_TFLOPs = "TFLOPs:"
+Menu_RAM = "RAM:"
+Menu_Swap = "Swap:"
+Menu_DRAMBW = "BW DRAM:"
+Menu_Network = "เครือข่าย:"
+Menu_RDMA = "RDMA:"
+Menu_Disk = "ดิสก์:"
+Menu_Total = "รวม:"
+Menu_System = "ระบบ:"
+Menu_Thermal = "ความร้อน:"
+Menu_Settings = "การตั้งค่า..."
+Menu_OpenGitHub = "เปิดข้อมูล GitHub..."
+Menu_OpenTUI = "เปิด mactop TUI..."
+Menu_Quit = "ออกจาก mactop"
+Menu_AppleSilicon = "Apple Silicon"
+Menu_CPU = "CPU"
+Menu_GPU = "GPU"
+Menu_MEMORY = "หน่วยความจำ"
+Menu_NETWORK = "เครือข่าย"
+Menu_DISK = "ดิสก์"
+Menu_POWER = "พลังงาน"
+Menu_HISTORY = "ประวัติ"
+Menu_FANS = "พัดลม"
+
+CLI_HelpText = """
+การใช้: mactop [ตัวเลือก]
+
+ตัวเลือก:
+  -h, --help              แสดงข้อความช่วยเหลือนี้
+  -v, --version           แสดงเวอร์ชัน mactop
+  -i, --interval <มิลลิวินาที> ตั้งช่วงรีเฟรชเป็นมิลลิวินาที (ค่าเริ่มต้น: 1000)
+  --foreground <สี>       ตั้งสีตัวอักษร UI (ชื่อหรือ hex เช่น green, #9580FF)
+  --bg <สี>               ตั้งสีพื้นหลัง UI (ชื่อหรือ hex เช่น mocha-base, #22212C)
+  -p, --prometheus <พอร์ต> เริ่มเซิร์ฟเวอร์ Prometheus บนพอร์ตที่กำหนด (เช่น :9090)
+      --headless          เรียกใช้แบบไม่มีหน้าจอ (ไม่มี TUI, JSON ไป stdout)
+      --format <รูปแบบ>    ตั้งรูปแบบเอาต์พุต (json, yaml, xml, csv, toon)
+      --pretty            จัดรูปแบบเอาต์พุต headless
+      --count <n>         จำนวนตัวอย่างในโหมด headless (0 = ไม่จำกัด)
+      --dump-ioreport, -d แสดงทุกช่อง IOReport ที่มีและออก
+      --unit-network <หน่วย> หน่วยเครือข่าย: auto, byte, kb, mb, gb (ค่าเริ่มต้น: auto)
+      --unit-disk <หน่วย>    หน่วยดิสก์: auto, byte, kb, mb, gb (ค่าเริ่มต้น: auto)
+      --unit-temp <หน่วย>    หน่วยอุณหภูมิ: celsius, fahrenheit (ค่าเริ่มต้น: celsius)
+      --pid <pid>         ตรวจสอบโปรเซสเฉพาะโดย PID
+      --menubar           เรียกใช้เป็นรายการแถบเมนู macOS (ไม่มี TUI)
+      --overlay           แสดงหน้าต่าง HUD ลอยเหนือทุกแอป
+      --overlay-sections  ส่วนที่มองเห็นคั่นด้วยจุลภาค (เช่น cpu,gpu,memory,power)
+      --overlay-opacity   ความทึบของหน้าต่าง overlay, 0.15-1.0 (ค่าเริ่มต้น: 0.88)
+      --fan-control       เปิดใช้งานการควบคุมพัดลมแบบโต้ตอบ (เขียนไปที่ SMC)
+      --dump-temps        การวินิจฉัย: แสดงทุกคีย์อุณหภูมิ SMC ดิบและออก
+      --dump-debug        การวินิจฉัย: แสดงข้อมูลดีบัก IOReport/HID/SMC/NVMe และออก
+
+ไฟล์ธีม:
+  สร้าง ~/.mactop/theme.json ด้วยสี hex ที่กำหนดเอง:
+  {"foreground": "#9580FF", "background": "#22212C"}
+
+ข้อมูลเพิ่มเติม: https://github.com/metaspartan/mactop โดย Carsen Klock
+"""
+CLI_Version = "mactop เวอร์ชัน: %s"
+CLI_DumpingIOReport = "กำลังแสดงช่อง IOReport..."
+CLI_TestInputReceived = "ได้รับอินพุตทดสอบ: %s"
+CLI_ErrorForegroundRequiresValue = "ข้อผิดพลาด: --foreground ต้องการค่าสี"
+CLI_ErrorBackgroundRequiresValue = "ข้อผิดพลาด: --bg ต้องการค่าสี"
+CLI_ErrorPrometheusRequiresValue = "ข้อผิดพลาด: --prometheus ต้องการหมายเลขพอร์ต"
+CLI_ErrorIntervalRequiresValue = "ข้อผิดพลาด: --interval ต้องการค่าช่วงเวลา"
+CLI_ErrorInvalidInterval = "ช่วงเวลาไม่ถูกต้อง: %v"
+CLI_ErrorPIDRequiresValue = "ข้อผิดพลาด: --pid ต้องการค่า PID"
+CLI_ErrorInvalidPID = "PID ไม่ถูกต้อง: %v"
+CLI_TestingIOReportPowerMetrics = "กำลังทดสอบ metrics พลังงาน IOReport..."
+CLI_TestSample = "ตัวอย่าง %d:"
+CLI_TestSocTemp = "  อุณหภูมิ SoC: %.1f°C"
+CLI_TestCPU = "  CPU: %.2fW | GPU: %.2fW (%d MHz, %.0f%% ใช้งาน)"
+CLI_TestANE = "  ANE: %.2fW | DRAM: %.2fW | GPU SRAM: %.2fW | รวม: %.2fW | %s"
+
+Headless_ErrorInitMetrics = "ไม่สามารถเริ่มต้น metrics: %v"
+Headless_ErrorUnknownFormat = "รูปแบบไม่รู้จัก: %s จะใช้ json"
+Headless_ErrorFormattingOutput = "ข้อผิดพลาดในการจัดรูปแบบเอาต์พุต: %v"
+Headless_ErrorPrometheusServer = "ข้อผิดพลาดเซิร์ฟเวอร์ Prometheus: %v"
+
+Info_OSValue = "macOS %s"
+Info_TFLOPsValue = "%.1f FP32 / %.1f FP16"
+Info_NotAvailable = "ไม่มี"
+Info_PowerValue = "%.2f W (เฉลี่ย %.0f W)"
+Info_NetworkValue = "↑ %s/s ↓ %s/s"
+Info_DiskValue = "อ่าน %s/s เขียน %s/s"
+Info_DRAMBWValue = "อ่าน %.1f / เขียน %.1f / %.1f GB/s"
+Info_FanValue = "%d RPM (%s, %d-%d)"
+Info_WiFiValue = "%s @ %dMbps (%s)"
+Info_VolumeValue = "%s / %s (%s ว่าง)"
+
+Fan_CPUTemp = "อุณหภูมิ CPU"
+Fan_GPUTemp = "อุณหภูมิ GPU"
+Fan_NoFansDetected = "ไม่พบพัดลม"
+Fan_NoTemperatureSensorsDetected = "ไม่พบเซ็นเซอร์อุณหภูมิ"
+Fan_ControlActive = "[⚠ การควบคุมพัดลมทำงานอยู่](fg:red,mod:bold)  [+/-](fg:%s,mod:bold) ความเร็ว  [a](fg:%s,mod:bold) อัตโนมัติ  [0/9](fg:%s,mod:bold) ต่ำสุด/สูงสุด  [R](fg:green,mod:bold) รีเซ็ต  [l](fg:%s) เลย์เอาท์  [F](fg:%s) ออก"
+Fan_ReadOnly = "[อ่านอย่างเดียว](fg:%s)  ใช้ --fan-control เพื่อเขียน  |  [l](fg:%s,mod:bold) เลย์เอาท์  [F](fg:%s,mod:bold) ปิดมุมมองพัดลม"
+
+Metrics_PowerSparklineGroup = "%.2f W รวม (สูงสุด: %.2f W)"
+Metrics_PowerSparklineTitle = "เฉลี่ย %.2f W | %s"
+Metrics_PowerHistoryDetail = "ประวัติพลังงาน (เฉลี่ย %.1fW, สูงสุด %.1fW)"
+Metrics_CPUHistoryDetail = "ประวัติการใช้ CPU (%.1f%%)"
+Metrics_MemoryHistoryDetail = "หน่วยความจำ: %.1f/%.1fGB, Swap: %.1fGB"
+
+TUI_KillPIDTitle = " ยืนยันการสิ้นสุด PID %d "
+
+Menu_Tooltip = "mactop — ตรวจสอบ Apple Silicon"
+Menu_SettingsTitle = "การตั้งค่าแถบเมนู mactop"
+Menu_ShowCPUBar = "แสดงแถบ CPU"
+Menu_ShowGPUBar = "แสดงแถบ GPU"
+Menu_ShowANEBar = "แสดงแถบ ANE"
+Menu_ShowMemoryBar = "แสดงแถบหน่วยความจำ"
+Menu_ShowWattageInMenuBar = "แสดงวัตต์ในแถบเมนู"
+Menu_ShowPercentages = "แสดงเปอร์เซ็นต์"
+Menu_StatusBarWidth = "ความกว้างแถบสถานะ:"
+Menu_StatusBarHeight = "ความสูงแถบสถานะ:"
+Menu_BarFontSize = "ขนาดตัวอักษรแถบ:"
+Menu_WattageFontSize = "ขนาดตัวอักษรวัตต์:"
+Menu_Colors = "สี:"
+Menu_LabelText = "ข้อความป้ายกำกับ"
+Menu_BarOrder = "ลำดับรายการแถบ:"
+Menu_DiskRate = "อ่าน %.0f KB/s  เขียน %.0f KB/s"
+Menu_FanItem = "พัดลม %d"
+
+Overlay_DRAM = "DRAM"
+Overlay_CollapsedMode = "โหมดย่อ"
+Overlay_ExpandedMode = "โหมดขยาย"
+Overlay_Done = "เสร็จ"
+Overlay_RequiresScreenRecordingPermission = "ต้องการสิทธิ์บันทึกหน้าจอ"
+Overlay_RequiresPermission = "ต้องการสิทธิ์"
+Overlay_OpacityHint = "ความทึบ: %.0f%%  (เลื่อนเพื่อปรับ)"
+Overlay_GPUCores = "%d คอร์ GPU"
+Overlay_GPUFreqTFLOPs = "%dMHz • %.1f TFLOPS"
+Overlay_GPUFreqMHz = "%d MHz"
+Overlay_TempsDual = "CPU %.0f°C  GPU %.0f°C"
+Overlay_TempsSingle = "%.0f°C"

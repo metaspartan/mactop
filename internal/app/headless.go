@@ -16,6 +16,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/metaspartan/mactop/v2/internal/i18n"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/toon-format/toon-go"
 	"gopkg.in/yaml.v3"
@@ -126,7 +127,7 @@ type HeadlessOutput struct {
 
 func runHeadless(count int) {
 	if err := initSocMetrics(); err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to initialize metrics: %v\n", err)
+		fmt.Fprintf(os.Stderr, i18n.T("Headless_ErrorInitMetrics")+"\n", err)
 		os.Exit(1)
 	}
 	defer cleanupSocMetrics()
@@ -142,7 +143,7 @@ func runHeadless(count int) {
 	switch format {
 	case "json", "yaml", "xml", "toon", "csv":
 	default:
-		fmt.Fprintf(os.Stderr, "Unknown format: %s. Defaulting to json.\n", format)
+		fmt.Fprintf(os.Stderr, i18n.T("Headless_ErrorUnknownFormat")+"\n", format)
 		format = "json"
 	}
 
@@ -161,7 +162,7 @@ func runHeadless(count int) {
 
 	// First manual collection
 	if err := processHeadlessSample(format, tbInfo, cachedHeadlessSysInfo); err != nil {
-		fmt.Fprintf(os.Stderr, "Error formatting output: %v\n", err)
+		fmt.Fprintf(os.Stderr, i18n.T("Headless_ErrorFormattingOutput")+"\n", err)
 	}
 	samplesCollected++
 
@@ -182,7 +183,7 @@ func runHeadless(count int) {
 			printHeadlessSeparator(format, count, samplesCollected)
 
 			if err := processHeadlessSample(format, tbInfo, cachedHeadlessSysInfo); err != nil {
-				fmt.Fprintf(os.Stderr, "Error formatting output: %v\n", err)
+				fmt.Fprintf(os.Stderr, i18n.T("Headless_ErrorFormattingOutput")+"\n", err)
 			}
 
 			samplesCollected++
@@ -279,7 +280,7 @@ func startHeadlessPrometheus() {
 		go func() {
 			http.Handle("/metrics", promhttp.Handler())
 			if err := http.ListenAndServe(prometheusPort, nil); err != nil {
-				fmt.Fprintf(os.Stderr, "Prometheus server error: %v\n", err)
+				fmt.Fprintf(os.Stderr, i18n.T("Headless_ErrorPrometheusServer")+"\n", err)
 			}
 		}()
 	}

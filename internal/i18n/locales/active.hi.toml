@@ -1,0 +1,330 @@
+Overlay_FPS = "FPS"
+Overlay_FrameInfo = "फ्रेम अंतराल"
+Overlay_CPU = "CPU"
+Overlay_GPU = "GPU"
+Overlay_ANE = "ANE"
+Overlay_Memory = "मेमोरी"
+Overlay_Swap = "Swap"
+Overlay_Power = "पावर"
+Overlay_Bandwidth = "DRAM बैंडविड्थ"
+Overlay_GPUFreq = "GPU फ्रीक्वेंसी"
+Overlay_Temps = "तापमान"
+Overlay_Thermal = "थर्मल स्थिति"
+Overlay_Fans = "पंखे"
+Overlay_Network = "नेटवर्क"
+
+TUI_InfoLayoutColorExit = " जानकारी: i | लेआउट: l | रंग: c | पृष्ठभूमि: b | बाहर: q "
+TUI_LayoutInfo = " %d/%d लेआउट (%s) "
+TUI_LayoutInfoShort = " %d/%d "
+TUI_ModelInfo = "मॉडल: %s"
+TUI_CoresInfo = "%d कोर (%dP, %dE, %dS) | GPU: %d कोर | %s"
+TUI_TotalPower = "कुल पावर: %.1fW"
+TUI_AppTotalPower = "कुल: %.1fW | CPU: %.1fW (ANE: %.1fW) GPU: %.1fW"
+TUI_AppleSilicon = "Apple Silicon"
+TUI_HelpMenu = "mactop सहायता मेनू"
+TUI_Loading = "लोड हो रहा है..."
+TUI_LoadingTB = "Thunderbolt जानकारी लोड हो रही है..."
+TUI_Fans = " ⊚ पंखे "
+TUI_Temperatures = " 🌡 तापमान "
+TUI_ProcessList = "प्रोसेस सूची"
+TUI_UnknownModel = "अज्ञात मॉडल"
+TUI_ECPUUsage = "E-CPU उपयोग"
+TUI_PCPUUsage = "P-CPU उपयोग"
+TUI_GPUUsage = "GPU उपयोग"
+TUI_MemoryUsage = "मेमोरी उपयोग"
+TUI_ANEUsage = "ANE उपयोग"
+TUI_PowerUsage = "ऊर्जा खपत"
+TUI_NetworkDisk = "नेटवर्क और डिस्क"
+TUI_ThunderboltRDMA = "Thunderbolt / RDMA"
+TUI_MactopTitle = " mactop "
+TUI_GPUUsageHistory = "GPU उपयोग इतिहास"
+TUI_TBNet = "TB नेटवर्क ↓0/s ↑0/s"
+TUI_PowerHistory = "पावर इतिहास"
+TUI_MemorySwapHistory = "मेमोरी/Swap इतिहास"
+TUI_CPUUsageHistory = "CPU उपयोग इतिहास"
+TUI_ConfirmKill = " पुष्टि करें "
+TUI_ConfirmKillBody = "समाप्ति की पुष्टि करें"
+TUI_ConfirmYes = "हाँ"
+TUI_ConfirmNo = "नहीं"
+
+Info_OS = "OS"
+Info_Host = "होस्ट"
+Info_Kernel = "कर्नेल"
+Info_Uptime = "अपटाइम"
+Info_Shell = "Shell"
+Info_CPU = "CPU"
+Info_GPU = "GPU"
+Info_TFLOPs = "TFLOPs"
+Info_Memory = "मेमोरी"
+Info_Swap = "Swap"
+Info_CPUUsage = "CPU उपयोग"
+Info_GPUUsage = "GPU उपयोग"
+Info_ANEUsage = "ANE उपयोग"
+Info_Power = "पावर"
+Info_Thermals = "तापमान"
+Info_Network = "नेटवर्क"
+Info_Disk = "डिस्क"
+Info_DRAMBW = "DRAM BW"
+Info_TBNet = "TB नेटवर्क"
+Info_RDMA = "RDMA"
+Info_Ethernet = "ईथरनेट"
+Info_WiFi = "Wi-Fi"
+
+Metrics_MemoryUsed = "%.1fGB / %.1fGB %.1f%%"
+Metrics_SwapUsed = "Swap: %.1fGB / %.1fGB %.1f%%"
+Metrics_DiskIO = "[इन] %.1f%s [आउट] %.1f%s"
+Metrics_NetIO = "[इन] %s [आउट] %s"
+Metrics_TFLOPs = "FP32 TFLOPs: %.1f"
+Metrics_Freq = "फ्रीक्वेंसी: %d MHz"
+Metrics_RPM = "%d RPM"
+Metrics_ThermalNominal = "सामान्य"
+Metrics_ThermalFair = "ठीक"
+Metrics_ThermalSerious = "गंभीर"
+Metrics_ThermalCritical = "अत्यंत गंभीर"
+Metrics_ThermalUnknown = "अज्ञात"
+Metrics_RDMAActive = "सक्रिय"
+Metrics_RDMAInactive = "निष्क्रिय"
+Metrics_CPUGaugeCompact = "CPU %.0f%% %s"
+Metrics_CPUGauge = "%d कोर %s %.2f%%%s (%s)"
+Metrics_ANEGaugeCompact = "ANE %.1fW"
+Metrics_ANEGauge = "ANE उपयोग: %.2f%% @ %.2f W"
+Metrics_PowerChartTitleCompact = "पावर"
+Metrics_PowerChartTextCompact = "C:%.1fW G:%.1fW\nA:%.1fW D:%.1fW\nकुल:%.1fW %s"
+Metrics_PowerChartText = "CPU: %.2f W | GPU: %.2f W\nANE: %.2f W | DRAM: %.2f W\nसिस्टम: %.2f W\nकुल: %.2f W\nथर्मल: %s\nअपटाइम: %s"
+Metrics_NetworkDiskTitle = "नेटवर्क और डिस्क"
+Metrics_MemGaugeCompact = "मेम %.0f/%.0fG BW %.1f GB/s"
+Metrics_MemGauge = "मेमोरी: %.2f GB / %.2f GB (Swap: %.2f/%.2f GB) BW: %.1f GB/s"
+
+Process_PID = "PID"
+Process_USER = "उपयोगकर्ता"
+Process_VIRT = "वर्चुअल"
+Process_RES = "भौतिक"
+Process_CPU = "CPU"
+Process_GPU = "GPU"
+Process_MEM = "मेम"
+Process_TIME = "समय"
+Process_CMD = "कमांड"
+
+TUI_ProcessListFull = "प्रोसेस सूची (↑/↓ स्क्रॉल, / खोज, f रोकें, F9 समाप्त)"
+TUI_ProcessListFrozen = " प्रोसेस सूची [रोका गया] (f से जारी रखें) "
+TUI_ProcessListSearch = " खोज: %s_ (Esc से साफ़ करें) "
+TUI_ProcessListKill = " प्रोसेस सूची - समाप्ति की पुष्टि (PID %d) "
+TUI_ProcessListPID = " प्रोसेस सूची [PID %d] (↑/↓ स्क्रॉल, / खोज, f रोकें, F9 समाप्त) "
+TUI_Cores = "%d कोर"
+TUI_ECores = "%d E-Core"
+TUI_PCores = "%d P-Core"
+TUI_SCores = "%d S-Core"
+TUI_GPUCores = "%s GPU कोर"
+Metrics_NetLink = "नेटवर्क (%s): ↑ %s/s ↓ %s/s"
+Metrics_Net = "नेटवर्क: ↑ %s/s ↓ %s/s"
+Metrics_IO = "I/O: पढ़ %s/s लिख %s/s"
+Metrics_DiskFree = "%s: %s/%s (%s उपलब्ध)"
+Metrics_GPUGaugeTemp = "GPU उपयोग: %d%% @ %d MHz (%s)"
+Metrics_GPUGaugeFreq = "GPU उपयोग: %d%% @ %d MHz"
+Metrics_GPUSparkline = "GPU इतिहास: %d%% (औसत: %.1f%%)"
+Metrics_GPUHistoryChart = "GPU उपयोग इतिहास (औसत: %.1f%%)"
+Metrics_GPUGaugeCompactTemp = "GPU %d%% %s"
+Metrics_GPUGaugeCompactFreq = "GPU %d%% %dMHz"
+Metrics_GPUSparklineCompact = "GPU %d%% (%.0f%%)"
+
+Help_FullText = """
+mactop एक ओपन सोर्स Apple Silicon मॉनिटरिंग टूल है जो Carsen Klock द्वारा Go में बनाया गया है!
+
+रिपॉज़िटरी: github.com/metaspartan/mactop
+
+----वर्तमान सेटिंग्स----
+Prometheus मेट्रिक्स: %s
+संस्करण: %s
+लेआउट: %s
+अग्रभूमि रंग: %s
+पृष्ठभूमि रंग: %s
+अपडेट अंतराल: %dms
+
+----नियंत्रण----
+- r: UI डेटा मैन्युअली रिफ़्रेश करें
+- c: UI रंग थीम बदलें
+- b: UI पृष्ठभूमि रंग बदलें
+- p: पार्टी मोड (रंग चक्र)
+- l: 18 उपलब्ध लेआउट में बदलें
+- i: जानकारी पैनल दिखाएँ/छिपाएँ
+- Shift + F: पंखा नियंत्रण और थर्मल पैनल
+- F9: चयनित प्रोसेस समाप्त करें (हाँ/नहीं)
+- f: प्रोसेस सूची रोकें
+- /: प्रोसेस सूची में खोजें
+- g/G: सूची के शीर्ष/अंत पर जाएँ
+- + या -: अपडेट अंतराल समायोजित करें
+- h या ?: यह सहायता मेनू दिखाएँ/छिपाएँ
+- j/k या ↓/↑: टेक्स्ट स्क्रॉल करें
+- q या <C-c>: बाहर निकलें
+
+----प्रारंभ विकल्प----
+--help, -h: यह सहायता मेनू दिखाएँ
+--version, -v: संस्करण दिखाएँ
+--interval, -i: अपडेट अंतराल (ms) सेट करें। डिफ़ॉल्ट: 1000.
+--prometheus, -p: Prometheus मेट्रिक्स पोर्ट
+--headless: बिना इंटरफ़ेस मोड (stdout पर आउटपुट)
+--format: आउटपुट फ़ॉर्मेट (json, yaml, xml, csv, toon)
+--pretty: फ़ॉर्मेटेड आउटपुट
+--count: सैंपल की संख्या (0 = अनंत)
+--dump-ioreport, -d: सभी IOReport चैनल दिखाएँ
+--unit-network: नेटवर्क इकाई: auto, byte, kb, mb, gb
+--unit-disk: डिस्क इकाई: auto, byte, kb, mb, gb
+--unit-temp: तापमान इकाई: celsius, fahrenheit
+--foreground: UI अग्रभूमि रंग
+--bg: UI पृष्ठभूमि रंग
+--pid: विशिष्ट PID मॉनिटर करें (--pid 1234)
+--fan-control: इंटरैक्टिव पंखा नियंत्रण (SMC)*
+--menubar: macOS मेनू बार मोड
+
+थीम फ़ाइल: कस्टम रंगों के लिए ~/.mactop/theme.json बनाएँ।
+"""
+
+Info_Auto = "स्वचालित"
+Info_Manual = "मैन्युअल"
+Info_Disconnected = "डिस्कनेक्ट (%s)"
+Info_Enabled = "सक्षम"
+Info_Disabled = "अक्षम"
+Info_ScrollUp = "↑ ऊपर स्क्रॉल करें"
+Info_ScrollDown = "↓ नीचे स्क्रॉल करें"
+
+
+Menu_Usage = "उपयोग:"
+Menu_ECluster = "E-Cluster:"
+Menu_PCluster = "P-Cluster:"
+Menu_SCluster = "S-Cluster:"
+Menu_Power = "पावर:"
+Menu_Temp = "तापमान:"
+Menu_TFLOPs = "TFLOPs:"
+Menu_RAM = "RAM:"
+Menu_Swap = "Swap:"
+Menu_DRAMBW = "DRAM BW:"
+Menu_Network = "नेटवर्क:"
+Menu_RDMA = "RDMA:"
+Menu_Disk = "डिस्क:"
+Menu_Total = "कुल:"
+Menu_System = "सिस्टम:"
+Menu_Thermal = "थर्मल:"
+Menu_Settings = "सेटिंग्स..."
+Menu_OpenGitHub = "GitHub जानकारी खोलें..."
+Menu_OpenTUI = "mactop TUI खोलें..."
+Menu_Quit = "mactop बंद करें"
+Menu_AppleSilicon = "Apple Silicon"
+Menu_CPU = "CPU"
+Menu_GPU = "GPU"
+Menu_MEMORY = "मेमोरी"
+Menu_NETWORK = "नेटवर्क"
+Menu_DISK = "डिस्क"
+Menu_POWER = "पावर"
+Menu_HISTORY = "इतिहास"
+Menu_FANS = "पंखे"
+
+CLI_HelpText = """
+उपयोग: mactop [विकल्प]
+
+विकल्प:
+  -h, --help              यह सहायता संदेश दिखाएँ
+  -v, --version           mactop का संस्करण दिखाएँ
+  -i, --interval <ms>     अपडेट अंतराल मिलीसेकंड में सेट करें (डिफ़ॉल्ट: 1000)
+  --foreground <रंग>      UI अग्रभूमि रंग सेट करें (नाम या hex, जैसे green, #9580FF)
+  --bg <रंग>              UI पृष्ठभूमि रंग सेट करें (नाम या hex, जैसे mocha-base, #22212C)
+  -p, --prometheus <पोर्ट> निर्दिष्ट पोर्ट पर Prometheus सर्वर शुरू करें (जैसे :9090)
+      --headless          बिना इंटरफ़ेस मोड में चलाएँ (TUI नहीं, stdout पर JSON)
+      --format <फ़ॉर्मेट>  आउटपुट फ़ॉर्मेट सेट करें (json, yaml, xml, csv, toon)
+      --pretty            Headless आउटपुट फ़ॉर्मेट करें
+      --count <n>         Headless मोड में सैंपल संख्या (0 = अनंत)
+      --dump-ioreport, -d सभी उपलब्ध IOReport चैनल दिखाएँ और बाहर निकलें
+      --unit-network <इकाई> नेटवर्क इकाई: auto, byte, kb, mb, gb (डिफ़ॉल्ट: auto)
+      --unit-disk <इकाई>    डिस्क इकाई: auto, byte, kb, mb, gb (डिफ़ॉल्ट: auto)
+      --unit-temp <इकाई>    तापमान इकाई: celsius, fahrenheit (डिफ़ॉल्ट: celsius)
+      --pid <pid>         PID द्वारा विशिष्ट प्रोसेस मॉनिटर करें
+      --menubar           macOS मेनू बार आइटम के रूप में चलाएँ (TUI नहीं)
+      --overlay           सभी ऐप्स के ऊपर फ़्लोटिंग HUD विंडो दिखाएँ
+      --overlay-sections  अल्पविराम से अलग दिखाई देने वाले अनुभाग (जैसे cpu,gpu,memory,power)
+      --overlay-opacity   Overlay विंडो अपारदर्शिता, 0.15-1.0 (डिफ़ॉल्ट: 0.88)
+      --fan-control       इंटरैक्टिव पंखा नियंत्रण सक्षम करें (SMC में लिखता है)
+      --dump-temps        डायग्नोस्टिक: सभी कच्ची SMC तापमान कुंजियाँ दिखाएँ और बाहर निकलें
+      --dump-debug        डायग्नोस्टिक: IOReport/HID/SMC/NVMe डीबग जानकारी दिखाएँ और बाहर निकलें
+
+थीम फ़ाइल:
+  कस्टम hex रंगों के लिए ~/.mactop/theme.json बनाएँ:
+  {"foreground": "#9580FF", "background": "#22212C"}
+
+अधिक जानकारी: https://github.com/metaspartan/mactop — Carsen Klock।
+"""
+CLI_Version = "mactop संस्करण: %s"
+CLI_DumpingIOReport = "IOReport चैनल डंप हो रहे हैं..."
+CLI_TestInputReceived = "टेस्ट इनपुट प्राप्त: %s"
+CLI_ErrorForegroundRequiresValue = "त्रुटि: --foreground को रंग मान चाहिए"
+CLI_ErrorBackgroundRequiresValue = "त्रुटि: --bg को रंग मान चाहिए"
+CLI_ErrorPrometheusRequiresValue = "त्रुटि: --prometheus को पोर्ट नंबर चाहिए"
+CLI_ErrorIntervalRequiresValue = "त्रुटि: --interval को अंतराल मान चाहिए"
+CLI_ErrorInvalidInterval = "अमान्य अंतराल: %v"
+CLI_ErrorPIDRequiresValue = "त्रुटि: --pid को PID मान चाहिए"
+CLI_ErrorInvalidPID = "अमान्य PID: %v"
+CLI_TestingIOReportPowerMetrics = "IOReport पावर मेट्रिक्स का परीक्षण हो रहा है..."
+CLI_TestSample = "सैंपल %d:"
+CLI_TestSocTemp = "  SoC तापमान: %.1f°C"
+CLI_TestCPU = "  CPU: %.2fW | GPU: %.2fW (%d MHz, %.0f%% सक्रिय)"
+CLI_TestANE = "  ANE: %.2fW | DRAM: %.2fW | GPU SRAM: %.2fW | कुल: %.2fW | %s"
+
+Headless_ErrorInitMetrics = "मेट्रिक्स प्रारंभ करने में विफल: %v"
+Headless_ErrorUnknownFormat = "अज्ञात फ़ॉर्मेट: %s। json उपयोग होगा।"
+Headless_ErrorFormattingOutput = "आउटपुट फ़ॉर्मेट करने में त्रुटि: %v"
+Headless_ErrorPrometheusServer = "Prometheus सर्वर त्रुटि: %v"
+
+Info_OSValue = "macOS %s"
+Info_TFLOPsValue = "%.1f FP32 / %.1f FP16"
+Info_NotAvailable = "N/A"
+Info_PowerValue = "%.2f W (औसत %.0f W)"
+Info_NetworkValue = "↑ %s/s ↓ %s/s"
+Info_DiskValue = "पढ़ %s/s लिख %s/s"
+Info_DRAMBWValue = "पढ़ %.1f / लिख %.1f / %.1f GB/s"
+Info_FanValue = "%d RPM (%s, %d-%d)"
+Info_WiFiValue = "%s @ %dMbps (%s)"
+Info_VolumeValue = "%s / %s (%s उपलब्ध)"
+
+Fan_CPUTemp = "CPU तापमान"
+Fan_GPUTemp = "GPU तापमान"
+Fan_NoFansDetected = "कोई पंखा नहीं मिला"
+Fan_NoTemperatureSensorsDetected = "कोई तापमान सेंसर नहीं मिला"
+Fan_ControlActive = "[⚠ पंखा नियंत्रण सक्रिय](fg:red,mod:bold)  [+/-](fg:%s,mod:bold) गति  [a](fg:%s,mod:bold) स्वचालित  [0/9](fg:%s,mod:bold) न्यूनतम/अधिकतम  [R](fg:green,mod:bold) रीसेट  [l](fg:%s) लेआउट  [F](fg:%s) बाहर"
+Fan_ReadOnly = "[केवल पढ़ने के लिए](fg:%s)  लिखने के लिए --fan-control उपयोग करें  |  [l](fg:%s,mod:bold) लेआउट  [F](fg:%s,mod:bold) पंखा दृश्य बंद करें"
+
+Metrics_PowerSparklineGroup = "%.2f W कुल (अधिकतम: %.2f W)"
+Metrics_PowerSparklineTitle = "औसत %.2f W | %s"
+Metrics_PowerHistoryDetail = "पावर इतिहास (औसत %.1fW, अधिकतम %.1fW)"
+Metrics_CPUHistoryDetail = "CPU उपयोग इतिहास (%.1f%%)"
+Metrics_MemoryHistoryDetail = "मेमोरी: %.1f/%.1fGB, Swap: %.1fGB"
+
+TUI_KillPIDTitle = " PID %d समाप्ति की पुष्टि करें "
+
+Menu_Tooltip = "mactop — Apple Silicon मॉनिटर"
+Menu_SettingsTitle = "mactop मेनू बार सेटिंग्स"
+Menu_ShowCPUBar = "CPU बार दिखाएँ"
+Menu_ShowGPUBar = "GPU बार दिखाएँ"
+Menu_ShowANEBar = "ANE बार दिखाएँ"
+Menu_ShowMemoryBar = "मेमोरी बार दिखाएँ"
+Menu_ShowWattageInMenuBar = "मेनू बार में वॉटेज दिखाएँ"
+Menu_ShowPercentages = "प्रतिशत दिखाएँ"
+Menu_StatusBarWidth = "स्टेटस बार चौड़ाई:"
+Menu_StatusBarHeight = "स्टेटस बार ऊँचाई:"
+Menu_BarFontSize = "बार फ़ॉन्ट आकार:"
+Menu_WattageFontSize = "वॉटेज फ़ॉन्ट आकार:"
+Menu_Colors = "रंग:"
+Menu_LabelText = "लेबल टेक्स्ट"
+Menu_BarOrder = "बार आइटम क्रम:"
+Menu_DiskRate = "पढ़ %.0f KB/s  लिख %.0f KB/s"
+Menu_FanItem = "पंखा %d"
+
+Overlay_DRAM = "DRAM"
+Overlay_CollapsedMode = "संक्षिप्त मोड"
+Overlay_ExpandedMode = "विस्तारित मोड"
+Overlay_Done = "पूर्ण"
+Overlay_RequiresScreenRecordingPermission = "स्क्रीन रिकॉर्डिंग अनुमति आवश्यक"
+Overlay_RequiresPermission = "अनुमति आवश्यक"
+Overlay_OpacityHint = "अपारदर्शिता: %.0f%%  (समायोजित करने के लिए स्क्रॉल करें)"
+Overlay_GPUCores = "%d GPU कोर"
+Overlay_GPUFreqTFLOPs = "%dMHz • %.1f TFLOPS"
+Overlay_GPUFreqMHz = "%d MHz"
+Overlay_TempsDual = "CPU %.0f°C  GPU %.0f°C"
+Overlay_TempsSingle = "%.0f°C"

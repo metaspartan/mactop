@@ -5,6 +5,8 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/metaspartan/mactop/v2/internal/i18n"
 )
 
 // flagResult is a helper to construct common flag return values
@@ -40,7 +42,7 @@ func handleFlag(arg string, idx int, args []string) (int, string, int, bool, boo
 	case "--help", "-h":
 		printHelpAndExit()
 	case "--version", "-v":
-		fmt.Println("mactop version:", version)
+		fmt.Printf(i18n.T("CLI_Version")+"\n", version)
 		os.Exit(0)
 	case "--test", "-t":
 		return handleTestFlag(idx, args)
@@ -57,7 +59,7 @@ func handleFlag(arg string, idx int, args []string) (int, string, int, bool, boo
 	case "--pid":
 		return handlePIDFlag(idx, args)
 	case "--dump-ioreport", "-d":
-		fmt.Println("Dumping IOReport channels...")
+		fmt.Println(i18n.T("CLI_DumpingIOReport"))
 		DebugIOReport()
 		os.Exit(0)
 	}
@@ -65,45 +67,13 @@ func handleFlag(arg string, idx int, args []string) (int, string, int, bool, boo
 }
 
 func printHelpAndExit() {
-	fmt.Print(`Usage: mactop [options]
-
-Options:
-  -h, --help              Show this help message
-  -v, --version           Show the version of mactop
-  -i, --interval <ms>     Set the update interval in milliseconds (default: 1000)
-  --foreground <color>    Set the UI foreground color (named or hex, e.g., green, #9580FF)
-  --bg <color>            Set the UI background color (named or hex, e.g., mocha-base, #22212C)
-  -p, --prometheus <port> Run Prometheus metrics server on specified port (e.g. :9090)
-      --headless          Run in headless mode (no TUI, output JSON to stdout)
-      --format <format>   Set the output format (json, toon, etc.)
-      --pretty            Pretty print JSON output in headless mode
-      --count <n>         Number of samples to collect in headless mode (0 = infinite)
-      --dump-ioreport, -d Dump all available IOReport channels and exit
-      --unit-network <unit> Network unit: auto, byte, kb, mb, gb (default: auto)
-      --unit-disk <unit>    Disk unit: auto, byte, kb, mb, gb (default: auto)
-      --unit-temp <unit>    Temperature unit: celsius, fahrenheit (default: celsius)
-      --pid <pid>         Monitor a specific process by PID
-      --menubar           Run as a macOS menu bar status item (no TUI)
-      --overlay           Show floating overlay HUD window on top of all apps
-      --overlay-sections  Comma-separated visible sections (e.g. cpu,gpu,memory,power)
-      --overlay-opacity   Overlay window opacity, 0.15-1.0 (default: 0.88)
-      --fan-control       Enable interactive fan speed control (writes to SMC)
-      --dump-temps        Diagnostic: dump all raw SMC temperature keys and exit
-      --dump-debug        Diagnostic: dump IOReport/HID/SMC/NVMe debug info and exit
-
-Theme File:
-  Create ~/.mactop/theme.json with custom hex colors:
-  {"foreground": "#9580FF", "background": "#22212C"}
-
-
-For more information, see https://github.com/metaspartan/mactop written by Carsen Klock.
-`)
+	fmt.Print(i18n.T("CLI_HelpText"))
 	os.Exit(0)
 }
 
 func handleTestFlag(idx int, args []string) (int, string, int, bool, bool, error) {
 	if idx+1 < len(args) {
-		fmt.Printf("Test input received: %s\n", args[idx+1])
+		fmt.Printf(i18n.T("CLI_TestInputReceived")+"\n", args[idx+1])
 		os.Exit(0)
 	}
 	return emptyResult(idx).values()
@@ -117,7 +87,7 @@ func handleForegroundFlag(idx int, args []string) (int, string, int, bool, bool,
 		}
 		return colorResult(idx, colorName).values()
 	}
-	return errorResult(idx, "Error: --foreground flag requires a color value").values()
+	return errorResult(idx, i18n.T("CLI_ErrorForegroundRequiresValue")).values()
 }
 
 func handleBgFlag(idx int, args []string) (int, string, int, bool, bool, error) {
@@ -129,7 +99,7 @@ func handleBgFlag(idx int, args []string) (int, string, int, bool, bool, error) 
 		cliBgColor = bgColor
 		return emptyResult(idx + 1).values()
 	}
-	return errorResult(idx, "Error: --bg flag requires a color value").values()
+	return errorResult(idx, i18n.T("CLI_ErrorBackgroundRequiresValue")).values()
 }
 
 func handlePrometheusFlag(idx int, args []string) (int, string, int, bool, bool, error) {
@@ -137,43 +107,43 @@ func handlePrometheusFlag(idx int, args []string) (int, string, int, bool, bool,
 		prometheusPort = args[idx+1]
 		return emptyResult(idx + 1).values()
 	}
-	return errorResult(idx, "Error: --prometheus flag requires a port number").values()
+	return errorResult(idx, i18n.T("CLI_ErrorPrometheusRequiresValue")).values()
 }
 
 func handleIntervalFlag(idx int, args []string) (int, string, int, bool, bool, error) {
 	if idx+1 < len(args) {
 		interval, err := strconv.Atoi(args[idx+1])
 		if err != nil {
-			return errorResult(idx, fmt.Sprintf("Invalid interval: %v", err)).values()
+			return errorResult(idx, fmt.Sprintf(i18n.T("CLI_ErrorInvalidInterval"), err)).values()
 		}
 		return intervalResult(idx, interval).values()
 	}
-	return errorResult(idx, "Error: --interval flag requires an interval value").values()
+	return errorResult(idx, i18n.T("CLI_ErrorIntervalRequiresValue")).values()
 }
 
 func handlePIDFlag(idx int, args []string) (int, string, int, bool, bool, error) {
 	if idx+1 < len(args) {
 		pid, err := strconv.Atoi(args[idx+1])
 		if err != nil {
-			return errorResult(idx, fmt.Sprintf("Invalid PID: %v", err)).values()
+			return errorResult(idx, fmt.Sprintf(i18n.T("CLI_ErrorInvalidPID"), err)).values()
 		}
 		filterPID = pid
 		return emptyResult(idx + 1).values()
 	}
-	return errorResult(idx, "Error: --pid flag requires a PID value").values()
+	return errorResult(idx, i18n.T("CLI_ErrorPIDRequiresValue")).values()
 }
 
 func runTestApp() {
-	fmt.Println("Testing IOReport power metrics...")
+	fmt.Println(i18n.T("CLI_TestingIOReportPowerMetrics"))
 	initSocMetrics()
 	for i := range 3 {
 		m := sampleSocMetrics(500)
 		thermalStr, _ := getThermalStateString()
-		fmt.Printf("Sample %d:\n", i+1)
-		fmt.Printf("  SoC Temp: %.1f°C\n", m.SocTemp)
-		fmt.Printf("  CPU: %.2fW | GPU: %.2fW (%d MHz, %.0f%% active)\n",
+		fmt.Printf(i18n.T("CLI_TestSample")+"\n", i+1)
+		fmt.Printf(i18n.T("CLI_TestSocTemp")+"\n", m.SocTemp)
+		fmt.Printf(i18n.T("CLI_TestCPU")+"\n",
 			m.CPUPower, m.GPUPower, m.GPUFreqMHz, m.GPUActive)
-		fmt.Printf("  ANE: %.2fW | DRAM: %.2fW | GPU SRAM: %.2fW | Total: %.2fW | %s\n",
+		fmt.Printf(i18n.T("CLI_TestANE")+"\n",
 			m.ANEPower, m.DRAMPower, m.GPUSRAMPower, m.TotalPower, thermalStr)
 		fmt.Println()
 	}
@@ -181,7 +151,39 @@ func runTestApp() {
 	os.Exit(0)
 }
 
+// earlyResolveLanguage scans os.Args and the environment for a language
+// override before flag.Parse() / loadConfig() have run. Used to initialize
+// i18n in time for legacy flags that exit early (--version, --help, etc.).
+// Priority: CLI flag > MACTOP_LANG env var. Config/system are applied later
+// in Run() once loadConfig has populated currentConfig.
+func earlyResolveLanguage() string {
+	args := os.Args
+	for i := 1; i < len(args); i++ {
+		a := args[i]
+		// --lang=xx or -lang=xx
+		if after, ok := strings.CutPrefix(a, "--lang="); ok {
+			return after
+		}
+		if after, ok := strings.CutPrefix(a, "-lang="); ok {
+			return after
+		}
+		// --lang xx or -lang xx
+		if (a == "--lang" || a == "-lang") && i+1 < len(args) {
+			return args[i+1]
+		}
+	}
+	if envLang := os.Getenv("MACTOP_LANG"); envLang != "" {
+		return envLang
+	}
+	return ""
+}
+
 func handleLegacyFlags() (string, int, bool, bool) {
+	// NOTE: i18n is pre-initialized in Run() via earlyResolveLanguage() so
+	// that --version/--help/--dump-ioreport honor --lang and MACTOP_LANG. It
+	// is then re-initialized with the fully resolved language (including
+	// config.json) after loadConfig() runs.
+
 	var (
 		colorName             string
 		interval              int

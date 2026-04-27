@@ -1,0 +1,329 @@
+Overlay_FPS = "FPS"
+Overlay_FrameInfo = "Intervalo de Quadros"
+Overlay_CPU = "CPU"
+Overlay_GPU = "GPU"
+Overlay_ANE = "ANE"
+Overlay_Memory = "Memória"
+Overlay_Swap = "Swap"
+Overlay_Power = "Energia"
+Overlay_Bandwidth = "Largura de Banda DRAM"
+Overlay_GPUFreq = "Frequência GPU"
+Overlay_Temps = "Temperaturas"
+Overlay_Thermal = "Estado Térmico"
+Overlay_Fans = "Ventoinhas"
+Overlay_Network = "Rede"
+
+TUI_InfoLayoutColorExit = " Info: i | Layout: l | Cor: c | BG: b | Sair: q "
+TUI_LayoutInfo = " %d/%d layout (%s) "
+TUI_LayoutInfoShort = " %d/%d "
+TUI_ModelInfo = "Modelo: %s"
+TUI_CoresInfo = "%d Núcleos (%dP, %dE, %dS) | GPU: %d Núcleos | %s"
+TUI_TotalPower = "Energia Total: %.1fW"
+TUI_AppTotalPower = "Total: %.1fW | CPU: %.1fW (ANE: %.1fW) GPU: %.1fW"
+TUI_AppleSilicon = "Apple Silicon"
+TUI_HelpMenu = "Menu de ajuda do mactop"
+TUI_Loading = "Carregando..."
+TUI_LoadingTB = "Carregando info Thunderbolt..."
+TUI_Fans = " ⊚ Ventoinhas "
+TUI_Temperatures = " 🌡 Temperaturas "
+TUI_ProcessList = "Lista de Processos"
+TUI_UnknownModel = "Modelo Desconhecido"
+TUI_ECPUUsage = "Uso E-CPU"
+TUI_PCPUUsage = "Uso P-CPU"
+TUI_GPUUsage = "Uso de GPU"
+TUI_MemoryUsage = "Uso de Memória"
+TUI_ANEUsage = "Uso de ANE"
+TUI_PowerUsage = "Uso de Energia"
+TUI_NetworkDisk = "Rede e Disco"
+TUI_ThunderboltRDMA = "Thunderbolt / RDMA"
+TUI_MactopTitle = " mactop "
+TUI_GPUUsageHistory = "Historial de Uso GPU"
+TUI_TBNet = "TB Rede ↓0/s ↑0/s"
+TUI_PowerHistory = "Historial de Energia"
+TUI_MemorySwapHistory = "Hist. Memória/Swap"
+TUI_CPUUsageHistory = "Historial de Uso CPU"
+TUI_ConfirmKill = " CONFIRMAR "
+TUI_ConfirmKillBody = "CONFIRMAR ENCERRAMENTO"
+TUI_ConfirmYes = "Sim"
+TUI_ConfirmNo = "Não"
+
+Info_OS = "SO"
+Info_Host = "Host"
+Info_Kernel = "Kernel"
+Info_Uptime = "Tempo Ativo"
+Info_Shell = "Shell"
+Info_CPU = "CPU"
+Info_GPU = "GPU"
+Info_TFLOPs = "TFLOPs"
+Info_Memory = "Memória"
+Info_Swap = "Swap"
+Info_CPUUsage = "Uso CPU"
+Info_GPUUsage = "Uso GPU"
+Info_ANEUsage = "Uso ANE"
+Info_Power = "Energia"
+Info_Thermals = "Térmicos"
+Info_Network = "Rede"
+Info_Disk = "Disco"
+Info_DRAMBW = "Larg. Banda DRAM"
+Info_TBNet = "TB Rede"
+Info_RDMA = "RDMA"
+Info_Ethernet = "Ethernet"
+Info_WiFi = "Wi-Fi"
+
+Metrics_MemoryUsed = "%.1fGB / %.1fGB %.1f%%"
+Metrics_SwapUsed = "Swap: %.1fGB / %.1fGB %.1f%%"
+Metrics_DiskIO = "[In] %.1f%s [Out] %.1f%s"
+Metrics_NetIO = "[In] %s [Out] %s"
+Metrics_TFLOPs = "FP32 TFLOPs: %.1f"
+Metrics_Freq = "Frequência: %d MHz"
+Metrics_RPM = "%d RPM"
+Metrics_ThermalNominal = "Nominal"
+Metrics_ThermalFair = "Razoável"
+Metrics_ThermalSerious = "Sério"
+Metrics_ThermalCritical = "Crítico"
+Metrics_ThermalUnknown = "Desconhecido"
+Metrics_RDMAActive = "Ativo"
+Metrics_RDMAInactive = "Inativo"
+Metrics_CPUGaugeCompact = "CPU %.0f%% %s"
+Metrics_CPUGauge = "%d Núcleos %s %.2f%%%s (%s)"
+Metrics_ANEGaugeCompact = "ANE %.1fW"
+Metrics_ANEGauge = "Uso ANE: %.2f%% @ %.2f W"
+Metrics_PowerChartTitleCompact = "Energia"
+Metrics_PowerChartTextCompact = "C:%.1fW G:%.1fW\nA:%.1fW D:%.1fW\nTot:%.1fW %s"
+Metrics_PowerChartText = "CPU: %.2f W | GPU: %.2f W\nANE: %.2f W | DRAM: %.2f W\nSist: %.2f W\nTotal: %.2f W\nTérmicos: %s\nTem. Atic: %s"
+Metrics_NetworkDiskTitle = "Rede e Disco"
+Metrics_MemGaugeCompact = "Mem %.0f/%.0fG LB %.1f GB/s"
+Metrics_MemGauge = "Mem: %.2f GB / %.2f GB (Swap: %.2f/%.2f GB) LB: %.1f GB/s"
+
+Process_PID = "PID"
+Process_USER = "UTILIZA."
+Process_VIRT = "VIRT"
+Process_RES = "RES"
+Process_CPU = "CPU"
+Process_GPU = "GPU"
+Process_MEM = "MEM"
+Process_TIME = "TEMPO"
+Process_CMD = "CMD"
+
+TUI_ProcessListFull = "Lista de Processos (↑/↓ rolar, / buscar, f congelar, F9 matar)"
+TUI_ProcessListFrozen = " Lista de Processos [CONGELADA] (f p/ resumir) "
+TUI_ProcessListSearch = " Buscar: %s_ (Esc p/ limpar) "
+TUI_ProcessListKill = " Lista de Processos - CONFIRMAR MATAR (PID %d) "
+TUI_ProcessListPID = " Lista de Processos [PID %d] (↑/↓ rolar, / buscar, f congelar, F9 matar) "
+TUI_Cores = "%d Núcleos"
+TUI_ECores = "%d E-Cores"
+TUI_PCores = "%d P-Cores"
+TUI_SCores = "%d S-Cores"
+TUI_GPUCores = "%s Núcleos GPU"
+Metrics_NetLink = "Rede (%s): ↑ %s/s ↓ %s/s"
+Metrics_Net = "Rede: ↑ %s/s ↓ %s/s"
+Metrics_IO = "E/S: L %s/s E %s/s"
+Metrics_DiskFree = "%s: %s/%s (%s livres)"
+Metrics_GPUGaugeTemp = "Uso de GPU: %d%% @ %d MHz (%s)"
+Metrics_GPUGaugeFreq = "Uso de GPU: %d%% @ %d MHz"
+Metrics_GPUSparkline = "Histórico GPU: %d%% (Média: %.1f%%)"
+Metrics_GPUHistoryChart = "Historial de Uso GPU (Média: %.1f%%)"
+Metrics_GPUGaugeCompactTemp = "GPU %d%% %s"
+Metrics_GPUGaugeCompactFreq = "GPU %d%% %dMHz"
+Metrics_GPUSparklineCompact = "GPU %d%% (%.0f%%)"
+
+Help_FullText = """
+mactop é uma ferramenta open source de monitoramento para Apple Silicon feita por Carsen Klock em Go!
+
+Repo: github.com/metaspartan/mactop
+
+----Configurações Atuais----
+Métricas Prometheus: %s
+Versão: %s
+Layout: %s
+Cor Primária: %s
+Cor de Fundo: %s
+Intervalo: %dms
+
+----Controles----
+- r: Atualizar
+- c: Mudar tema
+- b: Mudar cor de fundo
+- p: Modo Festa
+- l: Alternar entre layouts
+- i: Ativar as Informações
+- Shift + F: Ventiladores & Temperatura
+- F9: Matar processo (s/n)
+- f: Congelar lista
+- /: Pesquisar PID
+- g/G: Topo / Final
+- + / -: Intervalo de atualizar
+- h / ?: Mostrar ajuda
+- j/k ou ↓/↑: Rolar ajuda
+- q ou <C-c>: Sair
+
+----Linha de Comando----
+--help, -h: Mostrar ajuda
+--version, -v: Versão
+--interval, -i: Ms p/ atualizar (1000)
+--prometheus, -p: Ativar métricas Prometheus
+--headless: Modo script
+--format: (json, yaml, etc.)
+--pretty: Impressão formatada
+--count: N amostras
+--dump-ioreport, -d: Despejar IOReport
+--unit-network: Unidade
+--unit-disk: Unidade I/O
+--unit-temp: celsius / fahrenheit
+--foreground: Cor
+--bg: Fundo
+--pid: --pid 123
+--fan-control: Controle da ventoinha (SMC)*
+--menubar: Barra de Menus macOS
+
+Crie ~/.mactop/theme.json para cores customizadas!
+"""
+
+Info_Auto = "Auto"
+Info_Manual = "Manual"
+Info_Disconnected = "Desconectado (%s)"
+Info_Enabled = "Ativado"
+Info_Disabled = "Desativado"
+Info_ScrollUp = "↑ Rolar para cima"
+Info_ScrollDown = "↓ Rolar para baixo"
+
+Menu_Usage = "Uso:"
+Menu_ECluster = "Cluster E:"
+Menu_PCluster = "Cluster P:"
+Menu_SCluster = "Cluster S:"
+Menu_Power = "Energia:"
+Menu_Temp = "Temp:"
+Menu_TFLOPs = "TFLOPs:"
+Menu_RAM = "RAM:"
+Menu_Swap = "Swap:"
+Menu_DRAMBW = "Banda DRAM:"
+Menu_Network = "Rede:"
+Menu_RDMA = "RDMA:"
+Menu_Disk = "Disco:"
+Menu_Total = "Total:"
+Menu_System = "Sistema:"
+Menu_Thermal = "Térmico:"
+Menu_Settings = "Definições..."
+Menu_OpenGitHub = "Abrir info do GitHub..."
+Menu_OpenTUI = "Abrir TUI do mactop..."
+Menu_Quit = "Sair do mactop"
+Menu_AppleSilicon = "Apple Silicon"
+Menu_CPU = "CPU"
+Menu_GPU = "GPU"
+Menu_MEMORY = "MEMÓRIA"
+Menu_NETWORK = "REDE"
+Menu_DISK = "DISCO"
+Menu_POWER = "ENERGIA"
+Menu_HISTORY = "HISTÓRICO"
+Menu_FANS = "VENTOINHAS"
+
+CLI_HelpText = """
+Uso: mactop [opções]
+
+Opções:
+  -h, --help              Mostrar esta ajuda
+  -v, --version           Mostrar a versão do mactop
+  -i, --interval <ms>     Definir o intervalo de atualização em milissegundos (predefinição: 1000)
+  --foreground <color>    Definir a cor principal da UI (nome ou hex, ex.: green, #9580FF)
+  --bg <color>            Definir a cor de fundo da UI (nome ou hex, ex.: mocha-base, #22212C)
+  -p, --prometheus <port> Executar o servidor de métricas Prometheus na porta indicada (ex.: :9090)
+      --headless          Executar em modo headless (sem TUI, JSON no stdout)
+      --format <format>   Definir o formato de saída (json, yaml, xml, csv, toon)
+      --pretty            Formatar a saída headless
+      --count <n>         Número de amostras em modo headless (0 = infinito)
+      --dump-ioreport, -d Despejar todos os canais IOReport disponíveis e sair
+      --unit-network <unit> Unidade de rede: auto, byte, kb, mb, gb (predefinição: auto)
+      --unit-disk <unit>    Unidade de disco: auto, byte, kb, mb, gb (predefinição: auto)
+      --unit-temp <unit>    Unidade de temperatura: celsius, fahrenheit (predefinição: celsius)
+      --pid <pid>         Monitorizar um processo específico por PID
+      --menubar           Executar como item da barra de menus do macOS (sem TUI)
+      --overlay           Mostrar uma janela HUD flutuante sobre todas as apps
+      --overlay-sections  Secções visíveis separadas por vírgulas (ex.: cpu,gpu,memory,power)
+      --overlay-opacity   Opacidade da janela overlay, 0.15-1.0 (predefinição: 0.88)
+      --fan-control       Ativar controlo interativo das ventoinhas (escreve no SMC)
+      --dump-temps        Diagnóstico: despejar todas as chaves brutas de temperatura do SMC e sair
+      --dump-debug        Diagnóstico: despejar informação de debug IOReport/HID/SMC/NVMe e sair
+
+Ficheiro de tema:
+  Crie ~/.mactop/theme.json com cores hex personalizadas:
+  {"foreground": "#9580FF", "background": "#22212C"}
+
+Mais informações: https://github.com/metaspartan/mactop por Carsen Klock.
+"""
+CLI_Version = "versão do mactop: %s"
+CLI_DumpingIOReport = "A despejar canais IOReport..."
+CLI_TestInputReceived = "Entrada de teste recebida: %s"
+CLI_ErrorForegroundRequiresValue = "Erro: --foreground requer um valor de cor"
+CLI_ErrorBackgroundRequiresValue = "Erro: --bg requer um valor de cor"
+CLI_ErrorPrometheusRequiresValue = "Erro: --prometheus requer um número de porta"
+CLI_ErrorIntervalRequiresValue = "Erro: --interval requer um valor de intervalo"
+CLI_ErrorInvalidInterval = "Intervalo inválido: %v"
+CLI_ErrorPIDRequiresValue = "Erro: --pid requer um valor PID"
+CLI_ErrorInvalidPID = "PID inválido: %v"
+CLI_TestingIOReportPowerMetrics = "A testar métricas de energia do IOReport..."
+CLI_TestSample = "Amostra %d:"
+CLI_TestSocTemp = "  Temp SoC: %.1f°C"
+CLI_TestCPU = "  CPU: %.2fW | GPU: %.2fW (%d MHz, %.0f%% ativa)"
+CLI_TestANE = "  ANE: %.2fW | DRAM: %.2fW | GPU SRAM: %.2fW | Total: %.2fW | %s"
+
+Headless_ErrorInitMetrics = "Falha ao inicializar métricas: %v"
+Headless_ErrorUnknownFormat = "Formato desconhecido: %s. Será usado json."
+Headless_ErrorFormattingOutput = "Erro ao formatar a saída: %v"
+Headless_ErrorPrometheusServer = "Erro do servidor Prometheus: %v"
+
+Info_OSValue = "macOS %s"
+Info_TFLOPsValue = "%.1f FP32 / %.1f FP16"
+Info_NotAvailable = "N/D"
+Info_PowerValue = "%.2f W (Média %.0f W)"
+Info_NetworkValue = "↑ %s/s ↓ %s/s"
+Info_DiskValue = "L %s/s E %s/s"
+Info_DRAMBWValue = "L %.1f / E %.1f / %.1f GB/s"
+Info_FanValue = "%d RPM (%s, %d-%d)"
+Info_WiFiValue = "%s @ %dMbps (%s)"
+Info_VolumeValue = "%s / %s (%s livres)"
+
+Fan_CPUTemp = "Temp CPU"
+Fan_GPUTemp = "Temp GPU"
+Fan_NoFansDetected = "Nenhuma ventoinha detetada"
+Fan_NoTemperatureSensorsDetected = "Nenhum sensor de temperatura detetado"
+Fan_ControlActive = "[⚠ CONTROLO DE VENTOINHAS ATIVO](fg:red,mod:bold)  [+/-](fg:%s,mod:bold) Velocidade  [a](fg:%s,mod:bold) Auto  [0/9](fg:%s,mod:bold) Mín/Máx  [R](fg:green,mod:bold) Repor  [l](fg:%s) Layout  [F](fg:%s) Sair"
+Fan_ReadOnly = "[Só leitura](fg:%s)  Use --fan-control para permitir escrita  |  [l](fg:%s,mod:bold) Layout  [F](fg:%s,mod:bold) Sair da vista das ventoinhas"
+
+Metrics_PowerSparklineGroup = "%.2f W Total (Máx: %.2f W)"
+Metrics_PowerSparklineTitle = "Média %.2f W | %s"
+Metrics_PowerHistoryDetail = "Histórico de Energia (Média %.1fW, Máx %.1fW)"
+Metrics_CPUHistoryDetail = "Histórico de Uso CPU (%.1f%%)"
+Metrics_MemoryHistoryDetail = "Mem: %.1f/%.1fGB, Swap: %.1fGB"
+
+TUI_KillPIDTitle = " CONFIRMAR MATAR PID %d "
+
+Menu_Tooltip = "mactop — monitor Apple Silicon"
+Menu_SettingsTitle = "Definições da barra de menus do mactop"
+Menu_ShowCPUBar = "Mostrar barra CPU"
+Menu_ShowGPUBar = "Mostrar barra GPU"
+Menu_ShowANEBar = "Mostrar barra ANE"
+Menu_ShowMemoryBar = "Mostrar barra de memória"
+Menu_ShowWattageInMenuBar = "Mostrar potência na barra de menus"
+Menu_ShowPercentages = "Mostrar percentagens"
+Menu_StatusBarWidth = "Largura da barra de estado:"
+Menu_StatusBarHeight = "Altura da barra de estado:"
+Menu_BarFontSize = "Tamanho da letra das barras:"
+Menu_WattageFontSize = "Tamanho da letra da potência:"
+Menu_Colors = "Cores:"
+Menu_LabelText = "Texto do rótulo"
+Menu_BarOrder = "Ordem das barras:"
+Menu_DiskRate = "L %.0f KB/s  E %.0f KB/s"
+Menu_FanItem = "Ventoinha %d"
+
+Overlay_DRAM = "DRAM"
+Overlay_CollapsedMode = "Modo recolhido"
+Overlay_ExpandedMode = "Modo expandido"
+Overlay_Done = "Concluído"
+Overlay_RequiresScreenRecordingPermission = "Requer permissão de gravação de ecrã"
+Overlay_RequiresPermission = "Requer permissão"
+Overlay_OpacityHint = "Opacidade: %.0f%%  (deslize para ajustar)"
+Overlay_GPUCores = "%d núcleos GPU"
+Overlay_GPUFreqTFLOPs = "%dMHz • %.1f TFLOPS"
+Overlay_GPUFreqMHz = "%d MHz"
+Overlay_TempsDual = "CPU %.0f°C  GPU %.0f°C"
+Overlay_TempsSingle = "%.0f°C"

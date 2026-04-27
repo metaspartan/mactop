@@ -101,6 +101,7 @@ int setFanForceTest(int enabled);
 int setFanMode(int fanIndex, int mode);
 int setFanTarget(int fanIndex, int rpm);
 int resetFansToAuto();
+int isDramCalibrationComplete();
 
 // Wi-Fi link info structure (defined in ioreport.m)
 typedef struct {
@@ -241,6 +242,12 @@ func sampleSocMetrics(durationMs int) SocMetrics {
 
 func cleanupSocMetrics() {
 	C.cleanupIOReport()
+}
+
+// IsDramCalibrationComplete returns true when background DRAM bandwidth
+// calibration has finished (or was never needed, e.g. on M1-M4 chips).
+func IsDramCalibrationComplete() bool {
+	return C.isDramCalibrationComplete() != 0
 }
 
 func getSocThermalState() int {

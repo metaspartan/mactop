@@ -5,9 +5,12 @@ import (
 	"math"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 
+	"github.com/mattn/go-runewidth"
 	ui "github.com/metaspartan/gotui/v5"
+	"github.com/metaspartan/mactop/v2/internal/i18n"
 )
 
 func buildInfoLines(themeColor string) []string {
@@ -28,7 +31,11 @@ func buildInfoLines(themeColor string) []string {
 	}
 
 	formatLine := func(label, value string) string {
-		paddedLabel := fmt.Sprintf("%-13s", label)
+		w := runewidth.StringWidth(label)
+		paddedLabel := label
+		if w < 15 {
+			paddedLabel += strings.Repeat(" ", 15-w)
+		}
 		return fmt.Sprintf("[%s](fg:%s,mod:bold): [%s](fg:%s)", paddedLabel, themeColor, value, themeColor)
 	}
 
@@ -48,53 +55,58 @@ func buildInfoLines(themeColor string) []string {
 
 	// Get RDMA status
 	rdmaStatus := CheckRDMAAvailable()
-	rdmaLabel := "Disabled"
+	rdmaLabel := i18n.T("Info_Disabled")
 	if rdmaStatus.Available {
-		rdmaLabel = "Enabled"
+		rdmaLabel = i18n.T("Info_Enabled")
 	}
 
 	infoLines := []string{
 		fmt.Sprintf("[%s@%s](fg:%s,mod:bold)", cachedCurrentUser, cachedHostname, themeColor),
 		"-------------------------",
-		formatLine("OS", fmt.Sprintf("macOS %s", cachedOSVersion)),
-		formatLine("Host", cachedModelName),
-		formatLine("Kernel", cachedKernelVersion),
-		formatLine("Uptime", uptimeStr),
-		formatLine("Shell", cachedShell),
-		formatLine("CPU", cachedModelName),
-		formatLine("GPU", fmt.Sprintf("%d Core GPU", appleSiliconModel.GPUCoreCount)),
-		formatLine("TFLOPs", func() string {
+		formatLine(i18n.T("Info_OS"), fmt.Sprintf(i18n.T("Info_OSValue"), cachedOSVersion)),
+		formatLine(i18n.T("Info_Host"), cachedModelName),
+		formatLine(i18n.T("Info_Kernel"), cachedKernelVersion),
+		formatLine(i18n.T("Info_Uptime"), uptimeStr),
+		formatLine(i18n.T("Info_Shell"), cachedShell),
+		formatLine(i18n.T("Info_CPU"), cachedModelName),
+		formatLine(i18n.T("Info_GPU"), func() string {
+			if appleSiliconModel.GPUCoreCount <= 0 {
+				return i18n.T("Info_NotAvailable")
+			}
+			return fmt.Sprintf(i18n.T("TUI_GPUCores"), strconv.Itoa(appleSiliconModel.GPUCoreCount))
+		}()),
+		formatLine(i18n.T("Info_TFLOPs"), func() string {
 			gpuCores := appleSiliconModel.GPUCoreCount
 			maxFreq := GetMaxGPUFrequency()
 			if maxFreq > 0 && gpuCores > 0 {
 				fp32TFLOPs := float64(gpuCores) * float64(maxFreq) * 0.000256
 				fp16TFLOPs := fp32TFLOPs * 2
-				return fmt.Sprintf("%.1f FP32 / %.1f FP16", fp32TFLOPs, fp16TFLOPs)
+				return fmt.Sprintf(i18n.T("Info_TFLOPsValue"), fp32TFLOPs, fp16TFLOPs)
 			}
-			return "N/A"
+			return i18n.T("Info_NotAvailable")
 		}()),
-		formatLine("Memory", fmt.Sprintf("%.2f GB / %.2f GB", usedMem, totalMem)),
-		formatLine("Swap", fmt.Sprintf("%.2f GB / %.2f GB", swapUsed, swapTotal)),
+		formatLine(i18n.T("Info_Memory"), fmt.Sprintf("%.2f GB / %.2f GB", usedMem, totalMem)),
+		formatLine(i18n.T("Info_Swap"), fmt.Sprintf("%.2f GB / %.2f GB", swapUsed, swapTotal)),
 		"",
-		formatLine("CPU Usage", fmt.Sprintf("%.2f%%", float64(cpuGauge.Percent))),
-		formatLine("GPU Usage", fmt.Sprintf("%d%%", int(lastGPUMetrics.ActivePercent))),
-		formatLine("ANE Usage", fmt.Sprintf("%d%%", int(lastCPUMetrics.ANEW/8.0*100))),
-		formatLine("Power", fmt.Sprintf("%.2f W (Avg %.0f W)", lastCPUMetrics.PackageW, avgWatts)),
-		formatLine("Thermals", thermalStr),
-		formatLine("Network", fmt.Sprintf("↑ %s/s ↓ %s/s", formatBytes(lastNetDiskMetrics.OutBytesPerSec, networkUnit), formatBytes(lastNetDiskMetrics.InBytesPerSec, networkUnit))),
-		formatLine("Disk", fmt.Sprintf("R %s/s W %s/s", formatBytes(lastNetDiskMetrics.ReadKBytesPerSec*1024, diskUnit), formatBytes(lastNetDiskMetrics.WriteKBytesPerSec*1024, diskUnit))),
-		formatLine("DRAM BW", fmt.Sprintf("R %.1f / W %.1f / %.1f GB/s", lastCPUMetrics.DRAMReadBW, lastCPUMetrics.DRAMWriteBW, lastCPUMetrics.DRAMBWCombined)),
+		formatLine(i18n.T("Info_CPUUsage"), fmt.Sprintf("%.2f%%", float64(cpuGauge.Percent))),
+		formatLine(i18n.T("Info_GPUUsage"), fmt.Sprintf("%d%%", int(lastGPUMetrics.ActivePercent))),
+		formatLine(i18n.T("Info_ANEUsage"), fmt.Sprintf("%d%%", int(lastCPUMetrics.ANEW/8.0*100))),
+		formatLine(i18n.T("Info_Power"), fmt.Sprintf(i18n.T("Info_PowerValue"), lastCPUMetrics.PackageW, avgWatts)),
+		formatLine(i18n.T("Info_Thermals"), thermalStr),
+		formatLine(i18n.T("Info_Network"), fmt.Sprintf(i18n.T("Info_NetworkValue"), formatBytes(lastNetDiskMetrics.OutBytesPerSec, networkUnit), formatBytes(lastNetDiskMetrics.InBytesPerSec, networkUnit))),
+		formatLine(i18n.T("Info_Disk"), fmt.Sprintf(i18n.T("Info_DiskValue"), formatBytes(lastNetDiskMetrics.ReadKBytesPerSec*1024, diskUnit), formatBytes(lastNetDiskMetrics.WriteKBytesPerSec*1024, diskUnit))),
+		formatLine(i18n.T("Info_DRAMBW"), fmt.Sprintf(i18n.T("Info_DRAMBWValue"), lastCPUMetrics.DRAMReadBW, lastCPUMetrics.DRAMWriteBW, lastCPUMetrics.DRAMBWCombined)),
 	}
 
 	// Fan section
 	if len(lastCPUMetrics.Fans) > 0 {
 		infoLines = append(infoLines, "")
 		for _, fan := range lastCPUMetrics.Fans {
-			modeStr := "Auto"
+			modeStr := i18n.T("Info_Auto")
 			if fan.Mode == 1 {
-				modeStr = "Manual"
+				modeStr = i18n.T("Info_Manual")
 			}
-			infoLines = append(infoLines, formatLine(fan.Name, fmt.Sprintf("%d RPM (%s, %d-%d)", fan.ActualRPM, modeStr, fan.MinRPM, fan.MaxRPM)))
+			infoLines = append(infoLines, formatLine(fan.Name, fmt.Sprintf(i18n.T("Info_FanValue"), fan.ActualRPM, modeStr, fan.MinRPM, fan.MaxRPM)))
 		}
 	}
 
@@ -105,9 +117,9 @@ func buildInfoLines(themeColor string) []string {
 
 	tbIn := formatBytes(lastTBInBytes, networkUnit)
 	tbOut := formatBytes(lastTBOutBytes, networkUnit)
-	infoLines = append(infoLines, formatLine("TB Net", fmt.Sprintf("↑ %s/s ↓ %s/s", tbOut, tbIn)))
+	infoLines = append(infoLines, formatLine(i18n.T("Info_TBNet"), fmt.Sprintf(i18n.T("Info_NetworkValue"), tbOut, tbIn)))
 
-	infoLines = append(infoLines, formatLine("RDMA", rdmaLabel))
+	infoLines = append(infoLines, formatLine(i18n.T("Info_RDMA"), rdmaLabel))
 
 	infoLines = append(infoLines, buildThunderboltInfoLines(themeColor)...)
 
@@ -124,9 +136,9 @@ func buildNetworkLinkLines(formatLine func(string, string) string) []string {
 
 	for _, eth := range ethInfo {
 		if eth.LinkUp {
-			lines = append(lines, formatLine("Ethernet", fmt.Sprintf("%s (%s)", FormatLinkSpeed(eth.LinkSpeedMbps), eth.Name)))
+			lines = append(lines, formatLine(i18n.T("Info_Ethernet"), fmt.Sprintf("%s (%s)", FormatLinkSpeed(eth.LinkSpeedMbps), eth.Name)))
 		} else {
-			lines = append(lines, formatLine("Ethernet", fmt.Sprintf("Disconnected (%s)", eth.Name)))
+			lines = append(lines, formatLine(i18n.T("Info_Ethernet"), fmt.Sprintf(i18n.T("Info_Disconnected"), eth.Name)))
 		}
 	}
 	if wifiInfo != nil {
@@ -135,9 +147,9 @@ func buildNetworkLinkLines(formatLine func(string, string) string) []string {
 			if gen == "" {
 				gen = wifiInfo.PHYMode
 			}
-			lines = append(lines, formatLine("Wi-Fi", fmt.Sprintf("%s @ %dMbps (%s)", gen, wifiInfo.TxRateMbps, wifiInfo.InterfaceName)))
+			lines = append(lines, formatLine(i18n.T("Info_WiFi"), fmt.Sprintf(i18n.T("Info_WiFiValue"), gen, wifiInfo.TxRateMbps, wifiInfo.InterfaceName)))
 		} else {
-			lines = append(lines, formatLine("Wi-Fi", fmt.Sprintf("Disconnected (%s)", wifiInfo.InterfaceName)))
+			lines = append(lines, formatLine(i18n.T("Info_WiFi"), fmt.Sprintf(i18n.T("Info_Disconnected"), wifiInfo.InterfaceName)))
 		}
 	}
 	return lines
@@ -152,7 +164,7 @@ func buildVolumeLines(formatLine func(string, string) string) []string {
 			used := formatBytes(v.Used*1e9, diskUnit)
 			total := formatBytes(v.Total*1e9, diskUnit)
 			avail := formatBytes(v.Available*1e9, diskUnit)
-			lines = append(lines, formatLine(v.Name, fmt.Sprintf("%s / %s (%s free)", used, total, avail)))
+			lines = append(lines, formatLine(v.Name, fmt.Sprintf(i18n.T("Info_VolumeValue"), used, total, avail)))
 		}
 	}
 	return lines
@@ -306,7 +318,7 @@ func renderInfoText(infoLines, asciiArt []string, layout infoLayout, themeColor 
 
 	// Show scroll indicator if needed
 	if infoScrollOffset > 0 {
-		fmt.Fprintf(&combinedText, "%s[↑ Scroll up (k/↑)](fg:%s)\n", paddingStr, themeColor)
+		fmt.Fprintf(&combinedText, "%s[%s (k/↑)](fg:%s)\n", paddingStr, i18n.T("Info_ScrollUp"), themeColor)
 	}
 
 	// Helper for stripping tags to calculate visible length
@@ -314,6 +326,16 @@ func renderInfoText(infoLines, asciiArt []string, layout infoLayout, themeColor 
 		re := regexp.MustCompile(`\[(.*?)\]\(.*?\)`)
 		return re.ReplaceAllString(s, "$1")
 	}
+
+	// Calculate the maximum visible length dynamically
+	maxVisibleLen := 48
+	for _, l := range infoLines {
+		vLen := runewidth.StringWidth(stripTags(l))
+		if vLen > maxVisibleLen {
+			maxVisibleLen = vLen
+		}
+	}
+	textColWidth := maxVisibleLen + 2
 
 	for i := layout.startLine; i < layout.endLine; i++ {
 		asciiLine := ""
@@ -332,9 +354,7 @@ func renderInfoText(infoLines, asciiArt []string, layout infoLayout, themeColor 
 		}
 
 		if layout.showAscii {
-			visibleLen := len(stripTags(infoLine))
-
-			textColWidth := 48
+			visibleLen := runewidth.StringWidth(stripTags(infoLine))
 			paddingSpaces := textColWidth - visibleLen
 			if paddingSpaces < 2 {
 				paddingSpaces = 2
@@ -352,7 +372,7 @@ func renderInfoText(infoLines, asciiArt []string, layout infoLayout, themeColor 
 
 	// Show scroll indicator if there's more below
 	if layout.endLine < layout.totalLines {
-		fmt.Fprintf(&combinedText, "%s[↓ Scroll down (j/↓)](fg:%s)\n", paddingStr, themeColor)
+		fmt.Fprintf(&combinedText, "%s[%s (j/↓)](fg:%s)\n", paddingStr, i18n.T("Info_ScrollDown"), themeColor)
 	}
 
 	return combinedText.String()
@@ -650,13 +670,13 @@ func renderScrollableLines(lines []string, themeColor string) string {
 	result.WriteString("\n")
 
 	if infoScrollOffset > 0 {
-		fmt.Fprintf(&result, "%s[↑ Scroll up (k/↑)](fg:%s)\n", paddingStr, themeColor)
+		fmt.Fprintf(&result, "%s[%s (k/↑)](fg:%s)\n", paddingStr, i18n.T("Info_ScrollUp"), themeColor)
 	}
 	for i := startLine; i < endLine; i++ {
 		fmt.Fprintf(&result, "%s%s\n", paddingStr, lines[i])
 	}
 	if endLine < totalLines {
-		fmt.Fprintf(&result, "%s[↓ Scroll down (j/↓)](fg:%s)\n", paddingStr, themeColor)
+		fmt.Fprintf(&result, "%s[%s (j/↓)](fg:%s)\n", paddingStr, i18n.T("Info_ScrollDown"), themeColor)
 	}
 
 	return result.String()
@@ -676,15 +696,15 @@ func buildFanStatusText(themeColor string) string {
 	if lastCPUMetrics.CPUTemp > 0 {
 		thermalStr = fmt.Sprintf("%s (%s)", thermalStr, formatTemp(lastCPUMetrics.CPUTemp))
 	}
-	lines = append(lines, fmt.Sprintf("[Thermal State](fg:%s,mod:bold): [%s](fg:%s)", themeColor, thermalStr, themeColor))
+	lines = append(lines, fmt.Sprintf("[%s](fg:%s,mod:bold): [%s](fg:%s)", i18n.T("Overlay_Thermal"), themeColor, thermalStr, themeColor))
 	lines = append(lines, "")
 
 	// CPU/GPU quick temps
 	if lastCPUMetrics.CPUTemp > 0 {
-		lines = append(lines, formatLine("CPU Temp", formatTemp(lastCPUMetrics.CPUTemp)))
+		lines = append(lines, formatLine(i18n.T("Fan_CPUTemp"), formatTemp(lastCPUMetrics.CPUTemp)))
 	}
 	if lastCPUMetrics.GPUTemp > 0 {
-		lines = append(lines, formatLine("GPU Temp", formatTemp(lastCPUMetrics.GPUTemp)))
+		lines = append(lines, formatLine(i18n.T("Fan_GPUTemp"), formatTemp(lastCPUMetrics.GPUTemp)))
 	}
 	lines = append(lines, "")
 
@@ -695,7 +715,7 @@ func buildFanStatusText(themeColor string) string {
 			lines = append(lines, "")
 		}
 	} else {
-		lines = append(lines, fmt.Sprintf("[No fans detected](fg:%s)", themeColor))
+		lines = append(lines, fmt.Sprintf("[%s](fg:%s)", i18n.T("Fan_NoFansDetected"), themeColor))
 	}
 
 	return strings.Join(lines, "\n")
@@ -708,7 +728,7 @@ func buildFanTempText(themeColor string) string {
 	if len(lastCPUMetrics.TempSensors) > 0 {
 		lines = append(lines, buildGroupedTempLines(lastCPUMetrics.TempSensors, themeColor)...)
 	} else {
-		lines = append(lines, fmt.Sprintf("[No temperature sensors detected](fg:%s)", themeColor))
+		lines = append(lines, fmt.Sprintf("[%s](fg:%s)", i18n.T("Fan_NoTemperatureSensorsDetected"), themeColor))
 	}
 
 	return renderScrollableLines(lines, themeColor)
@@ -717,9 +737,9 @@ func buildFanTempText(themeColor string) string {
 // buildFanControlText renders a compact single-line status bar
 func buildFanControlText(themeColor string) string {
 	if fanControl {
-		return fmt.Sprintf("[⚠ FAN CONTROL ACTIVE](fg:red,mod:bold)  [+/-](fg:%s,mod:bold) Speed  [a](fg:%s,mod:bold) Auto  [0/9](fg:%s,mod:bold) Min/Max  [R](fg:green,mod:bold) Reset  [l](fg:%s) Layout  [F](fg:%s) Exit",
+		return fmt.Sprintf(i18n.T("Fan_ControlActive"),
 			themeColor, themeColor, themeColor, themeColor, themeColor)
 	}
-	return fmt.Sprintf("[Read-only](fg:%s)  Use --fan-control to enable writes  |  [l](fg:%s,mod:bold) Layout  [F](fg:%s,mod:bold) Exit fan view",
+	return fmt.Sprintf(i18n.T("Fan_ReadOnly"),
 		themeColor, themeColor, themeColor)
 }
