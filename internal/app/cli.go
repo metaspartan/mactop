@@ -151,10 +151,38 @@ func runTestApp() {
 	os.Exit(0)
 }
 
+// earlyResolveLanguage scans os.Args and the environment for a language
+// override before flag.Parse() / loadConfig() have run. Used to initialize
+// i18n in time for legacy flags that exit early (--version, --help, etc.).
+// Priority: CLI flag > MACTOP_LANG env var. Config/system are applied later
+// in Run() once loadConfig has populated currentConfig.
+func earlyResolveLanguage() string {
+	args := os.Args
+	for i := 1; i < len(args); i++ {
+		a := args[i]
+		// --lang=xx or -lang=xx
+		if after, ok := strings.CutPrefix(a, "--lang="); ok {
+			return after
+		}
+		if after, ok := strings.CutPrefix(a, "-lang="); ok {
+			return after
+		}
+		// --lang xx or -lang xx
+		if (a == "--lang" || a == "-lang") && i+1 < len(args) {
+			return args[i+1]
+		}
+	}
+	if envLang := os.Getenv("MACTOP_LANG"); envLang != "" {
+		return envLang
+	}
+	return ""
+}
+
 func handleLegacyFlags() (string, int, bool, bool) {
-	// NOTE: i18n is initialized lazily on first T() call (system language)
-	// and re-initialized with the fully resolved language in Run() after
-	// config is loaded. This avoids a double-init with different languages.
+	// NOTE: i18n is pre-initialized in Run() via earlyResolveLanguage() so
+	// that --version/--help/--dump-ioreport honor --lang and MACTOP_LANG. It
+	// is then re-initialized with the fully resolved language (including
+	// config.json) after loadConfig() runs.
 
 	var (
 		colorName             string

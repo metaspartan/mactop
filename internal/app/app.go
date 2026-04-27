@@ -680,6 +680,13 @@ func seedInitialMetrics() {
 }
 
 func Run() {
+	// Pre-resolve language from CLI args / env so that early-exit legacy flags
+	// (--version, --help, --dump-ioreport, --test) honor --lang. This is a
+	// best-effort scan since flag.Parse() hasn't run yet; the full priority
+	// chain (CLI > env > config > system) is re-applied after loadConfig().
+	earlyLang := earlyResolveLanguage()
+	i18n.Init(earlyLang)
+
 	colorName, interval, setColor, setInterval := handleLegacyFlags()
 
 	logfile, err := setupLogfile()
