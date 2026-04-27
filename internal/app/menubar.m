@@ -130,6 +130,7 @@ static NSImage *drawSparklineChart(double *history, int count, NSColor *color,
 static NSString *formatThroughput(double bps);
 static void buildMenu(void);
 static void persistConfig(void);
+static void refreshAllMenuColors(void);
 
 // ---- Color helpers ----
 
@@ -191,9 +192,15 @@ static NSColor *menuBarLabelColor(void) {
   return c ?: [NSColor labelColor];
 }
 
-static NSColor *labelDimColor(void) { return [NSColor secondaryLabelColor]; }
-static NSColor *valueColor(void) { return [NSColor labelColor]; }
-static NSColor *headerColor(void) { return [NSColor labelColor]; }
+static NSColor *labelDimColor(void) {
+  // Dimmed variant of the configured label color (or system secondaryLabelColor
+  // when no override is set, to preserve the default appearance).
+  if (g_config.label_color[0] == '\0')
+    return [NSColor secondaryLabelColor];
+  return [menuBarLabelColor() colorWithAlphaComponent:0.7];
+}
+static NSColor *valueColor(void) { return menuBarLabelColor(); }
+static NSColor *headerColor(void) { return menuBarLabelColor(); }
 
 // ---- Settings Window Controller & Delegate Forward Declarations ----
 
@@ -204,6 +211,7 @@ static NSColor *headerColor(void) { return [NSColor labelColor]; }
 
 @interface MactopLabelView : NSView
 @property(strong, nonatomic) NSTextField *label;
+- (void)refreshColors;
 @end
 @implementation MactopLabelView
 - (instancetype)initWithText:(NSString *)text
@@ -227,11 +235,15 @@ static NSColor *headerColor(void) { return [NSColor labelColor]; }
   }
   return self;
 }
+- (void)refreshColors {
+  _label.textColor = headerColor();
+}
 @end
 
 @interface MactopMetricView : NSView
 @property(strong, nonatomic) NSTextField *labelField;
 @property(strong, nonatomic) NSTextField *valueField;
+- (void)refreshColors;
 @end
 @implementation MactopMetricView
 - (instancetype)initWithLabel:(NSString *)lbl value:(NSString *)val {
@@ -272,6 +284,45 @@ static NSColor *headerColor(void) { return [NSColor labelColor]; }
 - (void)setTwoToneLabel:(NSString *)lbl value:(NSString *)val {
   _labelField.stringValue = lbl;
   _valueField.stringValue = val;
+}
+- (void)refreshColors {
+  _labelField.textColor = labelDimColor();
+  _valueField.textColor = valueColor();
+}
+@end
+
+@interface MactopBrandingView : NSView
+@property(strong, nonatomic) NSTextField *field;
+- (void)refreshColors;
+@end
+@implementation MactopBrandingView
+- (instancetype)initWithFrame:(NSRect)frame {
+  self = [super initWithFrame:frame];
+  if (self) {
+    _field = [[NSTextField alloc] initWithFrame:frame];
+    _field.drawsBackground = NO;
+    _field.bordered = NO;
+    _field.editable = NO;
+    _field.selectable = NO;
+    _field.alignment = NSTextAlignmentCenter;
+    [self addSubview:_field];
+    self.autoresizingMask = NSViewNotSizable;
+    [self refreshColors];
+  }
+  return self;
+}
+- (void)refreshColors {
+  NSMutableParagraphStyle *style = [[NSMutableParagraphStyle alloc] init];
+  style.alignment = NSTextAlignmentCenter;
+  NSAttributedString *as = [[NSAttributedString alloc]
+      initWithString:@"mactop"
+          attributes:@{
+            NSFontAttributeName :
+                [NSFont systemFontOfSize:14 weight:NSFontWeightHeavy],
+            NSForegroundColorAttributeName : menuBarLabelColor(),
+            NSParagraphStyleAttributeName : style
+          }];
+  _field.attributedStringValue = as;
 }
 @end
 
@@ -372,7 +423,7 @@ static NSColor *headerColor(void) { return [NSColor labelColor]; }
 
 - (instancetype)init {
   CGFloat w = 320;
-  CGFloat h = 600;
+  CGFloat h = 560;
   NSRect frame = NSMakeRect(0, 0, w, h);
   NSWindow *window = [[NSWindow alloc]
       initWithContentRect:frame
@@ -401,7 +452,10 @@ static NSColor *headerColor(void) { return [NSColor labelColor]; }
 }
 
 - (void)buildUI:(NSView *)view {
-  CGFloat x = 20, y = 500, lw = 200, lh = 20;
+  // Anchor content to top of contentView with consistent padding so the layout
+  // adapts when the window height changes.
+  CGFloat x = 20, lw = 200, lh = 20;
+  CGFloat y = view.frame.size.height - 30 - lh;
 
   // Toggles
   _cpuCheck = [NSButton checkboxWithTitle:localize(@"Menu_ShowCPUBar")
@@ -686,6 +740,7 @@ static NSColor *headerColor(void) { return [NSColor labelColor]; }
     updateColor(g_config.mem_color, _memColorWell.color);
   if (sender == _labelColorWell)
     updateColor(g_config.label_color, _labelColorWell.color);
+  refreshAllMenuColors();
   persistConfig();
 }
 
@@ -738,30 +793,8 @@ static NSMenuItem *makeBrandingItem(void) {
   CGFloat chartW = (CGFloat)g_config.sparkline_width;
   CGFloat width = chartW + 16;
   CGFloat height = 24;
-  NSView *container =
-      [[NSView alloc] initWithFrame:NSMakeRect(0, 0, width, height)];
-  NSTextField *field =
-      [[NSTextField alloc] initWithFrame:NSMakeRect(0, 0, width, height)];
-  field.drawsBackground = NO;
-  field.bordered = NO;
-  field.editable = NO;
-  field.selectable = NO;
-  field.alignment = NSTextAlignmentCenter;
-  NSMutableParagraphStyle *style = [[NSMutableParagraphStyle alloc] init];
-  style.alignment = NSTextAlignmentCenter;
-  NSMutableAttributedString *as = [[NSMutableAttributedString alloc] init];
-  [as appendAttributedString:[[NSAttributedString alloc]
-                                 initWithString:@"mactop"
-                                     attributes:@{
-                                       NSFontAttributeName : [NSFont
-                                           systemFontOfSize:14
-                                                     weight:NSFontWeightHeavy],
-                                       NSForegroundColorAttributeName :
-                                           [NSColor labelColor],
-                                       NSParagraphStyleAttributeName : style
-                                     }]];
-  field.attributedStringValue = as;
-  [container addSubview:field];
+  MactopBrandingView *container =
+      [[MactopBrandingView alloc] initWithFrame:NSMakeRect(0, 0, width, height)];
   item.view = container;
   return item;
 }
@@ -984,7 +1017,7 @@ static NSImage *drawSparklineChart(double *history, int count, NSColor *color,
                                                      weight:NSFontWeightBold];
   NSDictionary *valAttrs = @{
     NSFontAttributeName : valFont,
-    NSForegroundColorAttributeName : [NSColor labelColor]
+    NSForegroundColorAttributeName : menuBarLabelColor()
   };
   NSSize valSize = [valStr sizeWithAttributes:valAttrs];
   [valStr drawAtPoint:NSMakePoint(w - padR - valSize.width - 2, h - padT + 2)
@@ -1018,14 +1051,30 @@ static void persistConfig(void) {
       });
 }
 
+// refreshAllMenuColors walks the dropdown menu and re-applies textColors to
+// any item.view that supports it. Required because NSTextField.textColor is
+// cached at view creation, so existing items don't pick up label color
+// changes from the Settings window without an explicit refresh.
+static void refreshAllMenuColors(void) {
+  if (!g_delegate || !g_delegate.statusMenu)
+    return;
+  for (NSMenuItem *it in g_delegate.statusMenu.itemArray) {
+    NSView *v = it.view;
+    if ([v respondsToSelector:@selector(refreshColors)]) {
+      [(id)v refreshColors];
+    }
+  }
+}
+
 void setMenuBarConfig(menubar_config_t *cfg) {
   if (cfg) {
     g_config = *cfg;
-    if (g_settingsWindow) {
-      dispatch_async(dispatch_get_main_queue(), ^{
+    dispatch_async(dispatch_get_main_queue(), ^{
+      refreshAllMenuColors();
+      if (g_settingsWindow) {
         [g_settingsWindow syncUI];
-      });
-    }
+      }
+    });
   }
 }
 
