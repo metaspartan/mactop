@@ -176,7 +176,7 @@ mactop أداة مراقبة مفتوحة المصدر لـ Apple Silicon كتب
 --fan-control: تحكم تفاعلي بالمراوح (SMC)*
 --menubar: وضع شريط قوائم macOS
 
-ملف السمة: أنشئ ~/.mactop/theme.json لألوان مخصصة.
+ملف السمة: أنشئ theme.json في $XDG_CONFIG_HOME/mactop أو ~/.mactop لألوان مخصصة.
 """
 
 Info_Auto = "تلقائي"
@@ -246,7 +246,7 @@ CLI_HelpText = """
       --dump-debug        تشخيص: عرض معلومات تصحيح IOReport/HID/SMC/NVMe والخروج
 
 ملف السمة:
-  أنشئ ~/.mactop/theme.json بألوان hex مخصصة:
+  أنشئ theme.json في $XDG_CONFIG_HOME/mactop أو ~/.mactop بألوان hex مخصصة:
   {"foreground": "#9580FF", "background": "#22212C"}
 
 مزيد من المعلومات: https://github.com/metaspartan/mactop بواسطة Carsen Klock.

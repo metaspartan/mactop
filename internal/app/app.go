@@ -813,15 +813,11 @@ func runEventLoop(done chan struct{}, uiEvents <-chan ui.Event) {
 }
 
 func setupLogfile() (*os.File, error) {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		homeDir = os.TempDir()
-	}
-	logDir := filepath.Join(homeDir, ".mactop")
+	logPath := mactopStatePath("mactop.log")
+	logDir := filepath.Dir(logPath)
 	if err := os.MkdirAll(logDir, 0755); err != nil {
 		return nil, fmt.Errorf("failed to make the log directory: %v", err)
 	}
-	logPath := filepath.Join(logDir, "mactop.log")
 	logfile, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0660)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open log file: %v", err)

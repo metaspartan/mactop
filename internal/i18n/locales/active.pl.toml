@@ -176,7 +176,7 @@ Interwał odświeżania: %dms
 --fan-control: Interaktywne sterowanie wentylatorami (SMC)*
 --menubar: Tryb paska menu macOS
 
-Plik motywu: Utwórz ~/.mactop/theme.json dla niestandardowych kolorów.
+Plik motywu: utwórz theme.json w $XDG_CONFIG_HOME/mactop lub ~/.mactop dla niestandardowych kolorów.
 """
 
 Info_Auto = "Automatyczny"
@@ -246,7 +246,7 @@ Opcje:
       --dump-debug        Diagnostyka: pokaż informacje debugowania IOReport/HID/SMC/NVMe i zakończ
 
 Plik motywu:
-  Utwórz ~/.mactop/theme.json z niestandardowymi kolorami hex:
+  Utwórz theme.json w $XDG_CONFIG_HOME/mactop lub ~/.mactop z niestandardowymi kolorami hex:
   {"foreground": "#9580FF", "background": "#22212C"}
 
 Więcej informacji: https://github.com/metaspartan/mactop autorstwa Carsen Klock.

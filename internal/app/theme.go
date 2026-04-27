@@ -740,7 +740,7 @@ func hasCustomComponentColors(t *CustomThemeConfig) bool {
 		t.ProcessListSelected != "" || t.SystemInfo != ""
 }
 
-// applyCustomThemeFile loads and applies custom theme from ~/.mactop/theme.json
+// applyCustomThemeFile loads and applies custom theme from the mactop config directory
 // Returns (appliedForeground, appliedBackground) to indicate which colors were set
 func applyCustomThemeFile() (bool, bool) {
 	theme := loadThemeFile()

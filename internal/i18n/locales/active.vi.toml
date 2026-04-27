@@ -176,7 +176,7 @@ Tần suất cập nhật: %dms
 --fan-control: Điều khiển quạt tương tác (SMC)*
 --menubar: Chế độ thanh menu macOS
 
-Tệp chủ đề: Tạo ~/.mactop/theme.json cho màu tùy chỉnh.
+Tệp chủ đề: tạo theme.json trong $XDG_CONFIG_HOME/mactop hoặc ~/.mactop cho màu tùy chỉnh.
 """
 
 Info_Auto = "Tự động"
@@ -246,7 +246,7 @@ Tùy chọn:
       --dump-debug        Chẩn đoán: hiện thông tin gỡ lỗi IOReport/HID/SMC/NVMe và thoát
 
 Tệp chủ đề:
-  Tạo ~/.mactop/theme.json với màu hex tùy chỉnh:
+  Tạo theme.json trong $XDG_CONFIG_HOME/mactop hoặc ~/.mactop với màu hex tùy chỉnh:
   {"foreground": "#9580FF", "background": "#22212C"}
 
 Thêm thông tin: https://github.com/metaspartan/mactop bởi Carsen Klock.

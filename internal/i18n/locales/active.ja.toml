@@ -176,7 +176,7 @@ Prometheusメトリクス: %s
 --fan-control: インタラクティブなファン速度制御 (SMC変更)*
 --menubar: macOSメニューバーステータス項目モード
 
-テーマファイル設定：色変更は ~/.mactop/theme.json を作成してください
+テーマファイル設定：色変更は $XDG_CONFIG_HOME/mactop または ~/.mactop に theme.json を作成してください
 """
 
 Info_Auto = "自動"
@@ -246,7 +246,7 @@ CLI_HelpText = """
       --dump-debug        診断: IOReport/HID/SMC/NVMe のデバッグ情報を出力して終了
 
 テーマファイル:
-  ~/.mactop/theme.json を作成してカスタム hex 色を設定します:
+  $XDG_CONFIG_HOME/mactop または ~/.mactop に theme.json を作成してカスタム hex 色を設定します:
   {"foreground": "#9580FF", "background": "#22212C"}
 
 詳細: https://github.com/metaspartan/mactop (Carsen Klock)

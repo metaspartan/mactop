@@ -242,7 +242,10 @@ Reorder sections in expanded mode. Sections appear in the order listed:
 
 ## Theme File Support
 
-Create `~/.mactop/theme.json` to customize colors:
+Create `theme.json` in mactop's config directory to customize colors:
+
+- If `XDG_CONFIG_HOME` is set to an absolute path: `$XDG_CONFIG_HOME/mactop/theme.json`
+- Otherwise: `~/.mactop/theme.json`
 
 ### Basic Colors
 
@@ -303,6 +306,18 @@ Individual component colors that override the foreground:
 | Red        | `#FF9580` |
 
 Priority order: CLI flags > theme.json > saved config.
+
+## Config and Log Paths
+
+mactop supports XDG directory variables while preserving the original path layout when those variables are unset.
+
+| File | XDG path when set | Legacy fallback |
+|------|-------------------|-----------------|
+| Config | `$XDG_CONFIG_HOME/mactop/config.json` | `~/.mactop/config.json` |
+| Theme | `$XDG_CONFIG_HOME/mactop/theme.json` | `~/.mactop/theme.json` |
+| Log | `$XDG_STATE_HOME/mactop/mactop.log` | `~/.mactop/mactop.log` |
+
+Relative XDG paths are ignored; XDG base directories must be absolute paths.
 
 ## mactop Commands
 

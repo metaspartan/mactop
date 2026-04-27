@@ -176,7 +176,7 @@ Prometheus मेट्रिक्स: %s
 --fan-control: इंटरैक्टिव पंखा नियंत्रण (SMC)*
 --menubar: macOS मेनू बार मोड
 
-थीम फ़ाइल: कस्टम रंगों के लिए ~/.mactop/theme.json बनाएँ।
+थीम फ़ाइल: कस्टम रंगों के लिए $XDG_CONFIG_HOME/mactop या ~/.mactop में theme.json बनाएँ।
 """
 
 Info_Auto = "स्वचालित"
@@ -246,7 +246,7 @@ CLI_HelpText = """
       --dump-debug        डायग्नोस्टिक: IOReport/HID/SMC/NVMe डीबग जानकारी दिखाएँ और बाहर निकलें
 
 थीम फ़ाइल:
-  कस्टम hex रंगों के लिए ~/.mactop/theme.json बनाएँ:
+  कस्टम hex रंगों के लिए $XDG_CONFIG_HOME/mactop या ~/.mactop में theme.json बनाएँ:
   {"foreground": "#9580FF", "background": "#22212C"}
 
 अधिक जानकारी: https://github.com/metaspartan/mactop — Carsen Klock।

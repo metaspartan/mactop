@@ -176,7 +176,7 @@ Interval Pembaruan: %dms
 --fan-control: Kontrol kipas interaktif (SMC)*
 --menubar: Mode bilah menu macOS
 
-Berkas Tema: Buat ~/.mactop/theme.json untuk warna kustom.
+Berkas tema: buat theme.json di $XDG_CONFIG_HOME/mactop atau ~/.mactop untuk warna kustom.
 """
 
 Info_Auto = "Otomatis"
@@ -246,7 +246,7 @@ Opsi:
       --dump-debug        Diagnostik: tampilkan info debug IOReport/HID/SMC/NVMe dan keluar
 
 Berkas Tema:
-  Buat ~/.mactop/theme.json dengan warna hex kustom:
+  Buat theme.json di $XDG_CONFIG_HOME/mactop atau ~/.mactop dengan warna hex kustom:
   {"foreground": "#9580FF", "background": "#22212C"}
 
 Info lebih lanjut: https://github.com/metaspartan/mactop oleh Carsen Klock.
