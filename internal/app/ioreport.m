@@ -669,6 +669,18 @@ static void *calibThread(void *arg) {
   return NULL;
 }
 
+// Forward declaration — defined below, called from background thread.
+static void calibrateDramBwFromPower(void);
+
+// Background calibration thread entry point. Runs initKperfDramBW() and
+// calibrateDramBwFromPower() asynchronously so initIOReport() doesn't block.
+static void *bgCalibrationThread(void *arg) {
+  (void)arg;
+  initKperfDramBW();
+  calibrateDramBwFromPower();
+  return NULL;
+}
+
 // Run auto-calibration. Called once at init when power-based DRAM BW is needed.
 // Takes ~2 seconds. Measures DRAM power during known workload to derive
 // the GB/s-per-watt constant for this specific chip.
@@ -908,18 +920,23 @@ int initIOReport() {
       }
     }
 
-    // Initialize kperf-based DRAM BW monitoring as additional fallback.
-    // Only needed when AMC Stats doesn't work (M5+ / A-series).
-    // Requires root; fails silently without root.
-    initKperfDramBW();
-
-    // Auto-calibrate DRAM power → bandwidth conversion.
-    // Only needed on M5+ where AMC Stats is blocked.
-    calibrateDramBwFromPower();
+    // Defer kperf init + DRAM BW calibration to a background pthread.
+    // This avoids blocking initIOReport() for ~2.5s on M5+ chips.
+    // Until calibration completes, DRAM BW uses the default fallback
+    // constant (g_dramGBsPerWatt = 25.1) which provides reasonable estimates.
+    pthread_t bgThread;
+    if (pthread_create(&bgThread, NULL, bgCalibrationThread, NULL) == 0) {
+      pthread_detach(bgThread); // fire-and-forget
+    } else {
+      // If thread creation fails, run synchronously as fallback
+      initKperfDramBW();
+      calibrateDramBwFromPower();
+    }
   }
 
   return 0;
 }
+
 
 void debugIOReport() {
   if (initIOReport() != 0) {
@@ -1953,33 +1970,33 @@ static void readNVMeSMARTTemps(void) {
     }
     if (devChars) CFRelease(devChars);
 
-    // Create plugin interface for SMART reading
+    // Create plugin interface, read SMART data, and release as fast as possible.
+    // AppleNVMeSMARTUserClient only allows one plugin connection at a time,
+    // so holding it open blocks other tools (e.g. smartctl).
     IOCFPlugInInterface **plugin = NULL;
     SInt32 score = 0;
+    NVMeSMARTData smartData;
+    memset(&smartData, 0, sizeof(smartData));
+    IOReturn readResult = kIOReturnError;
+
     kr = IOCreatePlugInInterfaceForService(svc, smartFactory,
                                            kIOCFPlugInInterfaceID,
                                            &plugin, &score);
-    if (kr != kIOReturnSuccess || !plugin) {
-      IOObjectRelease(svc);
-      continue;
+    if (kr == kIOReturnSuccess && plugin) {
+      IONVMeSMARTInterface **smartInterface = NULL;
+      HRESULT res = (*plugin)->QueryInterface(plugin,
+          CFUUIDGetUUIDBytes(smartInterfaceID), (LPVOID *)&smartInterface);
+      (*plugin)->Release(plugin);
+
+      if (res == S_OK && smartInterface) {
+        readResult = (*smartInterface)->SMARTReadData(smartInterface, &smartData);
+        (*smartInterface)->Release(smartInterface);
+      }
     }
 
-    // Query for the NVMe SMART interface
-    IONVMeSMARTInterface **smartInterface = NULL;
-    HRESULT res = (*plugin)->QueryInterface(plugin,
-        CFUUIDGetUUIDBytes(smartInterfaceID), (LPVOID *)&smartInterface);
-    (*plugin)->Release(plugin);
+    IOObjectRelease(svc);
 
-    if (res != S_OK || !smartInterface) {
-      IOObjectRelease(svc);
-      continue;
-    }
-
-    // Read SMART data
-    NVMeSMARTData smartData;
-    memset(&smartData, 0, sizeof(smartData));
-    IOReturn readResult = (*smartInterface)->SMARTReadData(smartInterface, &smartData);
-
+    // Process SMART data outside the plugin lock
     if (readResult == kIOReturnSuccess) {
       // Temperature: bytes 1-2, little-endian uint16 in Kelvin
       uint16_t tempK = (uint16_t)smartData.temperature[0] |
@@ -1995,9 +2012,6 @@ static void readNVMeSMARTTemps(void) {
         }
       }
     }
-
-    (*smartInterface)->Release(smartInterface);
-    IOObjectRelease(svc);
   }
   IOObjectRelease(iter);
 

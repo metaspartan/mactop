@@ -65,6 +65,7 @@ typedef struct {
     char gpu_color[8];
     char ane_color[8];
     char mem_color[8];
+    char label_color[8];
 } menubar_config_t;
 
 int initMenuBar(void);
@@ -85,6 +86,8 @@ import (
 	"sync"
 	"time"
 	"unsafe"
+
+	"github.com/metaspartan/mactop/v2/internal/i18n"
 )
 
 // MenuBarMetricsPayload is the JSON structure sent from the main process
@@ -98,6 +101,7 @@ type MenuBarMetricsPayload struct {
 	TFLOPs         float64        `json:"tflops"`
 	CPUPercent     float64        `json:"cpu_percent"`
 	ThermalState   string         `json:"thermal_state"`
+	ThermalLevel   int            `json:"thermal_level"` // 0=nominal, 1=fair, 2=serious, 3=critical
 	RDMAStatus     string         `json:"rdma_status"`
 	TotalPower     float64        `json:"total_power"`
 }
@@ -153,6 +157,7 @@ func applyMenuBarConfig() {
 	copyColorToCBuf(&ccfg.gpu_color, mbCfg.GPUColor)
 	copyColorToCBuf(&ccfg.ane_color, mbCfg.ANEColor)
 	copyColorToCBuf(&ccfg.mem_color, mbCfg.MemColor)
+	copyColorToCBuf(&ccfg.label_color, mbCfg.LabelColor)
 	C.setMenuBarConfig(&ccfg)
 }
 
@@ -167,7 +172,7 @@ func cBoolToPtr(v C.int) *bool {
 //export GoSaveMenuBarConfig
 func GoSaveMenuBarConfig(statusBarWidth, statusBarHeight, sparklineWidth, sparklineHeight, showCPU, showGPU, showANE, showMem, showPower, showPercent,
 	fontSize, powerFontSize C.int,
-	cpuHex, gpuHex, aneHex, memHex *C.char) {
+	cpuHex, gpuHex, aneHex, memHex, labelHex *C.char) {
 	if currentConfig.MenuBar == nil {
 		currentConfig.MenuBar = &MenuBarConfig{}
 	}
@@ -211,14 +216,30 @@ func GoSaveMenuBarConfig(statusBarWidth, statusBarHeight, sparklineWidth, sparkl
 	if memHex != nil {
 		m.MemColor = C.GoString(memHex)
 	}
+	if labelHex != nil {
+		m.LabelColor = C.GoString(labelHex)
+	}
 
 	saveConfig()
+}
+
+// GoI18nT provides direct translation lookup to Objective-C
+//
+//export GoI18nT
+func GoI18nT(id *C.char) *C.char {
+	goID := C.GoString(id)
+	translated := i18n.T(goID)
+	// Return malloc'd string (caller must free)
+	return C.CString(translated)
 }
 
 // startMenuBarWorker is the entry point for the child process (--menubar-worker).
 // It reads JSON metrics from stdin and updates the menu bar on the main thread.
 func startMenuBarWorker() {
-	runtime.LockOSThread()
+	// NOTE: runtime.LockOSThread() is called in init() to ensure goroutine 1
+	// stays on the main OS thread, which AppKit requires for NSWindow creation.
+
+	i18n.Init(os.Getenv("MACTOP_LANG"))
 
 	// Load config in the worker process so defaults/persistence works
 	loadConfig()
@@ -378,11 +399,14 @@ func startMenuBarProcess() error {
 	}
 
 	cmd := exec.Command(exe, "--menubar-worker")
+	cmd.Env = append(os.Environ(), "MACTOP_LANG="+resolvedLanguage)
 
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		return fmt.Errorf("failed to get stdin pipe: %v", err)
 	}
+
+	cmd.Stderr = os.Stderr
 
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("failed to start worker: %v", err)
@@ -419,6 +443,7 @@ func pushMenuBarMetricsToWorker(sm SocMetrics, cpuMetrics CPUMetrics, gpuMetrics
 		TFLOPs:         maxFP32TFLOPs,
 		CPUPercent:     cpuPercent,
 		ThermalState:   thermalState,
+		ThermalLevel:   int(getThermalStateLevel()),
 		RDMAStatus:     rdmaStatus,
 		TotalPower:     sm.TotalPower,
 	}

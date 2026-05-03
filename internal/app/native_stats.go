@@ -1024,6 +1024,10 @@ func GetNativeNetworkMetrics() (map[string]NativeNetMetric, error) {
 			continue
 		}
 
+		if ifa.ifa_flags&C.IFF_LOOPBACK != 0 {
+			continue
+		}
+
 		data := (*C.struct_if_data)(unsafe.Pointer(ifa.ifa_data))
 		if data == nil {
 			continue

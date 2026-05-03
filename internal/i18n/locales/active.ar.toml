@@ -1,0 +1,357 @@
+Overlay_FPS = "FPS"
+Overlay_FrameInfo = "فاصل الإطارات"
+Overlay_CPU = "CPU"
+Overlay_GPU = "GPU"
+Overlay_ANE = "ANE"
+Overlay_Memory = "الذاكرة"
+Overlay_Swap = "Swap"
+Overlay_Power = "الطاقة"
+Overlay_Bandwidth = "عرض نطاق DRAM"
+Overlay_GPUFreq = "تردد GPU"
+Overlay_Temps = "الحرارة"
+Overlay_Thermal = "الحالة الحرارية"
+Overlay_Fans = "المراوح"
+Overlay_Network = "الشبكة"
+
+TUI_InfoLayoutColorExit = " معلومات: i | تخطيط: l | لون: c | خلفية: b | خروج: q "
+TUI_LayoutInfo = " %d/%d تخطيط (%s) "
+TUI_LayoutInfoShort = " %d/%d "
+TUI_ModelInfo = "الطراز: %s"
+TUI_CoresInfo = "%d أنوية (%dP, %dE, %dS) | GPU: %d أنوية | %s"
+TUI_TotalPower = "إجمالي الطاقة: %.1fW"
+TUI_AppTotalPower = "الإجمالي: %.1fW | CPU: %.1fW (ANE: %.1fW) GPU: %.1fW"
+TUI_AppleSilicon = "Apple Silicon"
+TUI_HelpMenu = "قائمة المساعدة mactop"
+TUI_Loading = "جارٍ التحميل..."
+TUI_LoadingTB = "جارٍ تحميل معلومات Thunderbolt..."
+TUI_Fans = " ⊚ المراوح "
+TUI_Temperatures = " 🌡 الحرارة "
+TUI_ProcessList = "قائمة العمليات"
+TUI_UnknownModel = "طراز غير معروف"
+TUI_ECPUUsage = "استخدام E-CPU"
+TUI_PCPUUsage = "استخدام P-CPU"
+TUI_GPUUsage = "استخدام GPU"
+TUI_MemoryUsage = "استخدام الذاكرة"
+TUI_ANEUsage = "استخدام ANE"
+TUI_PowerUsage = "استهلاك الطاقة"
+TUI_NetworkDisk = "الشبكة والقرص"
+TUI_ThunderboltRDMA = "Thunderbolt / RDMA"
+TUI_MactopTitle = " mactop "
+TUI_GPUUsageHistory = "سجل استخدام GPU"
+TUI_TBNet = "TB شبكة ↓0/s ↑0/s"
+TUI_PowerHistory = "سجل الطاقة"
+TUI_MemorySwapHistory = "سجل الذاكرة/Swap"
+TUI_CPUUsageHistory = "سجل استخدام CPU"
+TUI_ConfirmKill = " تأكيد "
+TUI_ConfirmKillBody = "تأكيد الإنهاء"
+TUI_ConfirmYes = "نعم"
+TUI_ConfirmNo = "لا"
+
+Info_OS = "نظام"
+Info_Host = "المضيف"
+Info_Kernel = "النواة"
+Info_Uptime = "وقت التشغيل"
+Info_Shell = "Shell"
+Info_CPU = "CPU"
+Info_GPU = "GPU"
+Info_TFLOPs = "TFLOPs"
+Info_Memory = "الذاكرة"
+Info_Swap = "Swap"
+Info_CPUUsage = "استخدام CPU"
+Info_GPUUsage = "استخدام GPU"
+Info_ANEUsage = "استخدام ANE"
+Info_Power = "الطاقة"
+Info_Thermals = "الحرارة"
+Info_Network = "الشبكة"
+Info_Disk = "القرص"
+Info_DRAMBW = "عرض نطاق DRAM"
+Info_TBNet = "TB شبكة"
+Info_RDMA = "RDMA"
+Info_Ethernet = "Ethernet"
+Info_WiFi = "Wi-Fi"
+
+Metrics_MemoryUsed = "%.1fGB / %.1fGB %.1f%%"
+Metrics_SwapUsed = "Swap: %.1fGB / %.1fGB %.1f%%"
+Metrics_DiskIO = "[دخول] %.1f%s [خروج] %.1f%s"
+Metrics_NetIO = "[دخول] %s [خروج] %s"
+Metrics_TFLOPs = "FP32 TFLOPs: %.1f"
+Metrics_Freq = "التردد: %d MHz"
+Metrics_RPM = "%d RPM"
+Metrics_ThermalNominal = "طبيعي"
+Metrics_ThermalFair = "مقبول"
+Metrics_ThermalSerious = "خطير"
+Metrics_ThermalCritical = "حرج"
+Metrics_ThermalUnknown = "غير معروف"
+Metrics_RDMAActive = "نشط"
+Metrics_RDMAInactive = "غير نشط"
+Metrics_CPUGaugeCompact = "CPU %.0f%% %s"
+Metrics_CPUGauge = "%d أنوية %s %.2f%%%s (%s)"
+Metrics_ANEGaugeCompact = "ANE %.1fW"
+Metrics_ANEGauge = "استخدام ANE: %.2f%% @ %.2f W"
+Metrics_PowerChartTitleCompact = "الطاقة"
+Metrics_PowerChartTextCompact = "C:%.1fW G:%.1fW\nA:%.1fW D:%.1fW\nإجمالي:%.1fW %s"
+Metrics_PowerChartText = "CPU: %.2f W | GPU: %.2f W\nANE: %.2f W | DRAM: %.2f W\nالنظام: %.2f W\nالإجمالي: %.2f W\nالحرارة: %s\nوقت التشغيل: %s"
+Metrics_NetworkDiskTitle = "الشبكة والقرص"
+Metrics_MemGaugeCompact = "ذاكرة %.0f/%.0fG عن %.1f GB/s"
+Metrics_MemGauge = "الذاكرة: %.2f GB / %.2f GB (Swap: %.2f/%.2f GB) عن: %.1f GB/s"
+
+Process_PID = "PID"
+Process_USER = "مستخدم"
+Process_VIRT = "افتراضي"
+Process_RES = "فعلي"
+Process_CPU = "CPU"
+Process_GPU = "GPU"
+Process_MEM = "ذاكرة"
+Process_TIME = "الوقت"
+Process_CMD = "الأمر"
+
+TUI_ProcessListFull = "قائمة العمليات (↑/↓ تمرير، / بحث، f تجميد، F9 إنهاء)"
+TUI_ProcessListFrozen = " قائمة العمليات [مجمدة] (f للاستئناف) "
+TUI_ProcessListSearch = " بحث: %s_ (Esc للمسح) "
+TUI_ProcessListKill = " قائمة العمليات - تأكيد الإنهاء (PID %d) "
+TUI_ProcessListPID = " قائمة العمليات [PID %d] (↑/↓ تمرير، / بحث، f تجميد، F9 إنهاء) "
+TUI_Cores = "%d أنوية"
+TUI_ECores = "%d E-Core"
+TUI_PCores = "%d P-Core"
+TUI_SCores = "%d S-Core"
+TUI_GPUCores = "%s أنوية GPU"
+Metrics_NetLink = "الشبكة (%s): ↑ %s/s ↓ %s/s"
+Metrics_Net = "الشبكة: ↑ %s/s ↓ %s/s"
+Metrics_IO = "I/O: ق %s/s ك %s/s"
+Metrics_DiskFree = "%s: %s/%s (%s متاح)"
+Metrics_GPUGaugeTemp = "استخدام GPU: %d%% @ %d MHz (%s)"
+Metrics_GPUGaugeFreq = "استخدام GPU: %d%% @ %d MHz"
+Metrics_GPUSparkline = "سجل GPU: %d%% (المتوسط: %.1f%%)"
+Metrics_GPUHistoryChart = "سجل استخدام GPU (المتوسط: %.1f%%)"
+Metrics_GPUGaugeCompactTemp = "GPU %d%% %s"
+Metrics_GPUGaugeCompactFreq = "GPU %d%% %dMHz"
+Metrics_GPUSparklineCompact = "GPU %d%% (%.0f%%)"
+
+Help_FullText = """
+mactop أداة مراقبة مفتوحة المصدر لـ Apple Silicon كتبها Carsen Klock بلغة Go!
+
+المستودع: github.com/metaspartan/mactop
+
+----الإعدادات الحالية----
+مقاييس Prometheus: %s
+الإصدار: %s
+التخطيط: %s
+لون المقدمة: %s
+لون الخلفية: %s
+فترة التحديث: %dms
+
+----التحكم----
+- r: تحديث بيانات واجهة المستخدم يدويًا
+- c: تغيير سمة الألوان
+- b: تغيير لون الخلفية
+- p: وضع الحفلة (دورة الألوان)
+- l: التنقل بين 18 تخطيطًا
+- i: إظهار/إخفاء لوحة المعلومات
+- Shift + F: التحكم بالمراوح واللوحة الحرارية
+- F9: إنهاء العملية المحددة (ن/ل)
+- f: تجميد قائمة العمليات
+- /: البحث في قائمة العمليات
+- g/G: الانتقال إلى أعلى/أسفل القائمة
+- + أو -: تعديل فترة التحديث
+- h أو ?: إظهار/إخفاء قائمة المساعدة
+- j/k أو ↓/↑: تمرير النص
+- q أو <C-c>: خروج
+
+----خيارات التشغيل----
+--help, -h: عرض قائمة المساعدة
+--version, -v: عرض الإصدار
+--interval, -i: فترة التحديث (مللي ثانية). الافتراضي: 1000.
+--prometheus, -p: منفذ مقاييس Prometheus
+--headless: تشغيل بدون واجهة (إخراج إلى stdout)
+--format: صيغة الإخراج (json, yaml, xml, csv, toon)
+--pretty: إخراج منسق
+--count: عدد العينات (0 = لا نهائي)
+--dump-ioreport, -d: عرض جميع قنوات IOReport
+--unit-network: وحدة الشبكة: auto, byte, kb, mb, gb
+--unit-disk: وحدة القرص: auto, byte, kb, mb, gb
+--unit-temp: وحدة الحرارة: celsius, fahrenheit
+--foreground: لون مقدمة واجهة المستخدم
+--bg: لون خلفية واجهة المستخدم
+--pid: مراقبة PID محدد (--pid 1234)
+--fan-control: تحكم تفاعلي بالمراوح (SMC)*
+--menubar: وضع شريط قوائم macOS
+
+ملف السمة: أنشئ ~/.mactop/theme.json لألوان مخصصة.
+"""
+
+Info_Auto = "تلقائي"
+Info_Manual = "يدوي"
+Info_Disconnected = "غير متصل (%s)"
+Info_Enabled = "مفعّل"
+Info_Disabled = "معطّل"
+Info_ScrollUp = "↑ تمرير لأعلى"
+Info_ScrollDown = "↓ تمرير لأسفل"
+
+
+Menu_Usage = "الاستخدام:"
+Menu_ECluster = "E-Cluster:"
+Menu_PCluster = "P-Cluster:"
+Menu_SCluster = "S-Cluster:"
+Menu_Power = "الطاقة:"
+Menu_Temp = "الحرارة:"
+Menu_TFLOPs = "TFLOPs:"
+Menu_RAM = "RAM:"
+Menu_Swap = "Swap:"
+Menu_DRAMBW = "عرض نطاق DRAM:"
+Menu_Network = "الشبكة:"
+Menu_RDMA = "RDMA:"
+Menu_Disk = "القرص:"
+Menu_Total = "الإجمالي:"
+Menu_System = "النظام:"
+Menu_Thermal = "الحرارة:"
+Menu_Settings = "الإعدادات..."
+Menu_OpenGitHub = "فتح معلومات GitHub..."
+Menu_OpenTUI = "فتح mactop TUI..."
+Menu_Quit = "إنهاء mactop"
+Menu_AppleSilicon = "Apple Silicon"
+Menu_CPU = "CPU"
+Menu_GPU = "GPU"
+Menu_MEMORY = "الذاكرة"
+Menu_NETWORK = "الشبكة"
+Menu_DISK = "القرص"
+Menu_POWER = "الطاقة"
+Menu_HISTORY = "السجل"
+Menu_FANS = "المراوح"
+
+CLI_HelpText = """
+الاستخدام: mactop [خيارات]
+
+الخيارات:
+  -h, --help              عرض رسالة المساعدة
+  -v, --version           عرض إصدار mactop
+  -i, --interval <مللي ثانية> تعيين فترة التحديث بالمللي ثانية (الافتراضي: 1000)
+  --foreground <لون>      تعيين لون المقدمة (اسم أو hex مثل green, #9580FF)
+  --bg <لون>              تعيين لون الخلفية (اسم أو hex مثل mocha-base, #22212C)
+  -p, --prometheus <منفذ> تشغيل خادم مقاييس Prometheus على المنفذ المحدد (مثل :9090)
+      --headless          تشغيل بدون واجهة (بدون TUI, JSON إلى stdout)
+      --format <صيغة>     تعيين صيغة الإخراج (json, yaml, xml, csv, toon)
+      --pretty            تنسيق إخراج headless
+      --count <n>         عدد العينات في وضع headless (0 = لا نهائي)
+      --dump-ioreport, -d عرض جميع قنوات IOReport المتاحة والخروج
+      --unit-network <وحدة> وحدة الشبكة: auto, byte, kb, mb, gb (الافتراضي: auto)
+      --unit-disk <وحدة>    وحدة القرص: auto, byte, kb, mb, gb (الافتراضي: auto)
+      --unit-temp <وحدة>    وحدة الحرارة: celsius, fahrenheit (الافتراضي: celsius)
+      --pid <pid>         مراقبة عملية محددة بواسطة PID
+      --menubar           تشغيل كعنصر شريط قوائم macOS (بدون TUI)
+      --overlay           عرض نافذة HUD عائمة فوق جميع التطبيقات
+      --overlay-sections  أقسام مرئية مفصولة بفواصل (مثل cpu,gpu,memory,power)
+      --overlay-opacity   شفافية نافذة overlay, 0.15-1.0 (الافتراضي: 0.88)
+      --fan-control       تفعيل التحكم التفاعلي بالمراوح (يكتب إلى SMC)
+      --dump-temps        تشخيص: عرض جميع مفاتيح حرارة SMC والخروج
+      --dump-debug        تشخيص: عرض معلومات تصحيح IOReport/HID/SMC/NVMe والخروج
+
+ملف السمة:
+  أنشئ ~/.mactop/theme.json بألوان hex مخصصة:
+  {"foreground": "#9580FF", "background": "#22212C"}
+
+مزيد من المعلومات: https://github.com/metaspartan/mactop بواسطة Carsen Klock.
+"""
+CLI_Version = "إصدار mactop: %s"
+CLI_DumpingIOReport = "جارٍ عرض قنوات IOReport..."
+CLI_TestInputReceived = "تم استلام مدخل اختباري: %s"
+CLI_ErrorForegroundRequiresValue = "خطأ: --foreground يتطلب قيمة لون"
+CLI_ErrorBackgroundRequiresValue = "خطأ: --bg يتطلب قيمة لون"
+CLI_ErrorPrometheusRequiresValue = "خطأ: --prometheus يتطلب رقم منفذ"
+CLI_ErrorIntervalRequiresValue = "خطأ: --interval يتطلب قيمة فترة"
+CLI_ErrorInvalidInterval = "فترة غير صالحة: %v"
+CLI_ErrorPIDRequiresValue = "خطأ: --pid يتطلب قيمة PID"
+CLI_ErrorInvalidPID = "PID غير صالح: %v"
+CLI_TestingIOReportPowerMetrics = "جارٍ اختبار مقاييس طاقة IOReport..."
+CLI_TestSample = "عينة %d:"
+CLI_TestSocTemp = "  حرارة SoC: %.1f°C"
+CLI_TestCPU = "  CPU: %.2fW | GPU: %.2fW (%d MHz, %.0f%% نشط)"
+CLI_TestANE = "  ANE: %.2fW | DRAM: %.2fW | GPU SRAM: %.2fW | الإجمالي: %.2fW | %s"
+
+Headless_ErrorInitMetrics = "فشل في تهيئة المقاييس: %v"
+Headless_ErrorUnknownFormat = "صيغة غير معروفة: %s. سيتم استخدام json."
+Headless_ErrorFormattingOutput = "خطأ في تنسيق الإخراج: %v"
+Headless_ErrorPrometheusServer = "خطأ في خادم Prometheus: %v"
+
+Info_OSValue = "macOS %s"
+Info_TFLOPsValue = "%.1f FP32 / %.1f FP16"
+Info_NotAvailable = "غير متاح"
+Info_PowerValue = "%.2f W (المتوسط %.0f W)"
+Info_NetworkValue = "↑ %s/s ↓ %s/s"
+Info_DiskValue = "ق %s/s ك %s/s"
+Info_DRAMBWValue = "ق %.1f / ك %.1f / %.1f GB/s"
+Info_FanValue = "%d RPM (%s, %d-%d)"
+Info_WiFiValue = "%s @ %dMbps (%s)"
+Info_VolumeValue = "%s / %s (%s متاح)"
+
+Fan_CPUTemp = "حرارة CPU"
+Fan_GPUTemp = "حرارة GPU"
+Fan_NoFansDetected = "لم يتم اكتشاف مراوح"
+Fan_NoTemperatureSensorsDetected = "لم يتم اكتشاف مستشعرات حرارة"
+Fan_ControlActive = "[⚠ التحكم بالمراوح نشط](fg:red,mod:bold)  [+/-](fg:%s,mod:bold) السرعة  [a](fg:%s,mod:bold) تلقائي  [0/9](fg:%s,mod:bold) أدنى/أقصى  [R](fg:green,mod:bold) إعادة تعيين  [l](fg:%s) تخطيط  [F](fg:%s) خروج"
+Fan_ReadOnly = "[للقراءة فقط](fg:%s)  استخدم --fan-control للكتابة  |  [l](fg:%s,mod:bold) تخطيط  [F](fg:%s,mod:bold) إغلاق عرض المراوح"
+
+Metrics_PowerSparklineGroup = "%.2f W الإجمالي (الأقصى: %.2f W)"
+Metrics_PowerSparklineTitle = "المتوسط %.2f W | %s"
+Metrics_PowerHistoryDetail = "سجل الطاقة (المتوسط %.1fW, الأقصى %.1fW)"
+Metrics_CPUHistoryDetail = "سجل استخدام CPU (%.1f%%)"
+Metrics_MemoryHistoryDetail = "الذاكرة: %.1f/%.1fGB, Swap: %.1fGB"
+
+TUI_KillPIDTitle = " تأكيد إنهاء PID %d "
+
+Menu_Tooltip = "mactop — مراقب Apple Silicon"
+Menu_SettingsTitle = "إعدادات شريط قوائم mactop"
+Menu_ShowCPUBar = "إظهار شريط CPU"
+Menu_ShowGPUBar = "إظهار شريط GPU"
+Menu_ShowANEBar = "إظهار شريط ANE"
+Menu_ShowMemoryBar = "إظهار شريط الذاكرة"
+Menu_ShowWattageInMenuBar = "إظهار الاستهلاك في شريط القوائم"
+Menu_ShowPercentages = "إظهار النسب المئوية"
+Menu_StatusBarWidth = "عرض شريط الحالة:"
+Menu_StatusBarHeight = "ارتفاع شريط الحالة:"
+Menu_BarFontSize = "حجم خط الشريط:"
+Menu_WattageFontSize = "حجم خط الاستهلاك:"
+Menu_Colors = "الألوان:"
+Menu_LabelText = "نص التسمية"
+Menu_BarOrder = "ترتيب عناصر الشريط:"
+Menu_DiskRate = "ق %.0f KB/s  ك %.0f KB/s"
+Menu_FanItem = "مروحة %d"
+
+Overlay_DRAM = "DRAM"
+Overlay_CollapsedMode = "الوضع المطوي"
+Overlay_ExpandedMode = "الوضع الموسع"
+Overlay_Done = "تم"
+Overlay_RequiresScreenRecordingPermission = "يتطلب إذن تسجيل الشاشة"
+Overlay_RequiresPermission = "يتطلب إذن"
+Overlay_OpacityHint = "الشفافية: %.0f%%  (مرر للضبط)"
+Overlay_GPUCores = "%d أنوية GPU"
+Overlay_GPUFreqTFLOPs = "%dMHz • %.1f TFLOPS"
+Overlay_GPUFreqMHz = "%d MHz"
+Overlay_TempsDual = "CPU %.0f°C  GPU %.0f°C"
+Overlay_TempsSingle = "%.0f°C"
+
+# Fan modes & temperature categories
+Fan_Mode_Auto = "تلقائي"
+Fan_Mode_Manual = "يدوي"
+Fan_TargetRange = "الهدف: %d RPM  |  المدى: %d – %d RPM"
+Temp_AvgOf = "متوسط %d، %s – %s"
+TempCategory_CPU_ECore = "نواة E للمعالج"
+TempCategory_CPU_PCore = "نواة P للمعالج"
+TempCategory_CPU_SCore = "نواة S للمعالج"
+TempCategory_CPU_ECores = "أنوية E للمعالج"
+TempCategory_CPU_PCores = "أنوية P للمعالج"
+TempCategory_CPU_SCores = "أنوية S للمعالج"
+TempCategory_CPU_Core = "نواة المعالج"
+TempCategory_CPU_Die = "شريحة المعالج"
+TempCategory_GPU = "GPU"
+TempCategory_Memory = "الذاكرة"
+TempCategory_SSD = "SSD"
+TempCategory_NAND = "NAND"
+TempCategory_NVMe = "NVMe"
+TempCategory_Ambient = "محيط"
+TempCategory_Board = "اللوحة"
+TempCategory_VRM = "VRM"
+TempCategory_SocPackage = "SoC"
+TempCategory_Thunderbolt = "Thunderbolt"
+TempCategory_Wireless = "لاسلكي"
+TempCategory_Display = "العرض"
+TempCategory_Other = "أخرى"

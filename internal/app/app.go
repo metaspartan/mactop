@@ -7,17 +7,20 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 
 	"sync"
 
+	"github.com/mattn/go-runewidth"
 	ui "github.com/metaspartan/gotui/v5"
 	w "github.com/metaspartan/gotui/v5/widgets"
+	"github.com/metaspartan/mactop/v2/internal/i18n"
 )
 
 var (
@@ -29,29 +32,26 @@ func setupUI() {
 	appleSiliconModel := getSOCInfo()
 	modelText, helpText, infoParagraph = w.NewParagraph(), w.NewParagraph(), w.NewParagraph()
 	fanStatusPanel, fanTempPanel, fanControlPanel = w.NewParagraph(), w.NewParagraph(), w.NewParagraph()
-	modelText.Title = "Apple Silicon"
-	helpText.Title = "mactop help menu"
-	infoParagraph.Text = "Loading..."
-	fanStatusPanel.Title = " ⊚ Fans "
+	modelText.Title = i18n.T("TUI_AppleSilicon")
+	helpText.Title = i18n.T("TUI_HelpMenu")
+	infoParagraph.Text = i18n.T("TUI_Loading")
+	fanStatusPanel.Title = i18n.T("TUI_Fans")
 	fanStatusPanel.BorderRounded = true
-	fanTempPanel.Title = " 🌡 Temperatures "
+	fanTempPanel.Title = i18n.T("TUI_Temperatures")
 	fanTempPanel.BorderRounded = true
 	fanControlPanel.Title = ""
 	fanControlPanel.BorderRounded = true
 	modelName := appleSiliconModel.Name
 	if modelName == "" {
-		modelName = "Unknown Model"
+		modelName = i18n.T("TUI_UnknownModel")
 	}
 
 	cachedHostname, _ = os.Hostname()
 	cachedCurrentUser = os.Getenv("USER")
 	cachedShell = os.Getenv("SHELL")
 
-	kv, _ := exec.Command("uname", "-r").Output()
-	cachedKernelVersion = strings.TrimSpace(string(kv))
-
-	ov, _ := exec.Command("sw_vers", "-productVersion").Output()
-	cachedOSVersion = strings.TrimSpace(string(ov))
+	cachedKernelVersion, _ = sysctlStringByName("kern.osrelease")
+	cachedOSVersion, _ = sysctlStringByName("kern.osproductversion")
 
 	cachedModelName = modelName
 	cachedSystemInfo = appleSiliconModel
@@ -73,7 +73,7 @@ func setupUI() {
 	}).Set(1)
 
 	processList = w.NewList()
-	processList.Title = "Process List"
+	processList.Title = i18n.T("TUI_ProcessList")
 	processList.TextStyle = ui.NewStyle(ui.ColorGreen)
 	processList.WrapText = false
 	processList.SelectedStyle = ui.NewStyle(ui.ColorBlack, ui.ColorGreen)
@@ -83,21 +83,22 @@ func setupUI() {
 	gauges := []*w.Gauge{
 		w.NewGauge(), w.NewGauge(), w.NewGauge(), w.NewGauge(),
 	}
-	titles := []string{"E-CPU Usage", "P-CPU Usage", "GPU Usage", "Memory Usage", "ANE Usage"}
-	for i, gauge := range gauges {
+	for _, gauge := range gauges {
 		gauge.Percent = 0
-		gauge.Title = titles[i]
-		gauge.Percent = 0
-		gauge.Title = titles[i]
 	}
 	cpuGauge, gpuGauge, memoryGauge, aneGauge = gauges[0], gauges[1], gauges[2], gauges[3]
 
+	cpuGauge.Title = i18n.T("TUI_Loading")
+	gpuGauge.Title = i18n.T("TUI_GPUUsage")
+	memoryGauge.Title = i18n.T("TUI_MemoryUsage")
+	aneGauge.Title = i18n.T("TUI_ANEUsage")
+
 	PowerChart, NetworkInfo = w.NewParagraph(), w.NewParagraph()
-	PowerChart.Title, NetworkInfo.Title = "Power Usage", "Network & Disk"
+	PowerChart.Title, NetworkInfo.Title = i18n.T("TUI_PowerUsage"), i18n.T("TUI_NetworkDisk")
 
 	tbInfoParagraph = w.NewParagraph()
-	tbInfoParagraph.Title = "Thunderbolt / RDMA"
-	tbInfoParagraph.Text = "Loading Thunderbolt Info..."
+	tbInfoParagraph.Title = i18n.T("TUI_ThunderboltRDMA")
+	tbInfoParagraph.Text = i18n.T("TUI_LoadingTB")
 	go func() {
 		description := GetThunderboltDescription()
 		tbInfoMutex.Lock()
@@ -107,11 +108,11 @@ func setupUI() {
 
 	mainBlock = ui.NewBlock()
 	mainBlock.BorderRounded = true
-	mainBlock.Title = " mactop "
+	mainBlock.Title = i18n.T("TUI_MactopTitle")
 	mainBlock.TitleRight = " " + version + " "
 	mainBlock.TitleAlignment = ui.AlignLeft
-	mainBlock.TitleBottomLeft = fmt.Sprintf(" %d/%d layout (%s) ", currentLayoutNum, totalLayouts, currentColorName)
-	mainBlock.TitleBottom = " Info: i | Layout: l | Color: c | BG: b | Exit: q "
+	mainBlock.TitleBottomLeft = fmt.Sprintf(i18n.T("TUI_LayoutInfo"), currentLayoutNum, totalLayouts, currentColorName)
+	mainBlock.TitleBottom = i18n.T("TUI_InfoLayoutColorExit")
 	mainBlock.TitleBottomAlignment = ui.AlignCenter
 	mainBlock.TitleBottomRight = fmt.Sprintf(" -/+ %dms ", updateInterval)
 
@@ -140,7 +141,7 @@ func setupUI() {
 	gpuSparkline.MaxHeight = 100
 	gpuSparkline.Data = gpuValues
 	gpuSparklineGroup = w.NewSparklineGroup(gpuSparkline)
-	gpuSparklineGroup.Title = "GPU Usage History"
+	gpuSparklineGroup.Title = i18n.T("TUI_GPUUsageHistory")
 
 	// TB Net sparklines
 	tbNetSparklineIn = w.NewSparkline()
@@ -154,49 +155,45 @@ func setupUI() {
 	tbNetSparklineOut.TitleStyle.Fg = ui.ColorMagenta
 
 	tbNetSparklineGroup = w.NewSparklineGroup(tbNetSparklineIn, tbNetSparklineOut)
-	tbNetSparklineGroup.Title = "TB Net ↓0/s ↑0/s"
+	tbNetSparklineGroup.Title = i18n.T("TUI_TBNet")
 
 	// StepChart widgets for History layout
 	gpuHistoryChart = w.NewStepChart()
-	gpuHistoryChart.Title = "GPU Usage History"
+	gpuHistoryChart.Title = i18n.T("TUI_GPUUsageHistory")
 	gpuHistoryChart.ShowAxes = false
 	gpuHistoryChart.ShowRightAxis = true
 	gpuHistoryChart.LineColors = []ui.Color{ui.ColorGreen}
 
 	powerHistoryChart = w.NewStepChart()
-	powerHistoryChart.Title = "Power History"
+	powerHistoryChart.Title = i18n.T("TUI_PowerHistory")
 	powerHistoryChart.ShowAxes = false
 	powerHistoryChart.ShowRightAxis = true
 	powerHistoryChart.LineColors = []ui.Color{ui.ColorYellow}
 
 	memoryHistoryChart = w.NewStepChart()
-	memoryHistoryChart.Title = "Memory/Swap History"
+	memoryHistoryChart.Title = i18n.T("TUI_MemorySwapHistory")
 	memoryHistoryChart.ShowAxes = false
 	memoryHistoryChart.ShowRightAxis = true
 	memoryHistoryChart.LineColors = []ui.Color{ui.ColorBlue, ui.ColorMagenta}
 
 	cpuHistoryChart = w.NewStepChart()
-	cpuHistoryChart.Title = "CPU Usage History"
+	cpuHistoryChart.Title = i18n.T("TUI_CPUUsageHistory")
 	cpuHistoryChart.ShowAxes = false
 	cpuHistoryChart.ShowRightAxis = true
 	cpuHistoryChart.LineColors = []ui.Color{ui.ColorGreen}
 
-	updateProcessList()
-
 	cpuCoreWidget = NewCPUCoreWidget(appleSiliconModel)
 	coreSummary := FormatCoreSummary(cpuCoreWidget.eCoreCount, cpuCoreWidget.pCoreCount, cpuCoreWidget.sCoreCount)
 	totalCPUCores := cpuCoreWidget.eCoreCount + cpuCoreWidget.pCoreCount + cpuCoreWidget.sCoreCount
-	cpuCoreWidget.Title = fmt.Sprintf("%d Cores %s",
-		totalCPUCores,
-		coreSummary,
-	)
-	cpuGauge.Title = fmt.Sprintf("%d Cores %s",
-		totalCPUCores,
-		coreSummary,
-	)
+	coreTitle := fmt.Sprintf(i18n.T("TUI_Cores"), totalCPUCores)
+	if coreSummary != "" {
+		coreTitle = fmt.Sprintf("%s %s", coreTitle, coreSummary)
+	}
+	cpuCoreWidget.Title = coreTitle
+	cpuGauge.Title = coreTitle
 
-	confirmModal = w.NewModal("CONFIRM KILL")
-	confirmModal.Title = " CONFIRM "
+	confirmModal = w.NewModal(i18n.T("TUI_ConfirmKillBody"))
+	confirmModal.Title = i18n.T("TUI_ConfirmKill")
 	confirmModal.Border = true
 	confirmModal.BorderRounded = true
 	confirmModal.BorderStyle.Fg = ui.ColorRed
@@ -205,10 +202,10 @@ func setupUI() {
 	confirmModal.TextStyle.Bg = ui.ColorBlack
 	confirmModal.ActiveButtonIndex = 1 // Default to No (Safe)
 
-	_ = confirmModal.AddButton("Yes", func() {
+	_ = confirmModal.AddButton(i18n.T("TUI_ConfirmYes"), func() {
 		// Callback logic will be handled elsewhere or reused
 	})
-	_ = confirmModal.AddButton("No", func() {
+	_ = confirmModal.AddButton(i18n.T("TUI_ConfirmNo"), func() {
 		// Callback logic
 	})
 }
@@ -217,7 +214,7 @@ func updateModelText() {
 	appleSiliconModel := getSOCInfo()
 	modelName := appleSiliconModel.Name
 	if modelName == "" {
-		modelName = "Unknown Model"
+		modelName = i18n.T("TUI_UnknownModel")
 	}
 	eCoreCount := appleSiliconModel.ECoreCount
 	pCoreCount := appleSiliconModel.PCoreCount
@@ -231,24 +228,29 @@ func updateModelText() {
 
 	totalCores := eCoreCount + pCoreCount + sCoreCount
 	var coreLines string
+	cBase := i18n.T("TUI_Cores")
+	cE := i18n.T("TUI_ECores")
+	cP := i18n.T("TUI_PCores")
+	cS := i18n.T("TUI_SCores")
+
 	if eCoreCount > 0 && sCoreCount > 0 {
-		coreLines = fmt.Sprintf("%d Cores\n%d E-Cores\n%d P-Cores\n%d S-Cores",
+		coreLines = fmt.Sprintf(cBase+"\n"+cE+"\n"+cP+"\n"+cS,
 			totalCores, eCoreCount, pCoreCount, sCoreCount)
 	} else if sCoreCount > 0 {
-		coreLines = fmt.Sprintf("%d Cores\n%d P-Cores\n%d S-Cores",
+		coreLines = fmt.Sprintf(cBase+"\n"+cP+"\n"+cS,
 			totalCores, pCoreCount, sCoreCount)
 	} else if eCoreCount > 0 {
-		coreLines = fmt.Sprintf("%d Cores\n%d E-Cores\n%d P-Cores",
+		coreLines = fmt.Sprintf(cBase+"\n"+cE+"\n"+cP,
 			totalCores, eCoreCount, pCoreCount)
 	} else {
-		coreLines = fmt.Sprintf("%d Cores\n%d P-Cores",
+		coreLines = fmt.Sprintf(cBase+"\n"+cP,
 			totalCores, pCoreCount)
 	}
 
-	modelText.Text = fmt.Sprintf("%s\n%s\n%s GPU Cores",
+	modelText.Text = fmt.Sprintf("%s\n%s\n%s",
 		modelName,
 		coreLines,
-		gpuCoreCountStr,
+		fmt.Sprintf(i18n.T("TUI_GPUCores"), gpuCoreCountStr),
 	)
 }
 
@@ -309,51 +311,7 @@ func updateHelpText() {
 		prometheusStatus = fmt.Sprintf("Enabled (Port: %s)", prometheusPort)
 	}
 	fullText := fmt.Sprintf(
-		"mactop is open source monitoring tool for Apple Silicon authored by Carsen Klock in Go Lang!\n\n"+
-			"Repo: github.com/metaspartan/mactop\n\n"+
-			"----Current Settings----\n"+
-			"Prometheus Metrics: %s\n"+
-			"Version: %s\n"+
-			"Layout: %s\n"+
-			"Foreground Color: %s\n"+
-			"Background Color: %s\n"+
-			"Update Interval: %dms\n\n"+
-			"----Controls----\n"+
-			"- r: Refresh the UI data manually\n"+
-			"- c: Cycle through UI color themes\n"+
-			"- b: Cycle through UI background colors\n"+
-			"- p: Toggle party mode (color cycling)\n"+
-			"- l: Cycle through the 18 available layouts\n"+
-			"- i: Toggle information layout\n"+
-			"- Shift + F: Toggle fan control & thermals layout\n"+
-			"- F9: Kill selected process (y/n confirm)\n"+
-			"- f: Freeze the process list\n"+
-			"- /: Search process list\n"+
-			"- g/G: Jump to top/bottom of process list\n"+
-			"- + or -: Adjust update interval (faster/slower)\n"+
-			"- h or ?: Toggle this help menu\n"+
-			"- j/k or ↓/↑: Scroll help text\n"+
-			"- q or <C-c>: Quit the application\n\n"+
-			"----Start Flags----\n"+
-			"--help, -h: Show this help menu\n"+
-			"--version, -v: Show the version of mactop\n"+
-			"--interval, -i: Set the update interval in milliseconds. Default is 1000.\n"+
-			"--prometheus, -p: Set and enable a Prometheus metrics port. Default is none. (e.g. --prometheus=9090)\n"+
-			"--headless: Run in headless mode (no TUI, output to stdout)\n"+
-			"--format: Output format for headless mode (json, yaml, xml, csv, toon). Default is json.\n"+
-			"--pretty: Pretty print output in headless mode\n"+
-			"--count: Number of samples to collect in headless mode (0 = infinite)\n"+
-			"--dump-ioreport, -d: Dump all available IOReport channels and exit\n"+
-			"--unit-network: Network unit: auto, byte, kb, mb, gb (default: auto)\n"+
-			"--unit-disk: Disk unit: auto, byte, kb, mb, gb (default: auto)\n"+
-			"--unit-temp: Temperature unit: celsius, fahrenheit (default: celsius)\n"+
-			"--foreground: Set the UI foreground color (named or hex, e.g., green, #9580FF)\n"+
-			"--bg: Set the UI background color (named or hex, e.g., mocha-base, #22212C)\n"+
-			"--pid: Monitor a specific process by PID (e.g., --pid 1234)\n"+
-			"--fan-control: Enable interactive fan speed control (Writes to SMC, use with caution*)\n"+
-			"--menubar: Run as a macOS menu bar status item (no TUI)\n\n"+
-			"Theme File: Create ~/.mactop/theme.json for custom colors:\n"+
-			"{\"foreground\": \"#9580FF\", \"background\": \"#22212C\"}\n\n",
+		i18n.T("Help_FullText"),
 		prometheusStatus,
 		version,
 		currentConfig.DefaultLayout,
@@ -403,7 +361,7 @@ func updateHelpText() {
 	// Top indicator (only if scrolling is active)
 	if maxOffset > 0 {
 		if helpScrollOffset > 0 {
-			fmt.Fprintf(&finalBuilder, "[↑ Scroll up (k/↑)](fg:%s)\n", tc)
+			fmt.Fprintf(&finalBuilder, "[%s (k/↑)](fg:%s)\n", i18n.T("Info_ScrollUp"), tc)
 		} else {
 			finalBuilder.WriteString("\n") // Spacer
 		}
@@ -415,7 +373,7 @@ func updateHelpText() {
 	// Bottom indicator (only if scrolling is active)
 	if maxOffset > 0 {
 		if helpScrollOffset < maxOffset {
-			fmt.Fprintf(&finalBuilder, "\n[↓ Scroll down (j/↓)](fg:%s)", tc)
+			fmt.Fprintf(&finalBuilder, "\n[%s (j/↓)](fg:%s)", i18n.T("Info_ScrollDown"), tc)
 		} else {
 			finalBuilder.WriteString("\n") // Spacer
 		}
@@ -579,6 +537,10 @@ func runAlternateMode() bool {
 		DumpIOReportDebug()
 		return true
 	}
+	if dumpFPS {
+		DumpDisplayFPSDiagnostics()
+		return true
+	}
 	if menubarWorker {
 		startMenuBarWorker()
 		return true
@@ -594,9 +556,85 @@ func runAlternateMode() bool {
 	return false
 }
 
+// renderLoadingScreen shows a branded loading message centered on screen.
+// Called immediately after ui.Init() to give instant visual feedback while
+// metrics subsystems initialize in the background.
+func renderLoadingScreen() {
+	termWidth, termHeight := ui.TerminalDimensions()
+
+	loadingBlock := ui.NewBlock()
+	loadingBlock.BorderRounded = true
+	loadingBlock.Title = i18n.T("TUI_MactopTitle")
+	loadingBlock.TitleRight = " " + version + " "
+	loadingBlock.TitleAlignment = ui.AlignLeft
+	loadingBlock.BorderStyle = ui.NewStyle(ui.ColorGreen)
+	loadingBlock.TitleStyle = ui.NewStyle(ui.ColorGreen)
+	loadingBlock.SetRect(0, 0, termWidth, termHeight)
+
+	loadingText := w.NewParagraph()
+	loadingText.Border = false
+
+	// Build vertically centered text: pad with newlines to reach middle
+	innerHeight := termHeight - 2 // subtract outer block borders
+	var topPad strings.Builder
+	if innerHeight > 3 {
+		for i := 0; i < (innerHeight/2)-1; i++ {
+			topPad.WriteString("\n")
+		}
+	}
+
+	// Horizontally center the loading text manually with spaces
+	msg := i18n.T("TUI_Loading")
+	msgWidth := runewidth.StringWidth(msg)
+	innerWidth := termWidth - 2 // subtract outer block borders
+	var leftPad strings.Builder
+	if innerWidth > msgWidth {
+		for i := 0; i < (innerWidth-msgWidth)/2; i++ {
+			leftPad.WriteString(" ")
+		}
+	}
+
+	loadingText.Text = topPad.String() + leftPad.String() + msg
+	loadingText.TextStyle = ui.NewStyle(ui.ColorGreen)
+	loadingText.SetRect(1, 1, termWidth-1, termHeight-1)
+
+	ui.Clear()
+	ui.Render(loadingBlock, loadingText)
+}
+
+// drainSeededMetrics consumes the initial metrics pushed by seedInitialMetrics
+// and populates all UI widgets so the first render shows real data.
+func drainSeededMetrics() {
+	select {
+	case cpuMetrics := <-cpuMetricsChan:
+		lastCPUMetrics = cpuMetrics
+		updateCPUUI(cpuMetrics)
+		updateTotalPowerChart(cpuMetrics.PackageW)
+	default:
+	}
+	select {
+	case gpuMetrics := <-gpuMetricsChan:
+		lastGPUMetrics = gpuMetrics
+		updateGPUUI(gpuMetrics)
+	default:
+	}
+	select {
+	case netdiskMetrics := <-netdiskMetricsChan:
+		lastNetDiskMetrics = netdiskMetrics
+		updateNetDiskUI(netdiskMetrics)
+	default:
+	}
+	select {
+	case processes := <-processMetricsChan:
+		lastProcesses = processes
+		updateProcessList()
+	default:
+	}
+}
+
 // seedInitialMetrics takes a quick sample and pushes initial values into the metric channels.
 func seedInitialMetrics() {
-	m := sampleSocMetrics(100)
+	m := sampleSocMetrics(50)
 	_, throttled := getThermalStateString()
 	componentSum := m.TotalPower
 	totalPower := componentSum
@@ -642,6 +680,13 @@ func seedInitialMetrics() {
 }
 
 func Run() {
+	// Pre-resolve language from CLI args / env so that early-exit legacy flags
+	// (--version, --help, --dump-ioreport, --test) honor --lang. This is a
+	// best-effort scan since flag.Parse() hasn't run yet; the full priority
+	// chain (CLI > env > config > system) is re-applied after loadConfig().
+	earlyLang := earlyResolveLanguage()
+	i18n.Init(earlyLang)
+
 	colorName, interval, setColor, setInterval := handleLegacyFlags()
 
 	logfile, err := setupLogfile()
@@ -662,6 +707,15 @@ func Run() {
 
 	flag.Parse()
 
+	// Initialize i18n engine with override priorities
+	resolvedLanguage = currentConfig.Language
+	if cliLanguage != "" {
+		resolvedLanguage = cliLanguage // CLI overrides config.json
+	} else if envLang := os.Getenv("MACTOP_LANG"); envLang != "" {
+		resolvedLanguage = envLang
+	}
+	i18n.Init(resolvedLanguage)
+
 	// If cli.go didn't catch --foreground (e.g., because it used an '=' sign like --foreground=green)
 	// then flag.Parse() will have populated cliFgColor. Update colorName and setColor.
 	if !setColor && cliFgColor != "" {
@@ -681,9 +735,13 @@ func Run() {
 	IsLightMode = detectLightMode()
 
 	if err := ui.Init(); err != nil {
-		stderrLogger.Fatalf("failed to initialize termui: %v", err)
+		stderrLogger.Fatalf("failed to initialize gotui: %v", err)
 	}
 	defer ui.Close()
+
+	// Show branded loading screen immediately — gives instant visual feedback
+	// while metrics subsystems initialize (especially DRAM BW calibration on M5+).
+	renderLoadingScreen()
 
 	if err := initSocMetrics(); err != nil {
 		stderrLogger.Fatalf("failed to initialize metrics: %v", err)
@@ -702,13 +760,28 @@ func Run() {
 	setupGrid()
 	termWidth, termHeight := ui.TerminalDimensions()
 	setupMainBlockLayout(termWidth, termHeight)
-	renderUI()
 
+	// Seed metrics and consume them to populate all widgets BEFORE the first render.
+	// This ensures users see a fully-populated TUI instead of blank/zero gauges.
 	seedInitialMetrics()
+	drainSeededMetrics()
+	updateInfoUI()
+
+	// Transition from loading screen to full TUI
+	ui.Clear()
+	renderUI()
 
 	triggerProcessCollectionChan := make(chan struct{}, 1)
 
 	startBackgroundWorkers()
+
+	// Ensure worker processes are killed on SIGINT/SIGTERM (e.g. terminal close)
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		<-sigCh
+		shutdownAndExit(false)
+	}()
 
 	go collectMetrics(done, cpuMetricsChan, gpuMetricsChan, tbNetStatsChan, triggerProcessCollectionChan)
 	go collectProcessMetrics(done, processMetricsChan, triggerProcessCollectionChan)
@@ -787,9 +860,9 @@ func updateTotalPowerChart(watts float64) {
 	}
 	sparkline.Data = powerValues
 	sparkline.MaxVal = 8
-	sparklineGroup.Title = fmt.Sprintf("%.2f W Total (Max: %.2f W)", watts, maxPowerSeen)
+	sparklineGroup.Title = fmt.Sprintf(i18n.T("Metrics_PowerSparklineGroup"), watts, maxPowerSeen)
 	thermalStr, _ := getThermalStateString()
-	sparkline.Title = fmt.Sprintf("Avg: %.2f W | %s", avgWatts, thermalStr)
+	sparkline.Title = fmt.Sprintf(i18n.T("Metrics_PowerSparklineTitle"), avgWatts, thermalStr)
 
 	// Update power history StepChart - use terminal width for reliable slicing
 	if powerHistoryChart != nil {
@@ -802,7 +875,7 @@ func updateTotalPowerChart(watts float64) {
 		powerHistoryChart.Data = [][]float64{visibleData}
 		powerHistoryChart.MaxVal = maxPowerSeen * 1.1
 		powerHistoryChart.DataLabels = []string{fmt.Sprintf("%.1fW", watts)}
-		powerHistoryChart.Title = fmt.Sprintf("Power History (Avg: %.1fW, Max: %.1fW)", avgWatts, maxPowerSeen)
+		powerHistoryChart.Title = fmt.Sprintf(i18n.T("Metrics_PowerHistoryDetail"), avgWatts, maxPowerSeen)
 	}
 }
 
@@ -868,7 +941,7 @@ func updateCPUHistory(totalUsage float64) {
 			cpuHistoryChart.Data = [][]float64{visibleData}
 			cpuHistoryChart.MaxVal = scaleMax
 			cpuHistoryChart.DataLabels = []string{fmt.Sprintf("%.0f%%", totalUsage)}
-			cpuHistoryChart.Title = fmt.Sprintf("CPU Usage History (%.1f%%)", totalUsage)
+			cpuHistoryChart.Title = fmt.Sprintf(i18n.T("Metrics_CPUHistoryDetail"), totalUsage)
 		}
 	}
 }
@@ -902,8 +975,7 @@ func updateMemoryHistory(memoryMetrics MemoryMetrics) {
 			fmt.Sprintf("%.1fGB", usedGB),
 			fmt.Sprintf("%.1fGB", swapGB),
 		}
-		memoryHistoryChart.Title = fmt.Sprintf("Mem: %.1f/%.1fGB, Swap: %.1fGB",
-			usedGB, totalGB, swapGB)
+		memoryHistoryChart.Title = fmt.Sprintf(i18n.T("Metrics_MemoryHistoryDetail"), usedGB, totalGB, swapGB)
 	}
 }
 
@@ -951,9 +1023,9 @@ func updateCPUGaugeTitles(totalUsage float64, cpuMetrics CPUMetrics) {
 	totalCPUCores := cpuCoreWidget.eCoreCount + cpuCoreWidget.pCoreCount + cpuCoreWidget.sCoreCount
 	cpuFreqStr := formatCPUFreq(cpuMetrics)
 	if isCompactLayout() {
-		cpuGauge.Title = fmt.Sprintf("CPU %.0f%% %s", totalUsage, formatTemp(cpuMetrics.CPUTemp))
+		cpuGauge.Title = fmt.Sprintf(i18n.T("Metrics_CPUGaugeCompact"), totalUsage, formatTemp(cpuMetrics.CPUTemp))
 	} else {
-		cpuGauge.Title = fmt.Sprintf("%d Cores %s %.2f%%%s (%s)",
+		cpuGauge.Title = fmt.Sprintf(i18n.T("Metrics_CPUGauge"),
 			totalCPUCores,
 			coreSummary,
 			totalUsage,
@@ -961,7 +1033,7 @@ func updateCPUGaugeTitles(totalUsage float64, cpuMetrics CPUMetrics) {
 			formatTemp(cpuMetrics.CPUTemp),
 		)
 	}
-	cpuCoreWidget.Title = fmt.Sprintf("%d Cores %s %.2f%%%s (%s)",
+	cpuCoreWidget.Title = fmt.Sprintf(i18n.T("Metrics_CPUGauge"),
 		totalCPUCores,
 		coreSummary,
 		totalUsage,
@@ -970,19 +1042,19 @@ func updateCPUGaugeTitles(totalUsage float64, cpuMetrics CPUMetrics) {
 	)
 	aneUtil := float64(cpuMetrics.ANEW / 1 / 8.0 * 100)
 	if isCompactLayout() {
-		aneGauge.Title = fmt.Sprintf("ANE %.1fW", cpuMetrics.ANEW)
+		aneGauge.Title = fmt.Sprintf(i18n.T("Metrics_ANEGaugeCompact"), cpuMetrics.ANEW)
 	} else {
-		aneGauge.Title = fmt.Sprintf("ANE Usage: %.2f%% @ %.2f W", aneUtil, cpuMetrics.ANEW)
+		aneGauge.Title = fmt.Sprintf(i18n.T("Metrics_ANEGauge"), aneUtil, cpuMetrics.ANEW)
 	}
 	aneGauge.Percent = int(aneUtil)
 }
 
 func updatePowerChartText(cpuMetrics CPUMetrics, thermalStr string) {
-	PowerChart.Title = "Power Usage"
+	PowerChart.Title = i18n.T("TUI_PowerUsage")
 
 	if isCompactLayout() {
-		PowerChart.Title = "Power"
-		PowerChart.Text = fmt.Sprintf("C:%.1fW G:%.1fW\nA:%.1fW D:%.1fW\nTot:%.1fW %s",
+		PowerChart.Title = i18n.T("Metrics_PowerChartTitleCompact")
+		PowerChart.Text = fmt.Sprintf(i18n.T("Metrics_PowerChartTextCompact"),
 			cpuMetrics.CPUW,
 			cpuMetrics.GPUW+cpuMetrics.GPUSRAMW,
 			cpuMetrics.ANEW,
@@ -994,7 +1066,7 @@ func updatePowerChartText(cpuMetrics CPUMetrics, thermalStr string) {
 		uptimeSeconds, _ := GetNativeUptime()
 		uptimeStr := formatTime(float64(uptimeSeconds))
 
-		PowerChart.Text = fmt.Sprintf("CPU: %.2f W | GPU: %.2f W\nANE: %.2f W | DRAM: %.2f W\nSystem: %.2f W\nTotal: %.2f W\nThermals: %s\nUptime: %s",
+		PowerChart.Text = fmt.Sprintf(i18n.T("Metrics_PowerChartText"),
 			cpuMetrics.CPUW,
 			cpuMetrics.GPUW+cpuMetrics.GPUSRAMW,
 			cpuMetrics.ANEW,
@@ -1009,9 +1081,9 @@ func updatePowerChartText(cpuMetrics CPUMetrics, thermalStr string) {
 
 func updateMemoryGaugeTitle(memoryMetrics MemoryMetrics) {
 	if isCompactLayout() {
-		memoryGauge.Title = fmt.Sprintf("Mem %.0f/%.0fG BW %.1f GB/s", float64(memoryMetrics.Used)/1024/1024/1024, float64(memoryMetrics.Total)/1024/1024/1024, lastCPUMetrics.DRAMBWCombined)
+		memoryGauge.Title = fmt.Sprintf(i18n.T("Metrics_MemGaugeCompact"), float64(memoryMetrics.Used)/1024/1024/1024, float64(memoryMetrics.Total)/1024/1024/1024, lastCPUMetrics.DRAMBWCombined)
 	} else {
-		memoryGauge.Title = fmt.Sprintf("Mem: %.2f GB / %.2f GB (Swap: %.2f/%.2f GB) BW: %.1f GB/s", float64(memoryMetrics.Used)/1024/1024/1024, float64(memoryMetrics.Total)/1024/1024/1024, float64(memoryMetrics.SwapUsed)/1024/1024/1024, float64(memoryMetrics.SwapTotal)/1024/1024/1024, lastCPUMetrics.DRAMBWCombined)
+		memoryGauge.Title = fmt.Sprintf(i18n.T("Metrics_MemGauge"), float64(memoryMetrics.Used)/1024/1024/1024, float64(memoryMetrics.Total)/1024/1024/1024, float64(memoryMetrics.SwapUsed)/1024/1024/1024, float64(memoryMetrics.SwapTotal)/1024/1024/1024, lastCPUMetrics.DRAMBWCombined)
 	}
 }
 
@@ -1042,14 +1114,13 @@ func calculateCoreAverages(coreUsages []float64) (ecoreAvg, pcoreAvg, scoreAvg f
 }
 
 func updateCPUPrometheusMetrics(totalUsage, ecoreAvg, pcoreAvg, scoreAvg float64, coreUsages []float64, cpuMetrics CPUMetrics, memoryMetrics MemoryMetrics) {
-	thermalStateVal, _ := getThermalStateString()
 	thermalStateNum := 0
-	switch thermalStateVal {
-	case "Fair":
+	switch getThermalStateLevel() {
+	case thermalStateFair:
 		thermalStateNum = 1
-	case "Serious":
+	case thermalStateSerious:
 		thermalStateNum = 2
-	case "Critical":
+	case thermalStateCritical:
 		thermalStateNum = 3
 	}
 
@@ -1095,15 +1166,15 @@ func updateCPUPrometheusMetrics(totalUsage, ecoreAvg, pcoreAvg, scoreAvg float64
 func updateGPUUI(gpuMetrics GPUMetrics) {
 	if isCompactLayout() {
 		if gpuMetrics.Temp > 0 {
-			gpuGauge.Title = fmt.Sprintf("GPU %d%% %s", int(gpuMetrics.ActivePercent), formatTemp(float64(gpuMetrics.Temp)))
+			gpuGauge.Title = fmt.Sprintf(i18n.T("Metrics_GPUGaugeCompactTemp"), int(gpuMetrics.ActivePercent), formatTemp(float64(gpuMetrics.Temp)))
 		} else {
-			gpuGauge.Title = fmt.Sprintf("GPU %d%% %dMHz", int(gpuMetrics.ActivePercent), gpuMetrics.FreqMHz)
+			gpuGauge.Title = fmt.Sprintf(i18n.T("Metrics_GPUGaugeCompactFreq"), int(gpuMetrics.ActivePercent), gpuMetrics.FreqMHz)
 		}
 	} else {
 		if gpuMetrics.Temp > 0 {
-			gpuGauge.Title = fmt.Sprintf("GPU Usage: %d%% @ %d MHz (%s)", int(gpuMetrics.ActivePercent), gpuMetrics.FreqMHz, formatTemp(float64(gpuMetrics.Temp)))
+			gpuGauge.Title = fmt.Sprintf(i18n.T("Metrics_GPUGaugeTemp"), int(gpuMetrics.ActivePercent), gpuMetrics.FreqMHz, formatTemp(float64(gpuMetrics.Temp)))
 		} else {
-			gpuGauge.Title = fmt.Sprintf("GPU Usage: %d%% @ %d MHz", int(gpuMetrics.ActivePercent), gpuMetrics.FreqMHz)
+			gpuGauge.Title = fmt.Sprintf(i18n.T("Metrics_GPUGaugeFreq"), int(gpuMetrics.ActivePercent), gpuMetrics.FreqMHz)
 		}
 	}
 	gpuGauge.Percent = int(gpuMetrics.ActivePercent)
@@ -1129,9 +1200,9 @@ func updateGPUUI(gpuMetrics GPUMetrics) {
 	gpuSparkline.Data = gpuValues
 	gpuSparkline.MaxVal = 100 // GPU usage is 0-100%
 	if isCompactLayout() {
-		gpuSparklineGroup.Title = fmt.Sprintf("GPU %d%% (%.0f%%)", int(gpuMetrics.ActivePercent), avgGPU)
+		gpuSparklineGroup.Title = fmt.Sprintf(i18n.T("Metrics_GPUSparklineCompact"), int(gpuMetrics.ActivePercent), avgGPU)
 	} else {
-		gpuSparklineGroup.Title = fmt.Sprintf("GPU History: %d%% (Avg: %.1f%%)", int(gpuMetrics.ActivePercent), avgGPU)
+		gpuSparklineGroup.Title = fmt.Sprintf(i18n.T("Metrics_GPUSparkline"), int(gpuMetrics.ActivePercent), avgGPU)
 	}
 
 	// Update GPU history StepChart - use terminal width for reliable slicing
@@ -1151,7 +1222,7 @@ func updateGPUUI(gpuMetrics GPUMetrics) {
 		gpuHistoryChart.Data = [][]float64{visibleData}
 		gpuHistoryChart.MaxVal = 100 // GPU usage is 0-100%
 		gpuHistoryChart.DataLabels = []string{fmt.Sprintf("%.0f%%", gpuMetrics.ActivePercent)}
-		gpuHistoryChart.Title = fmt.Sprintf("GPU Usage History (Avg: %.1f%%)", avgGPU)
+		gpuHistoryChart.Title = fmt.Sprintf(i18n.T("Metrics_GPUHistoryChart"), avgGPU)
 	}
 
 	if gpuMetrics.ActivePercent > 0 {
@@ -1225,25 +1296,29 @@ func updateNetDiskUI(netdiskMetrics NetDiskMetrics) {
 	linkInfo := getBestLinkInfoString(ethInfo, wifiInfo)
 
 	if linkInfo != "" {
-		fmt.Fprintf(&sb, "Net (%s): ↑ %s/s ↓ %s/s\n", linkInfo, netOut, netIn)
+		fmt.Fprintf(&sb, i18n.T("Metrics_NetLink")+"\n", linkInfo, netOut, netIn)
 	} else {
-		fmt.Fprintf(&sb, "Net: ↑ %s/s ↓ %s/s\n", netOut, netIn)
+		fmt.Fprintf(&sb, i18n.T("Metrics_Net")+"\n", netOut, netIn)
 	}
 
 	diskRead := formatBytes(netdiskMetrics.ReadKBytesPerSec*1024, diskUnit)
 	diskWrite := formatBytes(netdiskMetrics.WriteKBytesPerSec*1024, diskUnit)
-	fmt.Fprintf(&sb, "I/O: R %s/s W %s/s\n", diskRead, diskWrite)
+	fmt.Fprintf(&sb, i18n.T("Metrics_IO")+"\n", diskRead, diskWrite)
 
 	volumes := getVolumes()
 	for i, v := range volumes {
 		if i >= 3 {
 			break
 		}
-		used := formatBytes(v.Used*1024*1024*1024, diskUnit)
-		total := formatBytes(v.Total*1024*1024*1024, diskUnit)
-		avail := formatBytes(v.Available*1024*1024*1024, diskUnit)
+		// VolumeInfo fields are stored in decimal GB (bytes / 1e9). Convert
+		// back to raw bytes and format with decimal units to match macOS
+		// Finder / Disk Utility (e.g. an 8TB drive shows as ~8.0 TB, not
+		// 7.3 TiB).
+		used := formatBytesDecimal(v.Used*1e9, diskUnit)
+		total := formatBytesDecimal(v.Total*1e9, diskUnit)
+		avail := formatBytesDecimal(v.Available*1e9, diskUnit)
 
-		fmt.Fprintf(&sb, "%s: %s/%s (%s free)\n", v.Name, used, total, avail)
+		fmt.Fprintf(&sb, i18n.T("Metrics_DiskFree")+"\n", v.Name, used, total, avail)
 	}
 	NetworkInfo.Text = strings.TrimSuffix(sb.String(), "\n")
 }
@@ -1261,9 +1336,9 @@ func updateTBNetUI(tbStats []ThunderboltNetStats) {
 	lastTBInBytes = totalBytesIn
 	lastTBOutBytes = totalBytesOut
 	rdmaStatus := CheckRDMAAvailable()
-	rdmaLabel := "RDMA: Disabled"
+	rdmaLabel := fmt.Sprintf("%s: %s", i18n.T("Info_RDMA"), i18n.T("Info_Disabled"))
 	if rdmaStatus.Available {
-		rdmaLabel = "RDMA: Enabled"
+		rdmaLabel = fmt.Sprintf("%s: %s", i18n.T("Info_RDMA"), i18n.T("Info_Enabled"))
 	}
 
 	// Use formatBytes for consistent unit display
@@ -1271,18 +1346,18 @@ func updateTBNetUI(tbStats []ThunderboltNetStats) {
 	outStr := formatBytes(totalBytesOut, networkUnit)
 
 	// Set simple title
-	tbInfoParagraph.Title = "Thunderbolt / RDMA"
+	tbInfoParagraph.Title = i18n.T("TUI_ThunderboltRDMA")
 
 	// Use cached device info
 	tbInfoMutex.Lock()
 	tbDeviceInfo := tbDeviceInfo
 	tbInfoMutex.Unlock()
 	if tbDeviceInfo == "" {
-		tbDeviceInfo = "Loading..."
+		tbDeviceInfo = i18n.T("TUI_Loading")
 	}
 
 	// Show RDMA status and bandwidth in text, above device list
-	tbInfoParagraph.Text = fmt.Sprintf("%s | TB Net: ↓%s/s ↑%s/s\n%s", rdmaLabel, inStr, outStr, tbDeviceInfo)
+	tbInfoParagraph.Text = fmt.Sprintf("%s | %s: ↓%s/s ↑%s/s\n%s", rdmaLabel, i18n.T("Info_TBNet"), inStr, outStr, tbDeviceInfo)
 
 	// Update TB Net sparklines with separate download/upload
 	// Shift values left and add new values
@@ -1310,7 +1385,7 @@ func updateTBNetUI(tbStats []ThunderboltNetStats) {
 
 	// Update sparklines and group title
 	if tbNetSparklineGroup != nil {
-		tbNetSparklineGroup.Title = fmt.Sprintf("TB Net: ↓%s/s ↑%s/s", inStr, outStr)
+		tbNetSparklineGroup.Title = fmt.Sprintf("%s: ↓%s/s ↑%s/s", i18n.T("Info_TBNet"), inStr, outStr)
 		if tbNetSparklineIn != nil {
 			tbNetSparklineIn.Data = tbNetInValues
 			tbNetSparklineIn.MaxVal = maxValIn * 1.1
@@ -1345,12 +1420,13 @@ func parseCommandLineFlags() {
 	flag.StringVar(&cliFgColor, "foreground", "", "Set the UI foreground color (named or hex, e.g., green, #9580FF)")
 	flag.StringVar(&cliBgColor, "bg", "", "Set the UI background color (named or hex, e.g., mocha-base, #22212C)")
 	flag.StringVar(&cliBgColor, "background", "", "Set the UI background color (alias for --bg)")
+	flag.StringVar(&cliLanguage, "lang", "", "Language override (e.g., en, es, ja)")
 	flag.StringVar(&networkUnit, "unit-network", "auto", "Network unit: auto, byte, kb, mb, gb")
 	flag.StringVar(&diskUnit, "unit-disk", "auto", "Disk unit: auto, byte, kb, mb, gb")
 	flag.StringVar(&tempUnit, "unit-temp", "celsius", "Temperature unit: celsius, fahrenheit")
 	flag.BoolVar(&menubar, "menubar", false, "Run as macOS menu bar status item (no TUI)")
 	flag.BoolVar(&menubarWorker, "menubar-worker", false, "Internal: Run as menu bar worker process")
-	flag.BoolVar(&overlay, "overlay", false, "Show floating overlay HUD window on top of all apps")
+	flag.BoolVar(&overlay, "overlay", false, "Show floating overlay HUD window on top of all apps (requires Screen Recording permission for FPS)")
 	flag.BoolVar(&overlayWorker, "overlay-worker", false, "Internal: Run as overlay worker process")
 	flag.StringVar(&overlaySections, "overlay-sections", "", "Comma-separated visible sections for overlay (e.g. cpu,gpu,memory)")
 	flag.Float64Var(&overlayOpacity, "overlay-opacity", 0.88, "Overlay window opacity (0.15-1.0)")
@@ -1358,6 +1434,7 @@ func parseCommandLineFlags() {
 	flag.BoolVar(&fanControl, "fan-control", false, "Enable interactive fan speed control (⚠️  writes to SMC)")
 	flag.BoolVar(&dumpTemps, "dump-temps", false, "Diagnostic: dump all raw SMC temperature keys and exit")
 	flag.BoolVar(&dumpDebug, "dump-debug", false, "Diagnostic: dump IOReport/HID/SMC/NVMe debug info and exit")
+	flag.BoolVar(&dumpFPS, "dump-fps", false, "Diagnostic: dump display info and test CGDisplayStream FPS at multiple sizes")
 }
 
 func setupMainBlockLayout(termWidth, termHeight int) {
@@ -1365,7 +1442,7 @@ func setupMainBlockLayout(termWidth, termHeight int) {
 	if termWidth < 93 {
 		mainBlock.TitleBottom = ""
 	} else {
-		mainBlock.TitleBottom = " Info: i | Layout: l | Color: c | BG: b | Exit: q "
+		mainBlock.TitleBottom = i18n.T("TUI_InfoLayoutColorExit")
 	}
 	if termWidth > 2 && termHeight > 2 {
 		grid.SetRect(1, 1, termWidth-1, termHeight-1)
@@ -1383,4 +1460,52 @@ func startBackgroundWorkers() {
 			stderrLogger.Printf("Failed to start overlay worker: %v\n", err)
 		}
 	}
+}
+
+// shutdownWorkers kills any running overlay/menubar worker processes.
+func shutdownWorkers() {
+	overlayMu.Lock()
+	if overlayWorkerStdin != nil {
+		overlayWorkerStdin.Close()
+		overlayWorkerStdin = nil
+	}
+	if overlayWorkerCmd != nil && overlayWorkerCmd.Process != nil {
+		overlayWorkerCmd.Process.Kill()
+		overlayWorkerCmd = nil
+	}
+	overlayMetricsEncoder = nil
+	overlayMu.Unlock()
+
+	menubarMu.Lock()
+	if menubarWorkerStdin != nil {
+		menubarWorkerStdin.Close()
+		menubarWorkerStdin = nil
+	}
+	if menubarWorkerCmd != nil && menubarWorkerCmd.Process != nil {
+		menubarWorkerCmd.Process.Kill()
+		menubarWorkerCmd = nil
+	}
+	menubarMetricsEncoder = nil
+	menubarMu.Unlock()
+}
+
+var shutdownOnce sync.Once
+
+func shutdownAndExit(closeDone bool) {
+	shutdownOnce.Do(func() {
+		if closeDone {
+			// Scope the recover to just close(done): if the channel is
+			// already closed and panics, swallow it inside this inner
+			// func so the rest of the shutdown sequence (workers, UI,
+			// os.Exit) still runs. A defer at the outer scope would
+			// abort the closure on panic, leaving subprocesses alive.
+			func() {
+				defer func() { _ = recover() }()
+				close(done)
+			}()
+		}
+		shutdownWorkers()
+		ui.Close()
+		os.Exit(0)
+	})
 }

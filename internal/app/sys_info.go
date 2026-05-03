@@ -9,11 +9,17 @@ import "C"
 
 import (
 	"fmt"
-	"os/exec"
 	"strconv"
 	"strings"
-	"syscall"
+	"sync"
 	"unsafe"
+
+	"github.com/metaspartan/mactop/v2/internal/i18n"
+)
+
+var (
+	cachedSOCInfoResult SystemInfo
+	socInfoOnce         sync.Once
 )
 
 type VolumeInfo struct {
@@ -86,8 +92,26 @@ func getVolumes() []VolumeInfo {
 }
 
 func getSOCInfo() SystemInfo {
+	socInfoOnce.Do(func() {
+		cachedSOCInfoResult = computeSOCInfo()
+	})
+	return cachedSOCInfoResult
+}
+
+func computeSOCInfo() SystemInfo {
 	cpuInfoDict := getCPUInfo()
-	coreTiers := getPerfLevelCores()
+
+	// Use authoritative core counts from BuildCoreLabels which matches the gauge
+	// and accurately cross-references IORegistry with sysctl perflevels.
+	_, eCount, pCount, sCount, _ := BuildCoreLabels()
+
+	// Fallback: if BuildCoreLabels failed (IORegistry unavailable), use sysctl directly
+	if eCount == 0 && pCount == 0 && sCount == 0 {
+		coreTiers := getPerfLevelCores()
+		eCount = coreTiers["E"]
+		pCount = coreTiers["P"]
+		sCount = coreTiers["S"]
+	}
 
 	coreCount, _ := strconv.Atoi(cpuInfoDict["machdep.cpu.core_count"])
 	gpuCoreCountStr := getGPUCores()
@@ -98,30 +122,59 @@ func getSOCInfo() SystemInfo {
 	return SystemInfo{
 		Name:         cpuInfoDict["machdep.cpu.brand_string"],
 		CoreCount:    coreCount,
-		ECoreCount:   coreTiers["E"],
-		PCoreCount:   coreTiers["P"],
-		SCoreCount:   coreTiers["S"],
+		ECoreCount:   eCount,
+		PCoreCount:   pCount,
+		SCoreCount:   sCount,
 		GPUCoreCount: gpuCoreCount,
 	}
 }
 
+// sysctlStringByName reads a sysctl string value directly via the C API,
+// avoiding the overhead of spawning an external process.
+func sysctlStringByName(name string) (string, error) {
+	cName := C.CString(name)
+	defer C.free(unsafe.Pointer(cName))
+
+	var size C.size_t
+	if C.sysctlbyname(cName, nil, &size, nil, 0) != 0 {
+		return "", fmt.Errorf("sysctl size query failed for %s", name)
+	}
+	buf := C.malloc(size)
+	defer C.free(buf)
+	if C.sysctlbyname(cName, buf, &size, nil, 0) != 0 {
+		return "", fmt.Errorf("sysctl value query failed for %s", name)
+	}
+	return C.GoString((*C.char)(buf)), nil
+}
+
+// sysctlIntByName reads a sysctl integer value directly via the C API.
+func sysctlIntByName(name string) (int, error) {
+	cName := C.CString(name)
+	defer C.free(unsafe.Pointer(cName))
+
+	var val C.int
+	size := C.size_t(unsafe.Sizeof(val))
+	if C.sysctlbyname(cName, unsafe.Pointer(&val), &size, nil, 0) != 0 {
+		return 0, fmt.Errorf("sysctl int query failed for %s", name)
+	}
+	return int(val), nil
+}
+
 func getCPUInfo() map[string]string {
-	out, err := exec.Command("sysctl", "machdep.cpu").Output()
-	if err != nil {
-		stderrLogger.Fatalf("failed to execute getCPUInfo() sysctl command: %v", err)
-	}
-	cpuInfo := string(out)
-	cpuInfoLines := strings.Split(cpuInfo, "\n")
-	dataFields := []string{"machdep.cpu.brand_string", "machdep.cpu.core_count"}
 	cpuInfoDict := make(map[string]string)
-	for _, line := range cpuInfoLines {
-		for _, field := range dataFields {
-			if strings.Contains(line, field) {
-				value := strings.TrimSpace(strings.Split(line, ":")[1])
-				cpuInfoDict[field] = value
-			}
-		}
+
+	brand, err := sysctlStringByName("machdep.cpu.brand_string")
+	if err != nil {
+		stderrLogger.Fatalf("failed to get CPU brand string: %v", err)
 	}
+	cpuInfoDict["machdep.cpu.brand_string"] = brand
+
+	coreCount, err := sysctlIntByName("machdep.cpu.core_count")
+	if err != nil {
+		stderrLogger.Fatalf("failed to get CPU core count: %v", err)
+	}
+	cpuInfoDict["machdep.cpu.core_count"] = strconv.Itoa(coreCount)
+
 	return cpuInfoDict
 }
 
@@ -131,38 +184,22 @@ func getCPUInfo() map[string]string {
 func getPerfLevelCores() map[string]int {
 	result := map[string]int{"E": 0, "P": 0, "S": 0}
 
-	// Get number of performance levels
-	nperfCmd := exec.Command("sysctl", "-n", "hw.nperflevels")
-	nperfCmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	nperfOut, err := nperfCmd.Output()
-	if err != nil {
-		// Fallback to legacy 2-level query
-		return getPerfLevelCoresLegacy()
-	}
-	nperflevels, _ := strconv.Atoi(strings.TrimSpace(string(nperfOut)))
-	if nperflevels == 0 {
+	// Get number of performance levels via direct sysctl (no subprocess)
+	nperflevels, err := sysctlIntByName("hw.nperflevels")
+	if err != nil || nperflevels == 0 {
 		return getPerfLevelCoresLegacy()
 	}
 
-	// Query each perflevel for its name and core count
+	// Query each perflevel for its name and core count via direct sysctl
 	for i := 0; i < nperflevels; i++ {
-		nameKey := fmt.Sprintf("hw.perflevel%d.name", i)
-		cpuKey := fmt.Sprintf("hw.perflevel%d.logicalcpu", i)
-
-		cmd := exec.Command("sysctl", "-n", nameKey, cpuKey)
-		cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-		out, err := cmd.Output()
+		name, err := sysctlStringByName(fmt.Sprintf("hw.perflevel%d.name", i))
 		if err != nil {
 			continue
 		}
-
-		lines := strings.Split(strings.TrimSpace(string(out)), "\n")
-		if len(lines) < 2 {
+		count, err := sysctlIntByName(fmt.Sprintf("hw.perflevel%d.logicalcpu", i))
+		if err != nil {
 			continue
 		}
-
-		name := strings.TrimSpace(lines[0])
-		count, _ := strconv.Atoi(strings.TrimSpace(lines[1]))
 
 		// Map perflevel names to core type letters
 		switch {
@@ -185,21 +222,13 @@ func getPerfLevelCores() map[string]int {
 func getPerfLevelCoresLegacy() map[string]int {
 	result := map[string]int{"E": 0, "P": 0, "S": 0}
 
-	cmd := exec.Command("sysctl", "hw.perflevel0.logicalcpu", "hw.perflevel1.logicalcpu")
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	out, err := cmd.Output()
-	if err != nil {
-		return result
+	pVal, err := sysctlIntByName("hw.perflevel0.logicalcpu")
+	if err == nil {
+		result["P"] = pVal
 	}
-	lines := strings.Split(string(out), "\n")
-	for _, line := range lines {
-		if strings.Contains(line, "hw.perflevel0.logicalcpu") {
-			val, _ := strconv.Atoi(strings.TrimSpace(strings.Split(line, ":")[1]))
-			result["P"] = val
-		} else if strings.Contains(line, "hw.perflevel1.logicalcpu") {
-			val, _ := strconv.Atoi(strings.TrimSpace(strings.Split(line, ":")[1]))
-			result["E"] = val
-		}
+	eVal, err := sysctlIntByName("hw.perflevel1.logicalcpu")
+	if err == nil {
+		result["E"] = eVal
 	}
 	return result
 }
@@ -224,7 +253,17 @@ func getGPUCores() string {
 	return "?"
 }
 
-func getThermalStateString() (string, bool) {
+type thermalStateLevel int
+
+const (
+	thermalStateUnknown  thermalStateLevel = -1
+	thermalStateNominal  thermalStateLevel = 0
+	thermalStateFair     thermalStateLevel = 1
+	thermalStateSerious  thermalStateLevel = 2
+	thermalStateCritical thermalStateLevel = 3
+)
+
+func getThermalStateLevel() thermalStateLevel {
 	name := C.CString("machdep.xcpm.cpu_thermal_level")
 	defer C.free(unsafe.Pointer(name))
 
@@ -232,19 +271,48 @@ func getThermalStateString() (string, bool) {
 	size := C.size_t(unsafe.Sizeof(val))
 
 	if C.sysctlbyname(name, unsafe.Pointer(&val), &size, nil, 0) != 0 {
-		return "Normal", false
+		return thermalStateNominal
 	}
 
 	switch val {
 	case 0:
-		return "Normal", false
+		return thermalStateNominal
 	case 1:
-		return "Fair", true
+		return thermalStateFair
 	case 2:
-		return "Serious", true
+		return thermalStateSerious
 	case 3:
-		return "Critical", true
+		return thermalStateCritical
 	default:
-		return "Normal", false
+		return thermalStateUnknown
 	}
+}
+
+func thermalStateString(level thermalStateLevel) string {
+	switch level {
+	case thermalStateNominal:
+		return i18n.T("Metrics_ThermalNominal")
+	case thermalStateFair:
+		return i18n.T("Metrics_ThermalFair")
+	case thermalStateSerious:
+		return i18n.T("Metrics_ThermalSerious")
+	case thermalStateCritical:
+		return i18n.T("Metrics_ThermalCritical")
+	default:
+		return i18n.T("Metrics_ThermalUnknown")
+	}
+}
+
+func thermalStateThrottled(level thermalStateLevel) bool {
+	switch level {
+	case thermalStateFair, thermalStateSerious, thermalStateCritical:
+		return true
+	default:
+		return false
+	}
+}
+
+func getThermalStateString() (string, bool) {
+	level := getThermalStateLevel()
+	return thermalStateString(level), thermalStateThrottled(level)
 }

@@ -1,0 +1,357 @@
+Overlay_FPS = "FPS"
+Overlay_FrameInfo = "מרווח פריימים"
+Overlay_CPU = "CPU"
+Overlay_GPU = "GPU"
+Overlay_ANE = "ANE"
+Overlay_Memory = "זיכרון"
+Overlay_Swap = "Swap"
+Overlay_Power = "הספק"
+Overlay_Bandwidth = "רוחב פס DRAM"
+Overlay_GPUFreq = "תדר GPU"
+Overlay_Temps = "טמפרטורות"
+Overlay_Thermal = "מצב תרמי"
+Overlay_Fans = "מאווררים"
+Overlay_Network = "רשת"
+
+TUI_InfoLayoutColorExit = " מידע: i | פריסה: l | צבע: c | רקע: b | יציאה: q "
+TUI_LayoutInfo = " %d/%d פריסה (%s) "
+TUI_LayoutInfoShort = " %d/%d "
+TUI_ModelInfo = "דגם: %s"
+TUI_CoresInfo = "%d ליבות (%dP, %dE, %dS) | GPU: %d ליבות | %s"
+TUI_TotalPower = "הספק כולל: %.1fW"
+TUI_AppTotalPower = "סה״כ: %.1fW | CPU: %.1fW (ANE: %.1fW) GPU: %.1fW"
+TUI_AppleSilicon = "Apple Silicon"
+TUI_HelpMenu = "תפריט עזרה mactop"
+TUI_Loading = "טוען..."
+TUI_LoadingTB = "טוען מידע Thunderbolt..."
+TUI_Fans = " ⊚ מאווררים "
+TUI_Temperatures = " 🌡 טמפרטורות "
+TUI_ProcessList = "רשימת תהליכים"
+TUI_UnknownModel = "דגם לא ידוע"
+TUI_ECPUUsage = "שימוש E-CPU"
+TUI_PCPUUsage = "שימוש P-CPU"
+TUI_GPUUsage = "שימוש GPU"
+TUI_MemoryUsage = "שימוש בזיכרון"
+TUI_ANEUsage = "שימוש ANE"
+TUI_PowerUsage = "צריכת חשמל"
+TUI_NetworkDisk = "רשת ודיסק"
+TUI_ThunderboltRDMA = "Thunderbolt / RDMA"
+TUI_MactopTitle = " mactop "
+TUI_GPUUsageHistory = "היסטוריית שימוש GPU"
+TUI_TBNet = "TB רשת ↓0/s ↑0/s"
+TUI_PowerHistory = "היסטוריית הספק"
+TUI_MemorySwapHistory = "היסטוריית זיכרון/Swap"
+TUI_CPUUsageHistory = "היסטוריית שימוש CPU"
+TUI_ConfirmKill = " אישור "
+TUI_ConfirmKillBody = "אישור סיום תהליך"
+TUI_ConfirmYes = "כן"
+TUI_ConfirmNo = "לא"
+
+Info_OS = "מערכת"
+Info_Host = "מארח"
+Info_Kernel = "קרנל"
+Info_Uptime = "זמן פעילות"
+Info_Shell = "Shell"
+Info_CPU = "CPU"
+Info_GPU = "GPU"
+Info_TFLOPs = "TFLOPs"
+Info_Memory = "זיכרון"
+Info_Swap = "Swap"
+Info_CPUUsage = "שימוש CPU"
+Info_GPUUsage = "שימוש GPU"
+Info_ANEUsage = "שימוש ANE"
+Info_Power = "הספק"
+Info_Thermals = "טמפרטורות"
+Info_Network = "רשת"
+Info_Disk = "דיסק"
+Info_DRAMBW = "רוחב פס DRAM"
+Info_TBNet = "TB רשת"
+Info_RDMA = "RDMA"
+Info_Ethernet = "Ethernet"
+Info_WiFi = "Wi-Fi"
+
+Metrics_MemoryUsed = "%.1fGB / %.1fGB %.1f%%"
+Metrics_SwapUsed = "Swap: %.1fGB / %.1fGB %.1f%%"
+Metrics_DiskIO = "[כניסה] %.1f%s [יציאה] %.1f%s"
+Metrics_NetIO = "[כניסה] %s [יציאה] %s"
+Metrics_TFLOPs = "FP32 TFLOPs: %.1f"
+Metrics_Freq = "תדר: %d MHz"
+Metrics_RPM = "%d RPM"
+Metrics_ThermalNominal = "תקין"
+Metrics_ThermalFair = "סביר"
+Metrics_ThermalSerious = "חמור"
+Metrics_ThermalCritical = "קריטי"
+Metrics_ThermalUnknown = "לא ידוע"
+Metrics_RDMAActive = "פעיל"
+Metrics_RDMAInactive = "לא פעיל"
+Metrics_CPUGaugeCompact = "CPU %.0f%% %s"
+Metrics_CPUGauge = "%d ליבות %s %.2f%%%s (%s)"
+Metrics_ANEGaugeCompact = "ANE %.1fW"
+Metrics_ANEGauge = "שימוש ANE: %.2f%% @ %.2f W"
+Metrics_PowerChartTitleCompact = "הספק"
+Metrics_PowerChartTextCompact = "C:%.1fW G:%.1fW\nA:%.1fW D:%.1fW\nסה״כ:%.1fW %s"
+Metrics_PowerChartText = "CPU: %.2f W | GPU: %.2f W\nANE: %.2f W | DRAM: %.2f W\nמערכת: %.2f W\nסה״כ: %.2f W\nתרמי: %s\nזמן פעילות: %s"
+Metrics_NetworkDiskTitle = "רשת ודיסק"
+Metrics_MemGaugeCompact = "זיכרון %.0f/%.0fG רפ %.1f GB/s"
+Metrics_MemGauge = "זיכרון: %.2f GB / %.2f GB (Swap: %.2f/%.2f GB) רפ: %.1f GB/s"
+
+Process_PID = "PID"
+Process_USER = "משתמש"
+Process_VIRT = "וירטואלי"
+Process_RES = "פיזי"
+Process_CPU = "CPU"
+Process_GPU = "GPU"
+Process_MEM = "זיכרון"
+Process_TIME = "זמן"
+Process_CMD = "פקודה"
+
+TUI_ProcessListFull = "רשימת תהליכים (↑/↓ גלילה, / חיפוש, f הקפאה, F9 סיום)"
+TUI_ProcessListFrozen = " רשימת תהליכים [מוקפאת] (f להמשך) "
+TUI_ProcessListSearch = " חיפוש: %s_ (Esc לניקוי) "
+TUI_ProcessListKill = " רשימת תהליכים - אישור סיום (PID %d) "
+TUI_ProcessListPID = " רשימת תהליכים [PID %d] (↑/↓ גלילה, / חיפוש, f הקפאה, F9 סיום) "
+TUI_Cores = "%d ליבות"
+TUI_ECores = "%d E-Core"
+TUI_PCores = "%d P-Core"
+TUI_SCores = "%d S-Core"
+TUI_GPUCores = "%s ליבות GPU"
+Metrics_NetLink = "רשת (%s): ↑ %s/s ↓ %s/s"
+Metrics_Net = "רשת: ↑ %s/s ↓ %s/s"
+Metrics_IO = "I/O: ק %s/s כ %s/s"
+Metrics_DiskFree = "%s: %s/%s (%s פנוי)"
+Metrics_GPUGaugeTemp = "שימוש GPU: %d%% @ %d MHz (%s)"
+Metrics_GPUGaugeFreq = "שימוש GPU: %d%% @ %d MHz"
+Metrics_GPUSparkline = "היסטוריית GPU: %d%% (ממוצע: %.1f%%)"
+Metrics_GPUHistoryChart = "היסטוריית שימוש GPU (ממוצע: %.1f%%)"
+Metrics_GPUGaugeCompactTemp = "GPU %d%% %s"
+Metrics_GPUGaugeCompactFreq = "GPU %d%% %dMHz"
+Metrics_GPUSparklineCompact = "GPU %d%% (%.0f%%)"
+
+Help_FullText = """
+mactop הוא כלי ניטור קוד פתוח עבור Apple Silicon שנכתב על ידי Carsen Klock ב-Go!
+
+מאגר: github.com/metaspartan/mactop
+
+----הגדרות נוכחיות----
+מדדי Prometheus: %s
+גרסה: %s
+פריסה: %s
+צבע קדמי: %s
+צבע רקע: %s
+מרווח עדכון: %dms
+
+----בקרה----
+- r: רענון ידני של נתוני UI
+- c: שינוי ערכת צבעים
+- b: שינוי צבע רקע
+- p: מצב מסיבה (מחזור צבעים)
+- l: מעבר בין 18 פריסות
+- i: הצג/הסתר לוח מידע
+- Shift + F: בקרת מאווררים ולוח תרמי
+- F9: סיום תהליך נבחר (כ/ל)
+- f: הקפאת רשימת תהליכים
+- /: חיפוש ברשימת תהליכים
+- g/G: קפיצה לתחילת/סוף הרשימה
+- + או -: שינוי מרווח עדכון
+- h או ?: הצג/הסתר תפריט עזרה
+- j/k או ↓/↑: גלילת טקסט
+- q או <C-c>: יציאה
+
+----אפשרויות הפעלה----
+--help, -h: הצג תפריט עזרה
+--version, -v: הצג גרסה
+--interval, -i: מרווח עדכון (ms). ברירת מחדל: 1000.
+--prometheus, -p: פורט מדדי Prometheus
+--headless: הפעלה ללא ממשק (פלט ל-stdout)
+--format: פורמט פלט (json, yaml, xml, csv, toon)
+--pretty: פלט מעוצב
+--count: מספר דגימות (0 = אינסוף)
+--dump-ioreport, -d: הצג ערוצי IOReport
+--unit-network: יחידת רשת: auto, byte, kb, mb, gb
+--unit-disk: יחידת דיסק: auto, byte, kb, mb, gb
+--unit-temp: יחידת טמפרטורה: celsius, fahrenheit
+--foreground: צבע קדמי UI
+--bg: צבע רקע UI
+--pid: ניטור PID ספציפי (--pid 1234)
+--fan-control: בקרת מאווררים אינטראקטיבית (SMC)*
+--menubar: מצב שורת תפריטים macOS
+
+קובץ ערכת נושא: צור ~/.mactop/theme.json לצבעים מותאמים.
+"""
+
+Info_Auto = "אוטומטי"
+Info_Manual = "ידני"
+Info_Disconnected = "מנותק (%s)"
+Info_Enabled = "מופעל"
+Info_Disabled = "מושבת"
+Info_ScrollUp = "↑ גלילה למעלה"
+Info_ScrollDown = "↓ גלילה למטה"
+
+
+Menu_Usage = "שימוש:"
+Menu_ECluster = "E-Cluster:"
+Menu_PCluster = "P-Cluster:"
+Menu_SCluster = "S-Cluster:"
+Menu_Power = "הספק:"
+Menu_Temp = "טמפ׳:"
+Menu_TFLOPs = "TFLOPs:"
+Menu_RAM = "RAM:"
+Menu_Swap = "Swap:"
+Menu_DRAMBW = "רפ DRAM:"
+Menu_Network = "רשת:"
+Menu_RDMA = "RDMA:"
+Menu_Disk = "דיסק:"
+Menu_Total = "סה״כ:"
+Menu_System = "מערכת:"
+Menu_Thermal = "תרמי:"
+Menu_Settings = "הגדרות..."
+Menu_OpenGitHub = "פתח מידע GitHub..."
+Menu_OpenTUI = "פתח mactop TUI..."
+Menu_Quit = "צא מ-mactop"
+Menu_AppleSilicon = "Apple Silicon"
+Menu_CPU = "CPU"
+Menu_GPU = "GPU"
+Menu_MEMORY = "זיכרון"
+Menu_NETWORK = "רשת"
+Menu_DISK = "דיסק"
+Menu_POWER = "הספק"
+Menu_HISTORY = "היסטוריה"
+Menu_FANS = "מאווררים"
+
+CLI_HelpText = """
+שימוש: mactop [אפשרויות]
+
+אפשרויות:
+  -h, --help              הצג הודעת עזרה זו
+  -v, --version           הצג גרסת mactop
+  -i, --interval <ms>     הגדר מרווח עדכון באלפיות שנייה (ברירת מחדל: 1000)
+  --foreground <צבע>      הגדר צבע קדמי UI (שם או hex, לדוגמה green, #9580FF)
+  --bg <צבע>              הגדר צבע רקע UI (שם או hex, לדוגמה mocha-base, #22212C)
+  -p, --prometheus <פורט> הפעל שרת מדדי Prometheus בפורט שצוין (לדוגמה :9090)
+      --headless          הפעל ללא ממשק (ללא TUI, JSON ל-stdout)
+      --format <פורמט>    הגדר פורמט פלט (json, yaml, xml, csv, toon)
+      --pretty            עצב פלט headless
+      --count <n>         מספר דגימות במצב headless (0 = אינסוף)
+      --dump-ioreport, -d הצג את כל ערוצי IOReport הזמינים וצא
+      --unit-network <יח׳> יחידת רשת: auto, byte, kb, mb, gb (ברירת מחדל: auto)
+      --unit-disk <יח׳>    יחידת דיסק: auto, byte, kb, mb, gb (ברירת מחדל: auto)
+      --unit-temp <יח׳>    יחידת טמפרטורה: celsius, fahrenheit (ברירת מחדל: celsius)
+      --pid <pid>         נטר תהליך ספציפי לפי PID
+      --menubar           הפעל כפריט שורת תפריטים macOS (ללא TUI)
+      --overlay           הצג חלון HUD צף מעל כל האפליקציות
+      --overlay-sections  אזורים נראים מופרדים בפסיקים (לדוגמה cpu,gpu,memory,power)
+      --overlay-opacity   שקיפות חלון overlay, 0.15-1.0 (ברירת מחדל: 0.88)
+      --fan-control       הפעל בקרת מאווררים אינטראקטיבית (כותב ל-SMC)
+      --dump-temps        אבחון: הצג את כל מפתחות טמפרטורת SMC וצא
+      --dump-debug        אבחון: הצג מידע ניפוי IOReport/HID/SMC/NVMe וצא
+
+קובץ ערכת נושא:
+  צור ~/.mactop/theme.json עם צבעי hex מותאמים:
+  {"foreground": "#9580FF", "background": "#22212C"}
+
+מידע נוסף: https://github.com/metaspartan/mactop מאת Carsen Klock.
+"""
+CLI_Version = "גרסת mactop: %s"
+CLI_DumpingIOReport = "מציג ערוצי IOReport..."
+CLI_TestInputReceived = "קלט בדיקה התקבל: %s"
+CLI_ErrorForegroundRequiresValue = "שגיאה: --foreground דורש ערך צבע"
+CLI_ErrorBackgroundRequiresValue = "שגיאה: --bg דורש ערך צבע"
+CLI_ErrorPrometheusRequiresValue = "שגיאה: --prometheus דורש מספר פורט"
+CLI_ErrorIntervalRequiresValue = "שגיאה: --interval דורש ערך מרווח"
+CLI_ErrorInvalidInterval = "מרווח לא תקין: %v"
+CLI_ErrorPIDRequiresValue = "שגיאה: --pid דורש ערך PID"
+CLI_ErrorInvalidPID = "PID לא תקין: %v"
+CLI_TestingIOReportPowerMetrics = "בודק מדדי הספק IOReport..."
+CLI_TestSample = "דגימה %d:"
+CLI_TestSocTemp = "  טמפ׳ SoC: %.1f°C"
+CLI_TestCPU = "  CPU: %.2fW | GPU: %.2fW (%d MHz, %.0f%% פעיל)"
+CLI_TestANE = "  ANE: %.2fW | DRAM: %.2fW | GPU SRAM: %.2fW | סה״כ: %.2fW | %s"
+
+Headless_ErrorInitMetrics = "כשל באתחול מדדים: %v"
+Headless_ErrorUnknownFormat = "פורמט לא ידוע: %s. ייעשה שימוש ב-json."
+Headless_ErrorFormattingOutput = "שגיאה בעיצוב הפלט: %v"
+Headless_ErrorPrometheusServer = "שגיאת שרת Prometheus: %v"
+
+Info_OSValue = "macOS %s"
+Info_TFLOPsValue = "%.1f FP32 / %.1f FP16"
+Info_NotAvailable = "לא זמין"
+Info_PowerValue = "%.2f W (ממוצע %.0f W)"
+Info_NetworkValue = "↑ %s/s ↓ %s/s"
+Info_DiskValue = "ק %s/s כ %s/s"
+Info_DRAMBWValue = "ק %.1f / כ %.1f / %.1f GB/s"
+Info_FanValue = "%d RPM (%s, %d-%d)"
+Info_WiFiValue = "%s @ %dMbps (%s)"
+Info_VolumeValue = "%s / %s (%s פנוי)"
+
+Fan_CPUTemp = "טמפ׳ CPU"
+Fan_GPUTemp = "טמפ׳ GPU"
+Fan_NoFansDetected = "לא זוהו מאווררים"
+Fan_NoTemperatureSensorsDetected = "לא זוהו חיישני טמפרטורה"
+Fan_ControlActive = "[⚠ בקרת מאווררים פעילה](fg:red,mod:bold)  [+/-](fg:%s,mod:bold) מהירות  [a](fg:%s,mod:bold) אוטומטי  [0/9](fg:%s,mod:bold) מינ/מקס  [R](fg:green,mod:bold) איפוס  [l](fg:%s) פריסה  [F](fg:%s) יציאה"
+Fan_ReadOnly = "[קריאה בלבד](fg:%s)  השתמש ב---fan-control לכתיבה  |  [l](fg:%s,mod:bold) פריסה  [F](fg:%s,mod:bold) סגור תצוגת מאווררים"
+
+Metrics_PowerSparklineGroup = "%.2f W סה״כ (מקס: %.2f W)"
+Metrics_PowerSparklineTitle = "ממוצע %.2f W | %s"
+Metrics_PowerHistoryDetail = "היסטוריית הספק (ממוצע %.1fW, מקס %.1fW)"
+Metrics_CPUHistoryDetail = "היסטוריית שימוש CPU (%.1f%%)"
+Metrics_MemoryHistoryDetail = "זיכרון: %.1f/%.1fGB, Swap: %.1fGB"
+
+TUI_KillPIDTitle = " אישור סיום PID %d "
+
+Menu_Tooltip = "mactop — צג Apple Silicon"
+Menu_SettingsTitle = "הגדרות שורת תפריטים mactop"
+Menu_ShowCPUBar = "הצג סרגל CPU"
+Menu_ShowGPUBar = "הצג סרגל GPU"
+Menu_ShowANEBar = "הצג סרגל ANE"
+Menu_ShowMemoryBar = "הצג סרגל זיכרון"
+Menu_ShowWattageInMenuBar = "הצג צריכה בשורת התפריטים"
+Menu_ShowPercentages = "הצג אחוזים"
+Menu_StatusBarWidth = "רוחב שורת מצב:"
+Menu_StatusBarHeight = "גובה שורת מצב:"
+Menu_BarFontSize = "גודל גופן סרגל:"
+Menu_WattageFontSize = "גודל גופן צריכה:"
+Menu_Colors = "צבעים:"
+Menu_LabelText = "טקסט תווית"
+Menu_BarOrder = "סדר פריטי הסרגל:"
+Menu_DiskRate = "ק %.0f KB/s  כ %.0f KB/s"
+Menu_FanItem = "מאוורר %d"
+
+Overlay_DRAM = "DRAM"
+Overlay_CollapsedMode = "מצב מכווץ"
+Overlay_ExpandedMode = "מצב מורחב"
+Overlay_Done = "סיום"
+Overlay_RequiresScreenRecordingPermission = "דרושה הרשאת הקלטת מסך"
+Overlay_RequiresPermission = "דרושה הרשאה"
+Overlay_OpacityHint = "אטימות: %.0f%%  (גלול לכיוונון)"
+Overlay_GPUCores = "%d ליבות GPU"
+Overlay_GPUFreqTFLOPs = "%dMHz • %.1f TFLOPS"
+Overlay_GPUFreqMHz = "%d MHz"
+Overlay_TempsDual = "CPU %.0f°C  GPU %.0f°C"
+Overlay_TempsSingle = "%.0f°C"
+
+# Fan modes & temperature categories
+Fan_Mode_Auto = "אוטומטי"
+Fan_Mode_Manual = "ידני"
+Fan_TargetRange = "יעד: %d RPM  |  טווח: %d – %d RPM"
+Temp_AvgOf = "ממוצע %d, %s – %s"
+TempCategory_CPU_ECore = "ליבת E CPU"
+TempCategory_CPU_PCore = "ליבת P CPU"
+TempCategory_CPU_SCore = "ליבת S CPU"
+TempCategory_CPU_ECores = "ליבות E CPU"
+TempCategory_CPU_PCores = "ליבות P CPU"
+TempCategory_CPU_SCores = "ליבות S CPU"
+TempCategory_CPU_Core = "ליבת CPU"
+TempCategory_CPU_Die = "Die CPU"
+TempCategory_GPU = "GPU"
+TempCategory_Memory = "זיכרון"
+TempCategory_SSD = "SSD"
+TempCategory_NAND = "NAND"
+TempCategory_NVMe = "NVMe"
+TempCategory_Ambient = "סביבה"
+TempCategory_Board = "לוח"
+TempCategory_VRM = "VRM"
+TempCategory_SocPackage = "SoC"
+TempCategory_Thunderbolt = "Thunderbolt"
+TempCategory_Wireless = "אלחוטי"
+TempCategory_Display = "תצוגה"
+TempCategory_Other = "אחר"

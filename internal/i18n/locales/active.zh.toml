@@ -1,0 +1,358 @@
+Overlay_FPS = "FPS"
+Overlay_FrameInfo = "帧间隔"
+Overlay_CPU = "CPU"
+Overlay_GPU = "GPU"
+Overlay_ANE = "ANE"
+Overlay_Memory = "内存"
+Overlay_Swap = "交换空间"
+Overlay_Power = "功耗"
+Overlay_Bandwidth = "DRAM 带宽"
+Overlay_GPUFreq = "GPU 频率"
+Overlay_Temps = "温度"
+Overlay_Thermal = "散热状态"
+Overlay_Fans = "风扇"
+Overlay_Network = "网络"
+
+TUI_InfoLayoutColorExit = " 信息: i | 布局: l | 颜色: c | 背景: b | 退出: q "
+TUI_LayoutInfo = " %d/%d 布局 (%s) "
+TUI_LayoutInfoShort = " %d/%d "
+TUI_ModelInfo = "型号: %s"
+TUI_CoresInfo = "%d 核心 (%dP, %dE, %dS) | GPU: %d 核心 | %s"
+TUI_TotalPower = "总功耗: %.1fW"
+TUI_AppTotalPower = "总计: %.1fW | CPU: %.1fW (ANE: %.1fW) GPU: %.1fW"
+TUI_AppleSilicon = "Apple Silicon"
+TUI_HelpMenu = "mactop 帮助菜单"
+TUI_Loading = "加载中..."
+TUI_LoadingTB = "加载 Thunderbolt 信息..."
+TUI_Fans = " ⊚ 风扇 "
+TUI_Temperatures = " 🌡 温度 "
+TUI_ProcessList = "进程列表"
+TUI_UnknownModel = "未知型号"
+TUI_ECPUUsage = "E-CPU 使用率"
+TUI_PCPUUsage = "P-CPU 使用率"
+TUI_GPUUsage = "GPU 使用率"
+TUI_MemoryUsage = "内存 使用率"
+TUI_ANEUsage = "ANE 使用率"
+TUI_PowerUsage = "功耗"
+TUI_NetworkDisk = "网络与磁盘"
+TUI_ThunderboltRDMA = "Thunderbolt / RDMA"
+TUI_MactopTitle = " mactop "
+TUI_GPUUsageHistory = "GPU 使用历史"
+TUI_TBNet = "TB 网络 ↓0/s ↑0/s"
+TUI_PowerHistory = "功耗历史"
+TUI_MemorySwapHistory = "内存/交换历史"
+TUI_CPUUsageHistory = "CPU 使用历史"
+TUI_ConfirmKill = " 确认结束 "
+TUI_ConfirmKillBody = "确认终止"
+TUI_ConfirmYes = "是"
+TUI_ConfirmNo = "否"
+
+Info_OS = "系统"
+Info_Host = "主机"
+Info_Kernel = "内核"
+Info_Uptime = "运行时间"
+Info_Shell = "终端"
+Info_CPU = "CPU"
+Info_GPU = "GPU"
+Info_TFLOPs = "TFLOPs"
+Info_Memory = "内存"
+Info_Swap = "交换空间"
+Info_CPUUsage = "CPU 使用率"
+Info_GPUUsage = "GPU 使用率"
+Info_ANEUsage = "ANE 使用率"
+Info_Power = "功耗"
+Info_Thermals = "温度"
+Info_Network = "网络"
+Info_Disk = "磁盘"
+Info_DRAMBW = "DRAM 带宽"
+Info_TBNet = "TB 网络"
+Info_RDMA = "RDMA"
+Info_Ethernet = "以太网"
+Info_WiFi = "Wi-Fi"
+
+Metrics_MemoryUsed = "%.1fGB / %.1fGB %.1f%%"
+Metrics_SwapUsed = "交换: %.1fGB / %.1fGB %.1f%%"
+Metrics_DiskIO = "[进] %.1f%s [出] %.1f%s"
+Metrics_NetIO = "[进] %s [出] %s"
+Metrics_TFLOPs = "FP32 TFLOPs: %.1f"
+Metrics_Freq = "频率: %d MHz"
+Metrics_RPM = "%d RPM"
+Metrics_ThermalNominal = "正常"
+Metrics_ThermalFair = "尚可"
+Metrics_ThermalSerious = "严重"
+Metrics_ThermalCritical = "危险"
+Metrics_ThermalUnknown = "未知"
+Metrics_RDMAActive = "活跃"
+Metrics_RDMAInactive = "非活跃"
+Metrics_CPUGaugeCompact = "CPU %.0f%% %s"
+Metrics_CPUGauge = "%d 核心 %s %.2f%%%s (%s)"
+Metrics_ANEGaugeCompact = "ANE %.1fW"
+Metrics_ANEGauge = "ANE 使用率: %.2f%% @ %.2f W"
+Metrics_PowerChartTitleCompact = "功耗"
+Metrics_PowerChartTextCompact = "C:%.1fW G:%.1fW\nA:%.1fW D:%.1fW\n总:%.1fW %s"
+Metrics_PowerChartText = "CPU: %.2f W | GPU: %.2f W\nANE: %.2f W | DRAM: %.2f W\n系统: %.2f W\n总计: %.2f W\n状态: %s\n运行时间: %s"
+Metrics_NetworkDiskTitle = "网络与磁盘"
+Metrics_MemGaugeCompact = "内存 %.0f/%.0fG 带宽 %.1f GB/s"
+Metrics_MemGauge = "内存: %.2f GB / %.2f GB (交换: %.2f/%.2f GB) 带宽: %.1f GB/s"
+
+Process_PID = "PID"
+Process_USER = "用户"
+Process_VIRT = "虚拟"
+Process_RES = "物理"
+Process_CPU = "CPU"
+Process_GPU = "GPU"
+Process_MEM = "内存"
+Process_TIME = "时间"
+Process_CMD = "命令"
+
+TUI_ProcessListFull = "进程列表 (↑/↓ 滚动, / 搜索, f 冻结, F9 结束)"
+TUI_ProcessListFrozen = " 进程列表 [已冻结] (f 恢复) "
+TUI_ProcessListSearch = " 搜索: %s_ (Esc 清除) "
+TUI_ProcessListKill = " 进程列表 - 确认结束进程 (PID %d) "
+TUI_ProcessListPID = " 进程列表 [PID %d] (↑/↓ 滚动, / 搜索, f 冻结, F9 结束) "
+TUI_Cores = "%d 核心"
+TUI_ECores = "%d E-Core"
+TUI_PCores = "%d P-Core"
+TUI_SCores = "%d S-Core"
+TUI_GPUCores = "%s GPU 核心"
+
+Metrics_NetLink = "网络 (%s): ↑ %s/s ↓ %s/s"
+Metrics_Net = "网络: ↑ %s/s ↓ %s/s"
+Metrics_IO = "I/O: 读 %s/s 写 %s/s"
+Metrics_DiskFree = "%s: %s/%s (%s 可用)"
+Metrics_GPUGaugeTemp = "GPU 使用率: %d%% @ %d MHz (%s)"
+Metrics_GPUGaugeFreq = "GPU 使用率: %d%% @ %d MHz"
+Metrics_GPUSparkline = "GPU 历史: %d%% (平均: %.1f%%)"
+Metrics_GPUHistoryChart = "GPU 使用历史 (平均: %.1f%%)"
+Metrics_GPUGaugeCompactTemp = "GPU %d%% %s"
+Metrics_GPUGaugeCompactFreq = "GPU %d%% %dMHz"
+Metrics_GPUSparklineCompact = "GPU %d%% (%.0f%%)"
+
+Help_FullText = """
+mactop 是由 Carsen Klock 使用 Go 语言编写的 Apple Silicon 开源监控工具！
+
+仓库地址: github.com/metaspartan/mactop
+
+----当前设置----
+Prometheus 指标: %s
+版本: %s
+布局: %s
+前景色: %s
+背景色: %s
+刷新间隔: %dms
+
+----操作控制----
+- r: 手动刷新 UI 数据
+- c: 切换 UI 颜色主题
+- b: 切换 UI 背景色
+- p: 开启/关闭派对模式 (色彩循环)
+- l: 在 18 种可用布局中切换
+- i: 切换信息面板布局
+- Shift + F: 切换风扇控制与散热状态面板
+- F9: 结束选中的进程 (需要 y/n 确认)
+- f: 冻结进程列表
+- /: 搜索进程列表
+- g/G: 跳转到列表顶部/底部
+- + 或 -: 调整刷新间隔速度 (快/慢)
+- h 或 ?: 显示/隐藏此帮助菜单
+- j/k 或 ↓/↑: 滚动帮助文本
+- q 或 <C-c>: 退出应用
+
+----启动参数----
+--help, -h: 显示此帮助菜单
+--version, -v: 显示 mactop 的版本号
+--interval, -i: 设置刷新间隔（毫秒），默认为 1000。
+--prometheus, -p: 设置并启用 Prometheus 指标端口（例如 --prometheus=9090）
+--headless: 无 UI 模式运行 (直接输出到 stdout)
+--format: 无 UI 模式的输出格式 (json, yaml, xml, csv, toon)，默认为 json。
+--pretty: 无 UI 模式的精美格式输出
+--count: 无 UI 模式的数据采集次数 (0 = 无限)
+--dump-ioreport, -d: 转储所有 IOReport 频道并退出
+--unit-network: 网络单位设置: auto, byte, kb, mb, gb
+--unit-disk: 磁盘单位设置: auto, byte, kb, mb, gb
+--unit-temp: 温度单位: celsius(摄氏), fahrenheit(华氏)
+--foreground: 设置 UI 前景色 (支持命名或十六进制)
+--bg: 设置 UI 背景色
+--pid: 监控指定的 PID (--pid 1234)
+--fan-control: 启用交互式风扇控制 (修改 SMC 状态)*
+--menubar: 作为 macOS 菜单栏组件运行 (无 TUI 终端界面)
+
+自定义主题: 请创建 ~/.mactop/theme.json 配置文件进行自定义着色
+"""
+
+Info_Auto = "自动"
+Info_Manual = "手动"
+Info_Disconnected = "已断开 (%s)"
+Info_Enabled = "已启用"
+Info_Disabled = "已禁用"
+Info_ScrollUp = "↑ 向上滚动"
+Info_ScrollDown = "↓ 向下滚动"
+
+
+Menu_Usage = "使用率:"
+Menu_ECluster = "E-集群:"
+Menu_PCluster = "P-集群:"
+Menu_SCluster = "S-集群:"
+Menu_Power = "功耗:"
+Menu_Temp = "温度:"
+Menu_TFLOPs = "TFLOPs:"
+Menu_RAM = "内存:"
+Menu_Swap = "交换:"
+Menu_DRAMBW = "内存带宽:"
+Menu_Network = "网络:"
+Menu_RDMA = "RDMA:"
+Menu_Disk = "磁盘:"
+Menu_Total = "总计:"
+Menu_System = "系统:"
+Menu_Thermal = "散热状态:"
+Menu_Settings = "设置..."
+Menu_OpenGitHub = "打开GitHub信息..."
+Menu_OpenTUI = "打开mactop终端..."
+Menu_Quit = "退出mactop"
+Menu_AppleSilicon = "Apple芯片"
+Menu_CPU = "CPU"
+Menu_GPU = "GPU"
+Menu_MEMORY = "内存"
+Menu_NETWORK = "网络"
+Menu_DISK = "磁盘"
+Menu_POWER = "功耗"
+Menu_HISTORY = "历史记录"
+Menu_FANS = "风扇"
+
+CLI_HelpText = """
+用法: mactop [options]
+
+选项:
+  -h, --help              显示此帮助信息
+  -v, --version           显示 mactop 版本
+  -i, --interval <ms>     设置刷新间隔（毫秒，默认：1000）
+  --foreground <color>    设置 UI 前景色（名称或十六进制，例如 green, #9580FF）
+  --bg <color>            设置 UI 背景色（名称或十六进制，例如 mocha-base, #22212C）
+  -p, --prometheus <port> 在指定端口启动 Prometheus 指标服务器（例如 :9090）
+      --headless          以 headless 模式运行（无 TUI，JSON 输出到 stdout）
+      --format <format>   设置输出格式（json, yaml, xml, csv, toon）
+      --pretty            美化 headless 输出
+      --count <n>         headless 模式采样次数（0 = 无限）
+      --dump-ioreport, -d 输出所有可用的 IOReport 通道并退出
+      --unit-network <unit> 网络单位：auto, byte, kb, mb, gb（默认：auto）
+      --unit-disk <unit>    磁盘单位：auto, byte, kb, mb, gb（默认：auto）
+      --unit-temp <unit>    温度单位：celsius, fahrenheit（默认：celsius）
+      --pid <pid>         监控指定 PID 的进程
+      --menubar           作为 macOS 菜单栏项目运行（无 TUI）
+      --overlay           在所有应用之上显示浮动 HUD 窗口
+      --overlay-sections  逗号分隔的可见区块（例如 cpu,gpu,memory,power）
+      --overlay-opacity   overlay 窗口透明度，0.15-1.0（默认：0.88）
+      --fan-control       启用交互式风扇控制（会写入 SMC）
+      --dump-temps        诊断：输出所有原始 SMC 温度键并退出
+      --dump-debug        诊断：输出 IOReport/HID/SMC/NVMe 调试信息并退出
+
+主题文件:
+  创建 ~/.mactop/theme.json 以使用自定义十六进制颜色:
+  {"foreground": "#9580FF", "background": "#22212C"}
+
+更多信息: https://github.com/metaspartan/mactop （Carsen Klock）
+"""
+CLI_Version = "mactop 版本: %s"
+CLI_DumpingIOReport = "正在输出 IOReport 通道..."
+CLI_TestInputReceived = "收到测试输入: %s"
+CLI_ErrorForegroundRequiresValue = "错误: --foreground 需要颜色值"
+CLI_ErrorBackgroundRequiresValue = "错误: --bg 需要颜色值"
+CLI_ErrorPrometheusRequiresValue = "错误: --prometheus 需要端口号"
+CLI_ErrorIntervalRequiresValue = "错误: --interval 需要间隔值"
+CLI_ErrorInvalidInterval = "无效的间隔值: %v"
+CLI_ErrorPIDRequiresValue = "错误: --pid 需要 PID 值"
+CLI_ErrorInvalidPID = "无效的 PID: %v"
+CLI_TestingIOReportPowerMetrics = "正在测试 IOReport 功耗指标..."
+CLI_TestSample = "样本 %d:"
+CLI_TestSocTemp = "  SoC 温度: %.1f°C"
+CLI_TestCPU = "  CPU: %.2fW | GPU: %.2fW (%d MHz, %.0f%% active)"
+CLI_TestANE = "  ANE: %.2fW | DRAM: %.2fW | GPU SRAM: %.2fW | 总计: %.2fW | %s"
+
+Headless_ErrorInitMetrics = "初始化指标失败: %v"
+Headless_ErrorUnknownFormat = "未知格式: %s。将回退到 json。"
+Headless_ErrorFormattingOutput = "格式化输出时出错: %v"
+Headless_ErrorPrometheusServer = "Prometheus 服务器错误: %v"
+
+Info_OSValue = "macOS %s"
+Info_TFLOPsValue = "%.1f FP32 / %.1f FP16"
+Info_NotAvailable = "N/A"
+Info_PowerValue = "%.2f W (平均 %.0f W)"
+Info_NetworkValue = "↑ %s/s ↓ %s/s"
+Info_DiskValue = "读 %s/s 写 %s/s"
+Info_DRAMBWValue = "读 %.1f / 写 %.1f / %.1f GB/s"
+Info_FanValue = "%d RPM (%s, %d-%d)"
+Info_WiFiValue = "%s @ %dMbps (%s)"
+Info_VolumeValue = "%s / %s (%s 可用)"
+
+Fan_CPUTemp = "CPU 温度"
+Fan_GPUTemp = "GPU 温度"
+Fan_NoFansDetected = "未检测到风扇"
+Fan_NoTemperatureSensorsDetected = "未检测到温度传感器"
+Fan_ControlActive = "[⚠ 风扇控制已启用](fg:red,mod:bold)  [+/-](fg:%s,mod:bold) 速度  [a](fg:%s,mod:bold) 自动  [0/9](fg:%s,mod:bold) 最小/最大  [R](fg:green,mod:bold) 重置  [l](fg:%s) 布局  [F](fg:%s) 退出"
+Fan_ReadOnly = "[只读](fg:%s)  使用 --fan-control 启用写入  |  [l](fg:%s,mod:bold) 布局  [F](fg:%s,mod:bold) 退出风扇视图"
+
+Metrics_PowerSparklineGroup = "%.2f W 总计 (最大: %.2f W)"
+Metrics_PowerSparklineTitle = "平均 %.2f W | %s"
+Metrics_PowerHistoryDetail = "功耗历史 (平均 %.1fW, 最大 %.1fW)"
+Metrics_CPUHistoryDetail = "CPU 使用历史 (%.1f%%)"
+Metrics_MemoryHistoryDetail = "内存: %.1f/%.1fGB, 交换: %.1fGB"
+
+TUI_KillPIDTitle = " 确认结束 PID %d "
+
+Menu_Tooltip = "mactop — Apple Silicon 监视器"
+Menu_SettingsTitle = "mactop 菜单栏设置"
+Menu_ShowCPUBar = "显示 CPU 条"
+Menu_ShowGPUBar = "显示 GPU 条"
+Menu_ShowANEBar = "显示 ANE 条"
+Menu_ShowMemoryBar = "显示内存条"
+Menu_ShowWattageInMenuBar = "在菜单栏显示瓦数"
+Menu_ShowPercentages = "显示百分比"
+Menu_StatusBarWidth = "状态栏宽度:"
+Menu_StatusBarHeight = "状态栏高度:"
+Menu_BarFontSize = "条形字体大小:"
+Menu_WattageFontSize = "功耗字体大小:"
+Menu_Colors = "颜色:"
+Menu_LabelText = "标签文字"
+Menu_BarOrder = "栏目排列顺序："
+Menu_DiskRate = "读 %.0f KB/s  写 %.0f KB/s"
+Menu_FanItem = "风扇 %d"
+
+Overlay_DRAM = "DRAM"
+Overlay_CollapsedMode = "折叠模式"
+Overlay_ExpandedMode = "展开模式"
+Overlay_Done = "完成"
+Overlay_RequiresScreenRecordingPermission = "需要屏幕录制权限"
+Overlay_RequiresPermission = "需要权限"
+Overlay_OpacityHint = "透明度: %.0f%%  (滚动调整)"
+Overlay_GPUCores = "%d 个 GPU 核心"
+Overlay_GPUFreqTFLOPs = "%dMHz • %.1f TFLOPS"
+Overlay_GPUFreqMHz = "%d MHz"
+Overlay_TempsDual = "CPU %.0f°C  GPU %.0f°C"
+Overlay_TempsSingle = "%.0f°C"
+
+# Fan modes & temperature categories
+Fan_Mode_Auto = "自动"
+Fan_Mode_Manual = "手动"
+Fan_TargetRange = "目标: %d RPM  |  范围: %d – %d RPM"
+Temp_AvgOf = "%d 平均, %s – %s"
+TempCategory_CPU_ECore = "CPU E 核"
+TempCategory_CPU_PCore = "CPU P 核"
+TempCategory_CPU_SCore = "CPU S 核"
+TempCategory_CPU_ECores = "CPU E 核"
+TempCategory_CPU_PCores = "CPU P 核"
+TempCategory_CPU_SCores = "CPU S 核"
+TempCategory_CPU_Core = "CPU 核心"
+TempCategory_CPU_Die = "CPU Die"
+TempCategory_GPU = "GPU"
+TempCategory_Memory = "内存"
+TempCategory_SSD = "SSD"
+TempCategory_NAND = "NAND"
+TempCategory_NVMe = "NVMe"
+TempCategory_Ambient = "环境"
+TempCategory_Board = "主板"
+TempCategory_VRM = "VRM"
+TempCategory_SocPackage = "SoC"
+TempCategory_Thunderbolt = "雷电"
+TempCategory_Wireless = "无线"
+TempCategory_Display = "显示"
+TempCategory_Other = "其他"

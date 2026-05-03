@@ -23,11 +23,14 @@ import (
 	"sort"
 	"strings"
 	"sync"
+
+	"github.com/mattn/go-runewidth"
 	"syscall"
 	"time"
 	"unsafe"
 
 	ui "github.com/metaspartan/gotui/v5"
+	"github.com/metaspartan/mactop/v2/internal/i18n"
 )
 
 var uidCache = make(map[uint32]string)
@@ -456,25 +459,22 @@ func buildHeader(maxWidths map[string]int, themeColorStr, selectedHeaderFg strin
 		}
 
 		// Build column text with arrow included in width
-		colWithArrow := col + arrow
+		colWithArrow := i18n.T("Process_"+col) + arrow
 
-		format := ""
-		switch col {
-		case "PID":
-			format = fmt.Sprintf("%%%ds", width) // Right-align
-		case "USER":
-			format = fmt.Sprintf("%%-%ds", width) // Left-align
-		case "VIRT", "RES":
-			format = fmt.Sprintf("%%%ds", width) // Right-align
-		case "CPU", "GPU", "MEM":
-			format = fmt.Sprintf("%%%ds", width) // Right-align
-		case "TIME":
-			format = fmt.Sprintf("%%%ds", width) // Right-align
-		case "CMD":
-			format = fmt.Sprintf("%%-%ds", width) // Left-align
+		w := runewidth.StringWidth(colWithArrow)
+		padding := width - w
+		if padding < 0 {
+			padding = 0
 		}
 
-		colText := fmt.Sprintf(format, colWithArrow)
+		colText := ""
+		switch col {
+		case "USER", "CMD": // Left-align
+			colText = colWithArrow + strings.Repeat(" ", padding)
+		default: // Right-align
+			colText = strings.Repeat(" ", padding) + colWithArrow
+		}
+
 		header += fmt.Sprintf("[%s](fg:%s,bg:%s)", colText, selectedHeaderFg, themeColorStr)
 
 		if i < len(columns)-1 {
@@ -679,7 +679,7 @@ func showKillModal(pid int) {
 		}
 	}
 
-	confirmModal.Title = fmt.Sprintf(" CONFIRM KILL PID %d ", pid)
+	confirmModal.Title = fmt.Sprintf(i18n.T("TUI_KillPIDTitle"), pid)
 	updateKillModal()
 }
 

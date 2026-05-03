@@ -57,6 +57,7 @@
 - Support for all Apple Silicon models
 - **Auto-detect Light/Dark Mode**: Automatically adjusts UI colors based on your terminal's background color or system theme.
 - **Configurable Units**: Customize units for network, disk, and temperature display (`--unit-network`, `--unit-disk`, `--unit-temp`)
+- **Multi-Language Support (i18n)**: 19 languages with automatic system language detection — English, Arabic, Chinese, Dutch, French, German, Hebrew, Hindi, Indonesian, Italian, Japanese, Korean, Polish, Portuguese, Russian, Spanish, Thai, Turkish, Vietnamese (`--lang` to override)
 
 ## Install via Homebrew
 
@@ -116,7 +117,7 @@ After installation, you can start `mactop` by simply running:
 Example with flags:
 
 ```bash
-mactop --interval 1000 --foreground green
+mactop --interval 1000 --foreground green --lang ja
 ```
 
 Custom Hex Colors:
@@ -152,11 +153,92 @@ mactop --headless --format toon
 - `--unit-network`: Network unit: auto, byte, kb, mb, gb (default: auto)
 - `--unit-disk`: Disk unit: auto, byte, kb, mb, gb (default: auto)
 - `--unit-temp`: Temperature unit: celsius, fahrenheit (default: celsius)
+- `--lang`: Language override (e.g., `en`, `es`, `ja`, `zh`). Auto-detects system language if not set. Priority: CLI flag > `MACTOP_LANG` env var > `config.json` > system language.
 - `--fan-control`: Enable interactive fan speed control (**⚠️ writes to SMC** — use with caution, may require sudo on some macOS versions)
 - `--menubar`: Run as a macOS menu bar status item alongside the TUI.
-- `--overlay`: Run as a floating overlay HUD window with FPS metrics.
+- `--overlay`: Run as a floating overlay HUD window with FPS metrics. (**Requires Screen Recording permission** — see [Permissions](#permissions) below)
+- `--dump-fps`: Diagnostic tool that dumps display info, screen recording permission status, and tests CGDisplayStream at multiple output sizes. Useful for troubleshooting FPS display issues.
+- `--dump-temps`: Diagnostic: dump all raw SMC temperature keys and exit.
+- `--dump-debug`: Diagnostic: dump IOReport/HID/SMC/NVMe debug info and exit.
 - `--version` or `-v`: Print the version of mactop.
 - `--help` or `-h`: Show a help message about these flags and how to run mactop.
+
+## Permissions
+
+mactop uses native Apple APIs and **does not require sudo** for core functionality (CPU, GPU, power, memory, temperatures, fans).
+
+### Screen Recording (required for FPS overlay)
+
+The `--overlay` mode uses `CGDisplayStream` to track display frame rates (FPS and frame interval). On **macOS 15 (Sequoia) and later**, this requires **Screen Recording** permission for your terminal app:
+
+1. Open **System Settings → Privacy & Security → Screen Recording**
+2. Enable the toggle for your terminal app (Terminal.app, Ghostty, iTerm2, Warp, etc.)
+3. Restart your terminal if prompted
+
+Without this permission, the overlay will still work but FPS and frame interval metrics will show `0` / `-`.
+
+> **Tip:** Run `mactop --dump-fps` to verify screen recording access and test CGDisplayStream on your hardware. This is useful for troubleshooting if FPS metrics still aren't appearing.
+
+## Overlay Customization
+
+The overlay HUD (`--overlay`) supports customization via `~/.mactop/config.json`. You can control which metrics appear in collapsed mode, their order in expanded mode, and the overlay opacity.
+
+### Collapsed Mode Sections
+
+Choose which metrics appear when the overlay is collapsed (default: FPS, Frame, CPU, GPU, Memory):
+
+```json
+{
+  "overlay": {
+    "collapsed_sections": ["fps", "cpu", "gpu", "memory"]
+  }
+}
+```
+
+### Expanded Mode Section Order
+
+Reorder sections in expanded mode. Sections appear in the order listed:
+
+```json
+{
+  "overlay": {
+    "expanded_order": [
+      "fps", "frame", "cpu", "gpu", "memory",
+      "power", "temps", "thermal", "fans",
+      "bandwidth", "gpu_freq", "ane", "network"
+    ]
+  }
+}
+```
+
+### Available Sections
+
+| Section | Description |
+|---------|-------------|
+| `fps` | Display FPS counter with sparkline |
+| `frame` | Frame interval (ms) with sparkline |
+| `cpu` | CPU usage bar with sparkline |
+| `gpu` | GPU usage bar with sparkline |
+| `ane` | ANE (Neural Engine) usage bar |
+| `memory` | Memory usage bar |
+| `swap` | Swap usage (only shown when swap is active) |
+| `power` | Power breakdown (Package + CPU/GPU/ANE/DRAM) |
+| `bandwidth` | DRAM bandwidth (GB/s) |
+| `gpu_freq` | GPU frequency and TFLOPs |
+| `temps` | CPU and GPU temperatures |
+| `thermal` | Thermal state |
+| `fans` | Fan RPM (only shown when fans present) |
+| `network` | Network throughput |
+
+### Persisted Opacity
+
+```json
+{
+  "overlay": {
+    "opacity": 0.75
+  }
+}
+```
 
 ## Theme File Support
 
@@ -527,3 +609,7 @@ This tool is not officially supported by Apple. It is provided as is, and may no
 - [gotui](https://github.com/metaspartan/gotui) for the modern terminal UI framework.
 - [asitop](https://github.com/tlkh/asitop) for the original inspiration!
 - [htop](https://github.com/htop-dev/htop) for the process list and CPU cores inspiration!
+
+## Download History
+
+[![Download History](https://skill-history.com/chart/metaspartan/mactop.svg)](https://skill-history.com/metaspartan/mactop)

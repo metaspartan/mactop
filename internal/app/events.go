@@ -1,10 +1,10 @@
 package app
 
 import (
-	"os"
 	"time"
 
 	ui "github.com/metaspartan/gotui/v5"
+	"github.com/metaspartan/mactop/v2/internal/i18n"
 )
 
 func startBackgroundUpdates(done chan struct{}) {
@@ -75,7 +75,7 @@ func updateLayout(w, h int) {
 	if w < 93 {
 		mainBlock.TitleBottom = ""
 	} else {
-		mainBlock.TitleBottom = " Info: i | Layout: l | Color: c | BG: b | Exit: q "
+		mainBlock.TitleBottom = i18n.T("TUI_InfoLayoutColorExit")
 	}
 	if w > 2 && h > 2 {
 		grid.SetRect(1, 1, w-1, h-1)
@@ -111,9 +111,7 @@ func handleResizeEvent(e ui.Event) {
 func handleModeKeys(key string, done chan struct{}) {
 	switch key {
 	case "q", "<C-c>":
-		close(done)
-		ui.Close()
-		os.Exit(0)
+		shutdownAndExit(true)
 	case "r":
 		w, h := ui.TerminalDimensions()
 		UpdateCachedTerminalDimensions(w, h)

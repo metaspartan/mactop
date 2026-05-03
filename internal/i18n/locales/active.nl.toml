@@ -1,0 +1,357 @@
+Overlay_FPS = "FPS"
+Overlay_FrameInfo = "Frame-interval"
+Overlay_CPU = "CPU"
+Overlay_GPU = "GPU"
+Overlay_ANE = "ANE"
+Overlay_Memory = "Geheugen"
+Overlay_Swap = "Swap"
+Overlay_Power = "Vermogen"
+Overlay_Bandwidth = "DRAM-bandbreedte"
+Overlay_GPUFreq = "GPU-frequentie"
+Overlay_Temps = "Temperaturen"
+Overlay_Thermal = "Thermische Status"
+Overlay_Fans = "Ventilatoren"
+Overlay_Network = "Netwerk"
+
+TUI_InfoLayoutColorExit = " Info: i | Layout: l | Kleur: c | Achtergr: b | Sluiten: q "
+TUI_LayoutInfo = " %d/%d layout (%s) "
+TUI_LayoutInfoShort = " %d/%d "
+TUI_ModelInfo = "Model: %s"
+TUI_CoresInfo = "%d Cores (%dP, %dE, %dS) | GPU: %d Cores | %s"
+TUI_TotalPower = "Totaal Vermogen: %.1fW"
+TUI_AppTotalPower = "Totaal: %.1fW | CPU: %.1fW (ANE: %.1fW) GPU: %.1fW"
+TUI_AppleSilicon = "Apple Silicon"
+TUI_HelpMenu = "mactop hulpmenu"
+TUI_Loading = "Laden..."
+TUI_LoadingTB = "Thunderbolt-info laden..."
+TUI_Fans = " ⊚ Ventilatoren "
+TUI_Temperatures = " 🌡 Temperaturen "
+TUI_ProcessList = "Proceslijst"
+TUI_UnknownModel = "Onbekend Model"
+TUI_ECPUUsage = "E-CPU Gebruik"
+TUI_PCPUUsage = "P-CPU Gebruik"
+TUI_GPUUsage = "GPU Gebruik"
+TUI_MemoryUsage = "Geheugengebruik"
+TUI_ANEUsage = "ANE Gebruik"
+TUI_PowerUsage = "Stroomverbruik"
+TUI_NetworkDisk = "Netwerk en Schijf"
+TUI_ThunderboltRDMA = "Thunderbolt / RDMA"
+TUI_MactopTitle = " mactop "
+TUI_GPUUsageHistory = "GPU Gebruikshistorie"
+TUI_TBNet = "TB Netw ↓0/s ↑0/s"
+TUI_PowerHistory = "Vermogenshistorie"
+TUI_MemorySwapHistory = "Geheugen/Swap Historie"
+TUI_CPUUsageHistory = "CPU Gebruikshistorie"
+TUI_ConfirmKill = " BEVESTIGEN "
+TUI_ConfirmKillBody = "BEVESTIG BEËINDIGING"
+TUI_ConfirmYes = "Ja"
+TUI_ConfirmNo = "Nee"
+
+Info_OS = "OS"
+Info_Host = "Host"
+Info_Kernel = "Kernel"
+Info_Uptime = "Uptime"
+Info_Shell = "Shell"
+Info_CPU = "CPU"
+Info_GPU = "GPU"
+Info_TFLOPs = "TFLOPs"
+Info_Memory = "Geheugen"
+Info_Swap = "Swap"
+Info_CPUUsage = "CPU Gebruik"
+Info_GPUUsage = "GPU Gebruik"
+Info_ANEUsage = "ANE Gebruik"
+Info_Power = "Vermogen"
+Info_Thermals = "Temperaturen"
+Info_Network = "Netwerk"
+Info_Disk = "Schijf"
+Info_DRAMBW = "DRAM Bandbr"
+Info_TBNet = "TB Netw"
+Info_RDMA = "RDMA"
+Info_Ethernet = "Ethernet"
+Info_WiFi = "Wi-Fi"
+
+Metrics_MemoryUsed = "%.1fGB / %.1fGB %.1f%%"
+Metrics_SwapUsed = "Swap: %.1fGB / %.1fGB %.1f%%"
+Metrics_DiskIO = "[In] %.1f%s [Uit] %.1f%s"
+Metrics_NetIO = "[In] %s [Uit] %s"
+Metrics_TFLOPs = "FP32 TFLOPs: %.1f"
+Metrics_Freq = "Freq: %d MHz"
+Metrics_RPM = "%d RPM"
+Metrics_ThermalNominal = "Normaal"
+Metrics_ThermalFair = "Redelijk"
+Metrics_ThermalSerious = "Ernstig"
+Metrics_ThermalCritical = "Kritiek"
+Metrics_ThermalUnknown = "Onbekend"
+Metrics_RDMAActive = "Actief"
+Metrics_RDMAInactive = "Inactief"
+Metrics_CPUGaugeCompact = "CPU %.0f%% %s"
+Metrics_CPUGauge = "%d Cores %s %.2f%%%s (%s)"
+Metrics_ANEGaugeCompact = "ANE %.1fW"
+Metrics_ANEGauge = "ANE Gebruik: %.2f%% @ %.2f W"
+Metrics_PowerChartTitleCompact = "Vermogen"
+Metrics_PowerChartTextCompact = "C:%.1fW G:%.1fW\nA:%.1fW D:%.1fW\nTot:%.1fW %s"
+Metrics_PowerChartText = "CPU: %.2f W | GPU: %.2f W\nANE: %.2f W | DRAM: %.2f W\nSysteem: %.2f W\nTotaal: %.2f W\nThermisch: %s\nUptime: %s"
+Metrics_NetworkDiskTitle = "Netwerk en Schijf"
+Metrics_MemGaugeCompact = "Geh %.0f/%.0fG BB %.1f GB/s"
+Metrics_MemGauge = "Geheugen: %.2f GB / %.2f GB (Swap: %.2f/%.2f GB) BB: %.1f GB/s"
+
+Process_PID = "PID"
+Process_USER = "GEBR"
+Process_VIRT = "VIRT"
+Process_RES = "RES"
+Process_CPU = "CPU"
+Process_GPU = "GPU"
+Process_MEM = "GEH"
+Process_TIME = "TIJD"
+Process_CMD = "OPDRACHT"
+
+TUI_ProcessListFull = "Proceslijst (↑/↓ scrollen, / zoeken, f bevriezen, F9 beëindigen)"
+TUI_ProcessListFrozen = " Proceslijst [BEVROREN] (f om te hervatten) "
+TUI_ProcessListSearch = " Zoeken: %s_ (Esc om te wissen) "
+TUI_ProcessListKill = " Proceslijst - BEVESTIG BEËINDIGING (PID %d) "
+TUI_ProcessListPID = " Proceslijst [PID %d] (↑/↓ scrollen, / zoeken, f bevriezen, F9 beëindigen) "
+TUI_Cores = "%d Cores"
+TUI_ECores = "%d E-Cores"
+TUI_PCores = "%d P-Cores"
+TUI_SCores = "%d S-Cores"
+TUI_GPUCores = "%s GPU Cores"
+Metrics_NetLink = "Netwerk (%s): ↑ %s/s ↓ %s/s"
+Metrics_Net = "Netwerk: ↑ %s/s ↓ %s/s"
+Metrics_IO = "I/O: L %s/s S %s/s"
+Metrics_DiskFree = "%s: %s/%s (%s vrij)"
+Metrics_GPUGaugeTemp = "GPU Gebruik: %d%% @ %d MHz (%s)"
+Metrics_GPUGaugeFreq = "GPU Gebruik: %d%% @ %d MHz"
+Metrics_GPUSparkline = "GPU Historie: %d%% (Gem: %.1f%%)"
+Metrics_GPUHistoryChart = "GPU Gebruikshistorie (Gem: %.1f%%)"
+Metrics_GPUGaugeCompactTemp = "GPU %d%% %s"
+Metrics_GPUGaugeCompactFreq = "GPU %d%% %dMHz"
+Metrics_GPUSparklineCompact = "GPU %d%% (%.0f%%)"
+
+Help_FullText = """
+mactop is een open-source monitoringtool voor Apple Silicon, gemaakt door Carsen Klock in Go!
+
+Repo: github.com/metaspartan/mactop
+
+----Huidige Instellingen----
+Prometheus-metrieken: %s
+Versie: %s
+Layout: %s
+Voorgrondkleur: %s
+Achtergrondkleur: %s
+Verversingsinterval: %dms
+
+----Bediening----
+- r: UI-gegevens handmatig vernieuwen
+- c: UI-kleurthema wisselen
+- b: UI-achtergrondkleur wisselen
+- p: Feestmodus aan/uit (kleurcyclus)
+- l: Door 18 beschikbare layouts bladeren
+- i: Informatiepaneel tonen/verbergen
+- Shift + F: Ventilatorregeling en thermisch paneel
+- F9: Geselecteerd proces beëindigen (j/n)
+- f: Proceslijst bevriezen
+- /: In proceslijst zoeken
+- g/G: Naar begin/einde van lijst springen
+- + of -: Verversingsinterval aanpassen
+- h of ?: Dit hulpmenu tonen/verbergen
+- j/k of ↓/↑: Tekst scrollen
+- q of <C-c>: Afsluiten
+
+----Startopties----
+--help, -h: Hulpmenu tonen
+--version, -v: Versie tonen
+--interval, -i: Verversingsinterval (ms). Standaard: 1000.
+--prometheus, -p: Prometheus-metrieken poort
+--headless: Zonder interface draaien (stdout)
+--format: Uitvoerformaat (json, yaml, xml, csv, toon)
+--pretty: Opgemaakt weergeven
+--count: Aantal samples (0 = oneindig)
+--dump-ioreport, -d: Alle IOReport-kanalen tonen
+--unit-network: Netwerkeenheid: auto, byte, kb, mb, gb
+--unit-disk: Schijfeenheid: auto, byte, kb, mb, gb
+--unit-temp: Tempeenheid: celsius, fahrenheit
+--foreground: UI-voorgrondkleur
+--bg: UI-achtergrondkleur
+--pid: Specifiek PID monitoren (--pid 1234)
+--fan-control: Interactieve ventilatorregeling (SMC)*
+--menubar: macOS-menubalk modus
+
+Themabestand: Maak ~/.mactop/theme.json voor aangepaste kleuren.
+"""
+
+Info_Auto = "Automatisch"
+Info_Manual = "Handmatig"
+Info_Disconnected = "Verbroken (%s)"
+Info_Enabled = "Ingeschakeld"
+Info_Disabled = "Uitgeschakeld"
+Info_ScrollUp = "↑ Omhoog scrollen"
+Info_ScrollDown = "↓ Omlaag scrollen"
+
+
+Menu_Usage = "Gebruik:"
+Menu_ECluster = "E-Cluster:"
+Menu_PCluster = "P-Cluster:"
+Menu_SCluster = "S-Cluster:"
+Menu_Power = "Vermogen:"
+Menu_Temp = "Temp:"
+Menu_TFLOPs = "TFLOPs:"
+Menu_RAM = "RAM:"
+Menu_Swap = "Swap:"
+Menu_DRAMBW = "DRAM BB:"
+Menu_Network = "Netwerk:"
+Menu_RDMA = "RDMA:"
+Menu_Disk = "Schijf:"
+Menu_Total = "Totaal:"
+Menu_System = "Systeem:"
+Menu_Thermal = "Thermisch:"
+Menu_Settings = "Instellingen..."
+Menu_OpenGitHub = "GitHub-info openen..."
+Menu_OpenTUI = "mactop TUI openen..."
+Menu_Quit = "mactop afsluiten"
+Menu_AppleSilicon = "Apple Silicon"
+Menu_CPU = "CPU"
+Menu_GPU = "GPU"
+Menu_MEMORY = "GEHEUGEN"
+Menu_NETWORK = "NETWERK"
+Menu_DISK = "SCHIJF"
+Menu_POWER = "VERMOGEN"
+Menu_HISTORY = "HISTORIE"
+Menu_FANS = "VENTILATOREN"
+
+CLI_HelpText = """
+Gebruik: mactop [opties]
+
+Opties:
+  -h, --help              Dit hulpbericht tonen
+  -v, --version           De versie van mactop tonen
+  -i, --interval <ms>     Verversingsinterval instellen in milliseconden (standaard: 1000)
+  --foreground <kleur>    UI-voorgrondkleur instellen (naam of hex, bijv. green, #9580FF)
+  --bg <kleur>            UI-achtergrondkleur instellen (naam of hex, bijv. mocha-base, #22212C)
+  -p, --prometheus <poort> Prometheus-metrieken server starten op opgegeven poort (bijv. :9090)
+      --headless          Uitvoeren zonder interface (geen TUI, JSON naar stdout)
+      --format <formaat>  Uitvoerformaat instellen (json, yaml, xml, csv, toon)
+      --pretty            Headless-uitvoer opmaken
+      --count <n>         Aantal samples in headless-modus (0 = oneindig)
+      --dump-ioreport, -d Alle beschikbare IOReport-kanalen tonen en afsluiten
+      --unit-network <eenheid> Netwerkeenheid: auto, byte, kb, mb, gb (standaard: auto)
+      --unit-disk <eenheid>    Schijfeenheid: auto, byte, kb, mb, gb (standaard: auto)
+      --unit-temp <eenheid>    Temperatuureenheid: celsius, fahrenheit (standaard: celsius)
+      --pid <pid>         Specifiek proces monitoren via PID
+      --menubar           Uitvoeren als macOS-menubalk-item (geen TUI)
+      --overlay           Zwevend HUD-venster boven alle apps tonen
+      --overlay-sections  Zichtbare secties gescheiden door komma's (bijv. cpu,gpu,memory,power)
+      --overlay-opacity   Overlay-venster dekking, 0.15-1.0 (standaard: 0.88)
+      --fan-control       Interactieve ventilatorregeling inschakelen (schrijft naar SMC)
+      --dump-temps        Diagnostiek: alle ruwe SMC-temperatuursleutels tonen en afsluiten
+      --dump-debug        Diagnostiek: IOReport/HID/SMC/NVMe debug-info tonen en afsluiten
+
+Themabestand:
+  Maak ~/.mactop/theme.json met aangepaste hex-kleuren:
+  {"foreground": "#9580FF", "background": "#22212C"}
+
+Meer informatie: https://github.com/metaspartan/mactop door Carsen Klock.
+"""
+CLI_Version = "mactop versie: %s"
+CLI_DumpingIOReport = "IOReport-kanalen worden gedumpt..."
+CLI_TestInputReceived = "Testinvoer ontvangen: %s"
+CLI_ErrorForegroundRequiresValue = "Fout: --foreground vereist een kleurwaarde"
+CLI_ErrorBackgroundRequiresValue = "Fout: --bg vereist een kleurwaarde"
+CLI_ErrorPrometheusRequiresValue = "Fout: --prometheus vereist een poortnummer"
+CLI_ErrorIntervalRequiresValue = "Fout: --interval vereist een intervalwaarde"
+CLI_ErrorInvalidInterval = "Ongeldig interval: %v"
+CLI_ErrorPIDRequiresValue = "Fout: --pid vereist een PID-waarde"
+CLI_ErrorInvalidPID = "Ongeldige PID: %v"
+CLI_TestingIOReportPowerMetrics = "IOReport-vermogensmetrieken worden getest..."
+CLI_TestSample = "Sample %d:"
+CLI_TestSocTemp = "  SoC Temp: %.1f°C"
+CLI_TestCPU = "  CPU: %.2fW | GPU: %.2fW (%d MHz, %.0f%% actief)"
+CLI_TestANE = "  ANE: %.2fW | DRAM: %.2fW | GPU SRAM: %.2fW | Totaal: %.2fW | %s"
+
+Headless_ErrorInitMetrics = "Kan metrieken niet initialiseren: %v"
+Headless_ErrorUnknownFormat = "Onbekend formaat: %s. json wordt gebruikt."
+Headless_ErrorFormattingOutput = "Fout bij het opmaken van de uitvoer: %v"
+Headless_ErrorPrometheusServer = "Prometheus-serverfout: %v"
+
+Info_OSValue = "macOS %s"
+Info_TFLOPsValue = "%.1f FP32 / %.1f FP16"
+Info_NotAvailable = "N.v.t."
+Info_PowerValue = "%.2f W (Gem %.0f W)"
+Info_NetworkValue = "↑ %s/s ↓ %s/s"
+Info_DiskValue = "L %s/s S %s/s"
+Info_DRAMBWValue = "L %.1f / S %.1f / %.1f GB/s"
+Info_FanValue = "%d RPM (%s, %d-%d)"
+Info_WiFiValue = "%s @ %dMbps (%s)"
+Info_VolumeValue = "%s / %s (%s vrij)"
+
+Fan_CPUTemp = "CPU Temp"
+Fan_GPUTemp = "GPU Temp"
+Fan_NoFansDetected = "Geen ventilatoren gedetecteerd"
+Fan_NoTemperatureSensorsDetected = "Geen temperatuursensoren gedetecteerd"
+Fan_ControlActive = "[⚠ VENTILATORREGELING ACTIEF](fg:red,mod:bold)  [+/-](fg:%s,mod:bold) Snelheid  [a](fg:%s,mod:bold) Auto  [0/9](fg:%s,mod:bold) Min/Max  [R](fg:green,mod:bold) Reset  [l](fg:%s) Layout  [F](fg:%s) Sluiten"
+Fan_ReadOnly = "[Alleen-lezen](fg:%s)  Gebruik --fan-control om schrijven in te schakelen  |  [l](fg:%s,mod:bold) Layout  [F](fg:%s,mod:bold) Ventilatorweergave sluiten"
+
+Metrics_PowerSparklineGroup = "%.2f W Totaal (Max: %.2f W)"
+Metrics_PowerSparklineTitle = "Gem %.2f W | %s"
+Metrics_PowerHistoryDetail = "Vermogenshistorie (Gem %.1fW, Max %.1fW)"
+Metrics_CPUHistoryDetail = "CPU Gebruikshistorie (%.1f%%)"
+Metrics_MemoryHistoryDetail = "Geh: %.1f/%.1fGB, Swap: %.1fGB"
+
+TUI_KillPIDTitle = " BEVESTIG BEËINDIGING PID %d "
+
+Menu_Tooltip = "mactop — Apple Silicon Monitor"
+Menu_SettingsTitle = "mactop Menubalk Instellingen"
+Menu_ShowCPUBar = "CPU-balk tonen"
+Menu_ShowGPUBar = "GPU-balk tonen"
+Menu_ShowANEBar = "ANE-balk tonen"
+Menu_ShowMemoryBar = "Geheugenbalk tonen"
+Menu_ShowWattageInMenuBar = "Wattage in menubalk tonen"
+Menu_ShowPercentages = "Percentages tonen"
+Menu_StatusBarWidth = "Breedte statusbalk:"
+Menu_StatusBarHeight = "Hoogte statusbalk:"
+Menu_BarFontSize = "Lettergrootte balk:"
+Menu_WattageFontSize = "Lettergrootte wattage:"
+Menu_Colors = "Kleuren:"
+Menu_LabelText = "Labeltekst"
+Menu_BarOrder = "Balkvolgorde:"
+Menu_DiskRate = "L %.0f KB/s  S %.0f KB/s"
+Menu_FanItem = "Ventilator %d"
+
+Overlay_DRAM = "DRAM"
+Overlay_CollapsedMode = "Ingeklapt"
+Overlay_ExpandedMode = "Uitgeklapt"
+Overlay_Done = "Klaar"
+Overlay_RequiresScreenRecordingPermission = "Schermopname-machtiging vereist"
+Overlay_RequiresPermission = "Machtiging vereist"
+Overlay_OpacityHint = "Dekking: %.0f%%  (scroll om aan te passen)"
+Overlay_GPUCores = "%d GPU Cores"
+Overlay_GPUFreqTFLOPs = "%dMHz • %.1f TFLOPS"
+Overlay_GPUFreqMHz = "%d MHz"
+Overlay_TempsDual = "CPU %.0f°C  GPU %.0f°C"
+Overlay_TempsSingle = "%.0f°C"
+
+# Fan modes & temperature categories
+Fan_Mode_Auto = "Auto"
+Fan_Mode_Manual = "Handmatig"
+Fan_TargetRange = "Doel: %d RPM  |  Bereik: %d – %d RPM"
+Temp_AvgOf = "gem. van %d, %s – %s"
+TempCategory_CPU_ECore = "CPU E-Kern"
+TempCategory_CPU_PCore = "CPU P-Kern"
+TempCategory_CPU_SCore = "CPU S-Kern"
+TempCategory_CPU_ECores = "CPU E-Kernen"
+TempCategory_CPU_PCores = "CPU P-Kernen"
+TempCategory_CPU_SCores = "CPU S-Kernen"
+TempCategory_CPU_Core = "CPU-Kern"
+TempCategory_CPU_Die = "CPU-Die"
+TempCategory_GPU = "GPU"
+TempCategory_Memory = "Geheugen"
+TempCategory_SSD = "SSD"
+TempCategory_NAND = "NAND"
+TempCategory_NVMe = "NVMe"
+TempCategory_Ambient = "Omgeving"
+TempCategory_Board = "Bord"
+TempCategory_VRM = "VRM"
+TempCategory_SocPackage = "SoC Package"
+TempCategory_Thunderbolt = "Thunderbolt"
+TempCategory_Wireless = "Draadloos"
+TempCategory_Display = "Scherm"
+TempCategory_Other = "Overig"

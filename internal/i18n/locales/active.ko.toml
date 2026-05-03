@@ -1,0 +1,357 @@
+Overlay_FPS = "FPS"
+Overlay_FrameInfo = "프레임 간격"
+Overlay_CPU = "CPU"
+Overlay_GPU = "GPU"
+Overlay_ANE = "ANE"
+Overlay_Memory = "메모리"
+Overlay_Swap = "스왑"
+Overlay_Power = "전력"
+Overlay_Bandwidth = "DRAM 대역폭"
+Overlay_GPUFreq = "GPU 주파수"
+Overlay_Temps = "온도"
+Overlay_Thermal = "열 상태"
+Overlay_Fans = "팬"
+Overlay_Network = "네트워크"
+
+TUI_InfoLayoutColorExit = " 정보: i | 레이아웃: l | 색상: c | 배경: b | 종료: q "
+TUI_LayoutInfo = " %d/%d 레이아웃 (%s) "
+TUI_LayoutInfoShort = " %d/%d "
+TUI_ModelInfo = "모델: %s"
+TUI_CoresInfo = "%d 코어 (%dP, %dE, %dS) | GPU: %d 코어 | %s"
+TUI_TotalPower = "총 전력: %.1fW"
+TUI_AppTotalPower = "총: %.1fW | CPU: %.1fW (ANE: %.1fW) GPU: %.1fW"
+TUI_AppleSilicon = "Apple Silicon"
+TUI_HelpMenu = "mactop 도움말"
+TUI_Loading = "로딩 중..."
+TUI_LoadingTB = "Thunderbolt 정보 로드 중..."
+TUI_Fans = " ⊚ 팬 "
+TUI_Temperatures = " 🌡 온도 "
+TUI_ProcessList = "프로세스 목록"
+TUI_UnknownModel = "알 수 없는 모델"
+TUI_ECPUUsage = "E-CPU 사용량"
+TUI_PCPUUsage = "P-CPU 사용량"
+TUI_GPUUsage = "GPU 사용량"
+TUI_MemoryUsage = "메모리 사용량"
+TUI_ANEUsage = "ANE 사용량"
+TUI_PowerUsage = "전력 사용량"
+TUI_NetworkDisk = "네트워크 및 디스크"
+TUI_ThunderboltRDMA = "Thunderbolt / RDMA"
+TUI_MactopTitle = " mactop "
+TUI_GPUUsageHistory = "GPU 사용 기록"
+TUI_TBNet = "TB 네트워크 ↓0/s ↑0/s"
+TUI_PowerHistory = "전력 기록"
+TUI_MemorySwapHistory = "메모리/스왑 기록"
+TUI_CPUUsageHistory = "CPU 사용 기록"
+TUI_ConfirmKill = " 확인 "
+TUI_ConfirmKillBody = "프로세스 종료 확인"
+TUI_ConfirmYes = "예"
+TUI_ConfirmNo = "아니오"
+
+Info_OS = "OS"
+Info_Host = "호스트"
+Info_Kernel = "커널"
+Info_Uptime = "업타임"
+Info_Shell = "쉘"
+Info_CPU = "CPU"
+Info_GPU = "GPU"
+Info_TFLOPs = "TFLOPs"
+Info_Memory = "메모리"
+Info_Swap = "스왑"
+Info_CPUUsage = "CPU 사용량"
+Info_GPUUsage = "GPU 사용량"
+Info_ANEUsage = "ANE 사용량"
+Info_Power = "전력"
+Info_Thermals = "온도"
+Info_Network = "네트워크"
+Info_Disk = "디스크"
+Info_DRAMBW = "DRAM 대역폭"
+Info_TBNet = "TB 네트워크"
+Info_RDMA = "RDMA"
+Info_Ethernet = "이더넷"
+Info_WiFi = "Wi-Fi"
+
+Metrics_MemoryUsed = "%.1fGB / %.1fGB %.1f%%"
+Metrics_SwapUsed = "스왑: %.1fGB / %.1fGB %.1f%%"
+Metrics_DiskIO = "[입력] %.1f%s [출력] %.1f%s"
+Metrics_NetIO = "[입력] %s [출력] %s"
+Metrics_TFLOPs = "FP32 TFLOPs: %.1f"
+Metrics_Freq = "주파수: %d MHz"
+Metrics_RPM = "%d RPM"
+Metrics_ThermalNominal = "정상"
+Metrics_ThermalFair = "주의"
+Metrics_ThermalSerious = "심각"
+Metrics_ThermalCritical = "위험"
+Metrics_ThermalUnknown = "알 수 없음"
+Metrics_RDMAActive = "활성"
+Metrics_RDMAInactive = "비활성"
+Metrics_CPUGaugeCompact = "CPU %.0f%% %s"
+Metrics_CPUGauge = "%d 코어 %s %.2f%%%s (%s)"
+Metrics_ANEGaugeCompact = "ANE %.1fW"
+Metrics_ANEGauge = "ANE 사용량: %.2f%% @ %.2f W"
+Metrics_PowerChartTitleCompact = "전력"
+Metrics_PowerChartTextCompact = "C:%.1fW G:%.1fW\nA:%.1fW D:%.1fW\n총:%.1fW %s"
+Metrics_PowerChartText = "CPU: %.2f W | GPU: %.2f W\nANE: %.2f W | DRAM: %.2f W\n시스템: %.2f W\n총: %.2f W\n온도: %s\n업타임: %s"
+Metrics_NetworkDiskTitle = "네트워크 및 디스크"
+Metrics_MemGaugeCompact = "메모리 %.0f/%.0fG 대역폭 %.1f GB/s"
+Metrics_MemGauge = "메모리: %.2f GB / %.2f GB (스왑: %.2f/%.2f GB) 대역폭: %.1f GB/s"
+
+Process_PID = "PID"
+Process_USER = "사용자"
+Process_VIRT = "가상"
+Process_RES = "물리"
+Process_CPU = "CPU"
+Process_GPU = "GPU"
+Process_MEM = "메모리"
+Process_TIME = "시간"
+Process_CMD = "명령어"
+
+TUI_ProcessListFull = "프로세스 목록 (↑/↓ 이동, / 검색, f 정지, F9 종료)"
+TUI_ProcessListFrozen = " 프로세스 목록 [정지됨] (f로 재개) "
+TUI_ProcessListSearch = " 검색: %s_ (Esc로 취소) "
+TUI_ProcessListKill = " 프로세스 목록 - 종료 확인 접수됨 (PID %d) "
+TUI_ProcessListPID = " 프로세스 목록 [PID %d] (↑/↓ 이동, / 검색, f 정지, F9 종료) "
+TUI_Cores = "%d 코어"
+TUI_ECores = "%d E-Core"
+TUI_PCores = "%d P-Core"
+TUI_SCores = "%d S-Core"
+TUI_GPUCores = "%s GPU 코어"
+
+Metrics_NetLink = "네트워크 (%s): ↑ %s/s ↓ %s/s"
+Metrics_Net = "네트워크: ↑ %s/s ↓ %s/s"
+Metrics_IO = "I/O: 읽기 %s/s 쓰기 %s/s"
+Metrics_DiskFree = "%s: %s/%s (%s 여유)"
+Metrics_GPUGaugeTemp = "GPU 사용량: %d%% @ %d MHz (%s)"
+Metrics_GPUGaugeFreq = "GPU 사용량: %d%% @ %d MHz"
+Metrics_GPUSparkline = "GPU 기록: %d%% (평균: %.1f%%)"
+Metrics_GPUHistoryChart = "GPU 사용 기록 (평균: %.1f%%)"
+Metrics_GPUGaugeCompactTemp = "GPU %d%% %s"
+Metrics_GPUGaugeCompactFreq = "GPU %d%% %dMHz"
+Metrics_GPUSparklineCompact = "GPU %d%% (%.0f%%)"
+
+Help_FullText = """
+mactop은 Carsen Klock이 Go 언어로 작성한 Apple Silicon용 오픈 소스 모니터링 도구입니다!
+
+저장소: github.com/metaspartan/mactop
+
+----현재 설정----
+Prometheus 메트릭: %s
+버전: %s
+레이아웃: %s
+전경색: %s
+배경색: %s
+업데이트 간격: %dms
+
+----컨트롤----
+- r: UI 데이터를 수동으로 새로고침
+- c: UI 색상 테마 순환
+- b: UI 배경색 순환
+- p: 파티 모드 토글 (색상 순환)
+- l: 18개의 사용 가능한 레이아웃 순환
+- i: 정보 레이아웃 토글
+- Shift + F: 팬 제어 및 온도 레이아웃 토글
+- F9: 선택된 프로세스 종료 (y/n 확인)
+- f: 프로세스 목록 고정
+- /: 프로세스 목록 검색
+- g/G: 프로세스 목록의 맨 위/맨 아래로 이동
+- + 또는 -: 업데이트 간격 조정 (빠르게/느리게)
+- h 또는 ?: 도움말 메뉴 토글
+- j/k 또는 ↓/↑: 도움말 텍스트 스크롤
+- q 또는 <C-c>: 애플리케이션 종료
+
+----시작 플래그----
+--help, -h: 이 도움말 메뉴 표시
+--version, -v: mactop 버전 표시
+--interval, -i: 업데이트 간격(밀리초) 설정. 기본값은 1000.
+--prometheus, -p: Prometheus 메트릭 포트 설정 및 활성화. (예: --prometheus=9090)
+--headless: 헤드리스 모드로 실행 (TUI 없이 stdout으로 출력)
+--format: 헤드리스 모드 출력 형식 (json, yaml, xml, csv, toon). 기본값은 json.
+--pretty: 헤드리스 모드에서 보기 좋게 포맷하여 출력
+--count: 헤드리스 모드에서 수집할 샘플 수 (0 = 무한)
+--dump-ioreport, -d: 사용 가능한 모든 IOReport 채널을 덤프하고 종료
+--unit-network: 네트워크 단위: auto, byte, kb, mb, gb (기본값: auto)
+--unit-disk: 디스크 단위: auto, byte, kb, mb, gb (기본값: auto)
+--unit-temp: 온도 단위: celsius, fahrenheit (기본값: celsius)
+--foreground: UI 전경색 설정 (이름 또는 16진수, 예: green, #9580FF)
+--bg: UI 배경색 설정 (이름 또는 16진수, 예: mocha-base, #22212C)
+--pid: PID로 특정 프로세스 모니터링 (예: --pid 1234)
+--fan-control: 대화형 팬 속도 제어 활성화 (SMC에 기록, 주의 사용*)
+--menubar: macOS 메뉴 막대 상태 항목으로 실행 (TUI 없음)
+
+테마 파일: 사용자 정의 색상을 위해 ~/.mactop/theme.json 을 생성하세요
+"""
+
+Info_Auto = "자동"
+Info_Manual = "수동"
+Info_Disconnected = "연결 해제됨 (%s)"
+Info_Enabled = "활성화됨"
+Info_Disabled = "비활성화됨"
+Info_ScrollUp = "↑ 위로 스크롤"
+Info_ScrollDown = "↓ 아래로 스크롤"
+
+Menu_Usage = "사용량:"
+Menu_ECluster = "E-클러스터:"
+Menu_PCluster = "P-클러스터:"
+Menu_SCluster = "S-클러스터:"
+Menu_Power = "전력:"
+Menu_Temp = "온도:"
+Menu_TFLOPs = "TFLOPs:"
+Menu_RAM = "RAM:"
+Menu_Swap = "스왑:"
+Menu_DRAMBW = "DRAM 대역폭:"
+Menu_Network = "네트워크:"
+Menu_RDMA = "RDMA:"
+Menu_Disk = "디스크:"
+Menu_Total = "총합:"
+Menu_System = "시스템:"
+Menu_Thermal = "열 상태:"
+Menu_Settings = "설정..."
+Menu_OpenGitHub = "GitHub 정보 열기..."
+Menu_OpenTUI = "mactop TUI 열기..."
+Menu_Quit = "mactop 종료"
+Menu_AppleSilicon = "Apple Silicon"
+Menu_CPU = "CPU"
+Menu_GPU = "GPU"
+Menu_MEMORY = "메모리"
+Menu_NETWORK = "네트워크"
+Menu_DISK = "디스크"
+Menu_POWER = "전력"
+Menu_HISTORY = "기록"
+Menu_FANS = "팬"
+
+CLI_HelpText = """
+사용법: mactop [옵션]
+
+옵션:
+  -h, --help              이 도움말 표시
+  -v, --version           mactop 버전 표시
+  -i, --interval <ms>     업데이트 간격을 밀리초 단위로 설정 (기본값: 1000)
+  --foreground <color>    UI 전경색 설정 (이름 또는 hex, 예: green, #9580FF)
+  --bg <color>            UI 배경색 설정 (이름 또는 hex, 예: mocha-base, #22212C)
+  -p, --prometheus <port> 지정한 포트에서 Prometheus 메트릭 서버 실행 (예: :9090)
+      --headless          헤드리스 모드로 실행 (TUI 없음, stdout에 JSON 출력)
+      --format <format>   출력 형식 설정 (json, yaml, xml, csv, toon)
+      --pretty            헤드리스 출력을 보기 좋게 포맷
+      --count <n>         헤드리스 모드에서 수집할 샘플 수 (0 = 무한)
+      --dump-ioreport, -d 사용 가능한 모든 IOReport 채널을 출력하고 종료
+      --unit-network <unit> 네트워크 단위: auto, byte, kb, mb, gb (기본값: auto)
+      --unit-disk <unit>    디스크 단위: auto, byte, kb, mb, gb (기본값: auto)
+      --unit-temp <unit>    온도 단위: celsius, fahrenheit (기본값: celsius)
+      --pid <pid>         PID로 특정 프로세스 모니터링
+      --menubar           macOS 메뉴 막대 항목으로 실행 (TUI 없음)
+      --overlay           모든 앱 위에 떠 있는 HUD 창 표시
+      --overlay-sections  표시할 섹션을 쉼표로 구분해 지정 (예: cpu,gpu,memory,power)
+      --overlay-opacity   오버레이 창 투명도, 0.15-1.0 (기본값: 0.88)
+      --fan-control       대화형 팬 제어 활성화 (SMC에 기록)
+      --dump-temps        진단: 모든 원시 SMC 온도 키를 출력하고 종료
+      --dump-debug        진단: IOReport/HID/SMC/NVMe 디버그 정보를 출력하고 종료
+
+테마 파일:
+  ~/.mactop/theme.json 을 생성해 사용자 정의 hex 색상을 설정하세요:
+  {"foreground": "#9580FF", "background": "#22212C"}
+
+더 많은 정보: https://github.com/metaspartan/mactop (Carsen Klock)
+"""
+CLI_Version = "mactop 버전: %s"
+CLI_DumpingIOReport = "IOReport 채널을 덤프하는 중..."
+CLI_TestInputReceived = "테스트 입력 수신: %s"
+CLI_ErrorForegroundRequiresValue = "오류: --foreground 플래그에는 색상 값이 필요합니다"
+CLI_ErrorBackgroundRequiresValue = "오류: --bg 플래그에는 색상 값이 필요합니다"
+CLI_ErrorPrometheusRequiresValue = "오류: --prometheus 플래그에는 포트 번호가 필요합니다"
+CLI_ErrorIntervalRequiresValue = "오류: --interval 플래그에는 간격 값이 필요합니다"
+CLI_ErrorInvalidInterval = "잘못된 간격 값: %v"
+CLI_ErrorPIDRequiresValue = "오류: --pid 플래그에는 PID 값이 필요합니다"
+CLI_ErrorInvalidPID = "잘못된 PID: %v"
+CLI_TestingIOReportPowerMetrics = "IOReport 전력 메트릭 테스트 중..."
+CLI_TestSample = "샘플 %d:"
+CLI_TestSocTemp = "  SoC 온도: %.1f°C"
+CLI_TestCPU = "  CPU: %.2fW | GPU: %.2fW (%d MHz, %.0f%% active)"
+CLI_TestANE = "  ANE: %.2fW | DRAM: %.2fW | GPU SRAM: %.2fW | 총합: %.2fW | %s"
+
+Headless_ErrorInitMetrics = "메트릭 초기화 실패: %v"
+Headless_ErrorUnknownFormat = "알 수 없는 형식입니다: %s. json을 사용합니다."
+Headless_ErrorFormattingOutput = "출력 포맷 중 오류 발생: %v"
+Headless_ErrorPrometheusServer = "Prometheus 서버 오류: %v"
+
+Info_OSValue = "macOS %s"
+Info_TFLOPsValue = "%.1f FP32 / %.1f FP16"
+Info_NotAvailable = "해당 없음"
+Info_PowerValue = "%.2f W (평균 %.0f W)"
+Info_NetworkValue = "↑ %s/s ↓ %s/s"
+Info_DiskValue = "읽기 %s/s 쓰기 %s/s"
+Info_DRAMBWValue = "읽기 %.1f / 쓰기 %.1f / %.1f GB/s"
+Info_FanValue = "%d RPM (%s, %d-%d)"
+Info_WiFiValue = "%s @ %dMbps (%s)"
+Info_VolumeValue = "%s / %s (%s 여유)"
+
+Fan_CPUTemp = "CPU 온도"
+Fan_GPUTemp = "GPU 온도"
+Fan_NoFansDetected = "팬이 감지되지 않았습니다"
+Fan_NoTemperatureSensorsDetected = "온도 센서가 감지되지 않았습니다"
+Fan_ControlActive = "[⚠ 팬 제어 활성화됨](fg:red,mod:bold)  [+/-](fg:%s,mod:bold) 속도  [a](fg:%s,mod:bold) 자동  [0/9](fg:%s,mod:bold) 최소/최대  [R](fg:green,mod:bold) 초기화  [l](fg:%s) 레이아웃  [F](fg:%s) 종료"
+Fan_ReadOnly = "[읽기 전용](fg:%s)  쓰기를 허용하려면 --fan-control 사용  |  [l](fg:%s,mod:bold) 레이아웃  [F](fg:%s,mod:bold) 팬 보기 종료"
+
+Metrics_PowerSparklineGroup = "%.2f W 총합 (최대: %.2f W)"
+Metrics_PowerSparklineTitle = "평균 %.2f W | %s"
+Metrics_PowerHistoryDetail = "전력 기록 (평균 %.1fW, 최대 %.1fW)"
+Metrics_CPUHistoryDetail = "CPU 사용 기록 (%.1f%%)"
+Metrics_MemoryHistoryDetail = "메모리: %.1f/%.1fGB, 스왑: %.1fGB"
+
+TUI_KillPIDTitle = " PID %d 종료 확인 "
+
+Menu_Tooltip = "mactop — Apple Silicon 모니터"
+Menu_SettingsTitle = "mactop 메뉴 막대 설정"
+Menu_ShowCPUBar = "CPU 바 표시"
+Menu_ShowGPUBar = "GPU 바 표시"
+Menu_ShowANEBar = "ANE 바 표시"
+Menu_ShowMemoryBar = "메모리 바 표시"
+Menu_ShowWattageInMenuBar = "메뉴 막대에 전력 표시"
+Menu_ShowPercentages = "백분율 표시"
+Menu_StatusBarWidth = "상태 막대 너비:"
+Menu_StatusBarHeight = "상태 막대 높이:"
+Menu_BarFontSize = "바 글꼴 크기:"
+Menu_WattageFontSize = "전력 글꼴 크기:"
+Menu_Colors = "색상:"
+Menu_LabelText = "라벨 텍스트"
+Menu_BarOrder = "막대 항목 순서:"
+Menu_DiskRate = "읽기 %.0f KB/s  쓰기 %.0f KB/s"
+Menu_FanItem = "팬 %d"
+
+Overlay_DRAM = "DRAM"
+Overlay_CollapsedMode = "축소 모드"
+Overlay_ExpandedMode = "확장 모드"
+Overlay_Done = "완료"
+Overlay_RequiresScreenRecordingPermission = "화면 기록 권한이 필요합니다"
+Overlay_RequiresPermission = "권한이 필요합니다"
+Overlay_OpacityHint = "투명도: %.0f%%  (스크롤로 조절)"
+Overlay_GPUCores = "%d GPU 코어"
+Overlay_GPUFreqTFLOPs = "%dMHz • %.1f TFLOPS"
+Overlay_GPUFreqMHz = "%d MHz"
+Overlay_TempsDual = "CPU %.0f°C  GPU %.0f°C"
+Overlay_TempsSingle = "%.0f°C"
+
+# Fan modes & temperature categories
+Fan_Mode_Auto = "자동"
+Fan_Mode_Manual = "수동"
+Fan_TargetRange = "목표: %d RPM  |  범위: %d – %d RPM"
+Temp_AvgOf = "%d 평균, %s – %s"
+TempCategory_CPU_ECore = "CPU E코어"
+TempCategory_CPU_PCore = "CPU P코어"
+TempCategory_CPU_SCore = "CPU S코어"
+TempCategory_CPU_ECores = "CPU E코어"
+TempCategory_CPU_PCores = "CPU P코어"
+TempCategory_CPU_SCores = "CPU S코어"
+TempCategory_CPU_Core = "CPU 코어"
+TempCategory_CPU_Die = "CPU 다이"
+TempCategory_GPU = "GPU"
+TempCategory_Memory = "메모리"
+TempCategory_SSD = "SSD"
+TempCategory_NAND = "NAND"
+TempCategory_NVMe = "NVMe"
+TempCategory_Ambient = "주변"
+TempCategory_Board = "보드"
+TempCategory_VRM = "VRM"
+TempCategory_SocPackage = "SoC"
+TempCategory_Thunderbolt = "Thunderbolt"
+TempCategory_Wireless = "무선"
+TempCategory_Display = "디스플레이"
+TempCategory_Other = "기타"

@@ -1,0 +1,357 @@
+Overlay_FPS = "FPS"
+Overlay_FrameInfo = "Kare Aralığı"
+Overlay_CPU = "CPU"
+Overlay_GPU = "GPU"
+Overlay_ANE = "ANE"
+Overlay_Memory = "Bellek"
+Overlay_Swap = "Swap"
+Overlay_Power = "Güç"
+Overlay_Bandwidth = "DRAM Bant Genişliği"
+Overlay_GPUFreq = "GPU Frekansı"
+Overlay_Temps = "Sıcaklık"
+Overlay_Thermal = "Termal Durum"
+Overlay_Fans = "Fanlar"
+Overlay_Network = "Ağ"
+
+TUI_InfoLayoutColorExit = " Bilgi: i | Düzen: l | Renk: c | Arka Plan: b | Çıkış: q "
+TUI_LayoutInfo = " %d/%d düzen (%s) "
+TUI_LayoutInfoShort = " %d/%d "
+TUI_ModelInfo = "Model: %s"
+TUI_CoresInfo = "%d Çekirdek (%dP, %dE, %dS) | GPU: %d Çekirdek | %s"
+TUI_TotalPower = "Toplam Güç: %.1fW"
+TUI_AppTotalPower = "Toplam: %.1fW | CPU: %.1fW (ANE: %.1fW) GPU: %.1fW"
+TUI_AppleSilicon = "Apple Silicon"
+TUI_HelpMenu = "mactop yardım menüsü"
+TUI_Loading = "Yükleniyor..."
+TUI_LoadingTB = "Thunderbolt bilgisi yükleniyor..."
+TUI_Fans = " ⊚ Fanlar "
+TUI_Temperatures = " 🌡 Sıcaklık "
+TUI_ProcessList = "İşlem Listesi"
+TUI_UnknownModel = "Bilinmeyen Model"
+TUI_ECPUUsage = "E-CPU Kullanımı"
+TUI_PCPUUsage = "P-CPU Kullanımı"
+TUI_GPUUsage = "GPU Kullanımı"
+TUI_MemoryUsage = "Bellek Kullanımı"
+TUI_ANEUsage = "ANE Kullanımı"
+TUI_PowerUsage = "Güç Tüketimi"
+TUI_NetworkDisk = "Ağ ve Disk"
+TUI_ThunderboltRDMA = "Thunderbolt / RDMA"
+TUI_MactopTitle = " mactop "
+TUI_GPUUsageHistory = "GPU Kullanım Geçmişi"
+TUI_TBNet = "TB Ağ ↓0/s ↑0/s"
+TUI_PowerHistory = "Güç Geçmişi"
+TUI_MemorySwapHistory = "Bellek/Swap Geçmişi"
+TUI_CPUUsageHistory = "CPU Kullanım Geçmişi"
+TUI_ConfirmKill = " ONAYLA "
+TUI_ConfirmKillBody = "SONLANDIRMAYI ONAYLA"
+TUI_ConfirmYes = "Evet"
+TUI_ConfirmNo = "Hayır"
+
+Info_OS = "İS"
+Info_Host = "Ana Bilgisayar"
+Info_Kernel = "Çekirdek"
+Info_Uptime = "Çalışma Süresi"
+Info_Shell = "Shell"
+Info_CPU = "CPU"
+Info_GPU = "GPU"
+Info_TFLOPs = "TFLOPs"
+Info_Memory = "Bellek"
+Info_Swap = "Swap"
+Info_CPUUsage = "CPU Kullanımı"
+Info_GPUUsage = "GPU Kullanımı"
+Info_ANEUsage = "ANE Kullanımı"
+Info_Power = "Güç"
+Info_Thermals = "Sıcaklık"
+Info_Network = "Ağ"
+Info_Disk = "Disk"
+Info_DRAMBW = "DRAM BG"
+Info_TBNet = "TB Ağ"
+Info_RDMA = "RDMA"
+Info_Ethernet = "Ethernet"
+Info_WiFi = "Wi-Fi"
+
+Metrics_MemoryUsed = "%.1fGB / %.1fGB %.1f%%"
+Metrics_SwapUsed = "Swap: %.1fGB / %.1fGB %.1f%%"
+Metrics_DiskIO = "[Giriş] %.1f%s [Çıkış] %.1f%s"
+Metrics_NetIO = "[Giriş] %s [Çıkış] %s"
+Metrics_TFLOPs = "FP32 TFLOPs: %.1f"
+Metrics_Freq = "Frekans: %d MHz"
+Metrics_RPM = "%d RPM"
+Metrics_ThermalNominal = "Normal"
+Metrics_ThermalFair = "Orta"
+Metrics_ThermalSerious = "Ciddi"
+Metrics_ThermalCritical = "Kritik"
+Metrics_ThermalUnknown = "Bilinmiyor"
+Metrics_RDMAActive = "Aktif"
+Metrics_RDMAInactive = "Pasif"
+Metrics_CPUGaugeCompact = "CPU %.0f%% %s"
+Metrics_CPUGauge = "%d Çekirdek %s %.2f%%%s (%s)"
+Metrics_ANEGaugeCompact = "ANE %.1fW"
+Metrics_ANEGauge = "ANE Kullanımı: %.2f%% @ %.2f W"
+Metrics_PowerChartTitleCompact = "Güç"
+Metrics_PowerChartTextCompact = "C:%.1fW G:%.1fW\nA:%.1fW D:%.1fW\nTop:%.1fW %s"
+Metrics_PowerChartText = "CPU: %.2f W | GPU: %.2f W\nANE: %.2f W | DRAM: %.2f W\nSistem: %.2f W\nToplam: %.2f W\nTermal: %s\nÇalışma Süresi: %s"
+Metrics_NetworkDiskTitle = "Ağ ve Disk"
+Metrics_MemGaugeCompact = "Bellek %.0f/%.0fG BG %.1f GB/s"
+Metrics_MemGauge = "Bellek: %.2f GB / %.2f GB (Swap: %.2f/%.2f GB) BG: %.1f GB/s"
+
+Process_PID = "PID"
+Process_USER = "KULLANICI"
+Process_VIRT = "SANAL"
+Process_RES = "FİZİK"
+Process_CPU = "CPU"
+Process_GPU = "GPU"
+Process_MEM = "BEL"
+Process_TIME = "SÜRE"
+Process_CMD = "KOMUT"
+
+TUI_ProcessListFull = "İşlem Listesi (↑/↓ kaydır, / ara, f dondur, F9 sonlandır)"
+TUI_ProcessListFrozen = " İşlem Listesi [DONDURULDU] (f ile devam et) "
+TUI_ProcessListSearch = " Ara: %s_ (Esc ile temizle) "
+TUI_ProcessListKill = " İşlem Listesi - SONLANDIRMA ONAYI (PID %d) "
+TUI_ProcessListPID = " İşlem Listesi [PID %d] (↑/↓ kaydır, / ara, f dondur, F9 sonlandır) "
+TUI_Cores = "%d Çekirdek"
+TUI_ECores = "%d E-Core"
+TUI_PCores = "%d P-Core"
+TUI_SCores = "%d S-Core"
+TUI_GPUCores = "%s GPU Çekirdek"
+Metrics_NetLink = "Ağ (%s): ↑ %s/s ↓ %s/s"
+Metrics_Net = "Ağ: ↑ %s/s ↓ %s/s"
+Metrics_IO = "G/Ç: O %s/s Y %s/s"
+Metrics_DiskFree = "%s: %s/%s (%s boş)"
+Metrics_GPUGaugeTemp = "GPU Kullanımı: %d%% @ %d MHz (%s)"
+Metrics_GPUGaugeFreq = "GPU Kullanımı: %d%% @ %d MHz"
+Metrics_GPUSparkline = "GPU Geçmişi: %d%% (Ort: %.1f%%)"
+Metrics_GPUHistoryChart = "GPU Kullanım Geçmişi (Ort: %.1f%%)"
+Metrics_GPUGaugeCompactTemp = "GPU %d%% %s"
+Metrics_GPUGaugeCompactFreq = "GPU %d%% %dMHz"
+Metrics_GPUSparklineCompact = "GPU %d%% (%.0f%%)"
+
+Help_FullText = """
+mactop, Carsen Klock tarafından Go ile geliştirilen Apple Silicon için açık kaynaklı izleme aracıdır!
+
+Depo: github.com/metaspartan/mactop
+
+----Mevcut Ayarlar----
+Prometheus Metrikleri: %s
+Sürüm: %s
+Düzen: %s
+Ön Plan Rengi: %s
+Arka Plan Rengi: %s
+Güncelleme Aralığı: %dms
+
+----Kontroller----
+- r: UI verilerini manuel olarak yenile
+- c: UI renk temasını değiştir
+- b: UI arka plan rengini değiştir
+- p: Parti modunu aç/kapat (renk döngüsü)
+- l: 18 mevcut düzen arasında geçiş yap
+- i: Bilgi panelini göster/gizle
+- Shift + F: Fan kontrolü ve termal paneli
+- F9: Seçili işlemi sonlandır (e/h)
+- f: İşlem listesini dondur
+- /: İşlem listesinde ara
+- g/G: Listenin başına/sonuna git
+- + veya -: Güncelleme aralığını ayarla
+- h veya ?: Bu yardım menüsünü göster/gizle
+- j/k veya ↓/↑: Metni kaydır
+- q veya <C-c>: Uygulamadan çık
+
+----Başlatma Seçenekleri----
+--help, -h: Bu yardım menüsünü göster
+--version, -v: Sürümü göster
+--interval, -i: Güncelleme aralığını ayarla (ms). Varsayılan: 1000.
+--prometheus, -p: Prometheus metrikleri portu
+--headless: Arayüzsüz mod (stdout'a çıktı)
+--format: Çıktı formatı (json, yaml, xml, csv, toon)
+--pretty: Biçimlendirilmiş çıktı
+--count: Örnek sayısı (0 = sonsuz)
+--dump-ioreport, -d: Tüm IOReport kanallarını göster
+--unit-network: Ağ birimi: auto, byte, kb, mb, gb
+--unit-disk: Disk birimi: auto, byte, kb, mb, gb
+--unit-temp: Sıcaklık birimi: celsius, fahrenheit
+--foreground: UI ön plan rengi
+--bg: UI arka plan rengi
+--pid: Belirli bir PID'yi izle (--pid 1234)
+--fan-control: Etkileşimli fan kontrolü (SMC)*
+--menubar: macOS menü çubuğu modu
+
+Tema Dosyası: Özel renkler için ~/.mactop/theme.json oluşturun.
+"""
+
+Info_Auto = "Otomatik"
+Info_Manual = "Manuel"
+Info_Disconnected = "Bağlantı Kesildi (%s)"
+Info_Enabled = "Etkin"
+Info_Disabled = "Devre Dışı"
+Info_ScrollUp = "↑ Yukarı kaydır"
+Info_ScrollDown = "↓ Aşağı kaydır"
+
+
+Menu_Usage = "Kullanım:"
+Menu_ECluster = "E-Cluster:"
+Menu_PCluster = "P-Cluster:"
+Menu_SCluster = "S-Cluster:"
+Menu_Power = "Güç:"
+Menu_Temp = "Sıcaklık:"
+Menu_TFLOPs = "TFLOPs:"
+Menu_RAM = "RAM:"
+Menu_Swap = "Swap:"
+Menu_DRAMBW = "DRAM BG:"
+Menu_Network = "Ağ:"
+Menu_RDMA = "RDMA:"
+Menu_Disk = "Disk:"
+Menu_Total = "Toplam:"
+Menu_System = "Sistem:"
+Menu_Thermal = "Termal:"
+Menu_Settings = "Ayarlar..."
+Menu_OpenGitHub = "GitHub Bilgisini Aç..."
+Menu_OpenTUI = "mactop TUI'yi Aç..."
+Menu_Quit = "mactop'tan Çık"
+Menu_AppleSilicon = "Apple Silicon"
+Menu_CPU = "CPU"
+Menu_GPU = "GPU"
+Menu_MEMORY = "BELLEK"
+Menu_NETWORK = "AĞ"
+Menu_DISK = "DİSK"
+Menu_POWER = "GÜÇ"
+Menu_HISTORY = "GEÇMİŞ"
+Menu_FANS = "FANLAR"
+
+CLI_HelpText = """
+Kullanım: mactop [seçenekler]
+
+Seçenekler:
+  -h, --help              Bu yardım mesajını göster
+  -v, --version           mactop sürümünü göster
+  -i, --interval <ms>     Güncelleme aralığını milisaniye olarak ayarla (varsayılan: 1000)
+  --foreground <renk>     UI ön plan rengini ayarla (isim veya hex, ör. green, #9580FF)
+  --bg <renk>             UI arka plan rengini ayarla (isim veya hex, ör. mocha-base, #22212C)
+  -p, --prometheus <port> Belirtilen portta Prometheus sunucusu başlat (ör. :9090)
+      --headless          Arayüzsüz modda çalıştır (TUI yok, stdout'a JSON)
+      --format <format>   Çıktı formatını ayarla (json, yaml, xml, csv, toon)
+      --pretty            Headless çıktıyı biçimlendir
+      --count <n>         Headless modda örnek sayısı (0 = sonsuz)
+      --dump-ioreport, -d Tüm IOReport kanallarını göster ve çık
+      --unit-network <birim> Ağ birimi: auto, byte, kb, mb, gb (varsayılan: auto)
+      --unit-disk <birim>    Disk birimi: auto, byte, kb, mb, gb (varsayılan: auto)
+      --unit-temp <birim>    Sıcaklık birimi: celsius, fahrenheit (varsayılan: celsius)
+      --pid <pid>         Belirli bir işlemi PID ile izle
+      --menubar           macOS menü çubuğu öğesi olarak çalıştır (TUI yok)
+      --overlay           Tüm uygulamaların üstünde kayan HUD penceresi göster
+      --overlay-sections  Virgülle ayrılmış görünür bölümler (ör. cpu,gpu,memory,power)
+      --overlay-opacity   Overlay pencere opaklığı, 0.15-1.0 (varsayılan: 0.88)
+      --fan-control       Etkileşimli fan kontrolünü etkinleştir (SMC'ye yazar)
+      --dump-temps        Tanılama: tüm ham SMC sıcaklık anahtarlarını göster ve çık
+      --dump-debug        Tanılama: IOReport/HID/SMC/NVMe hata ayıklama bilgilerini göster ve çık
+
+Tema Dosyası:
+  Özel hex renkler için ~/.mactop/theme.json oluşturun:
+  {"foreground": "#9580FF", "background": "#22212C"}
+
+Daha fazla bilgi: https://github.com/metaspartan/mactop — Carsen Klock.
+"""
+CLI_Version = "mactop sürüm: %s"
+CLI_DumpingIOReport = "IOReport kanalları dökülüyor..."
+CLI_TestInputReceived = "Test girişi alındı: %s"
+CLI_ErrorForegroundRequiresValue = "Hata: --foreground bir renk değeri gerektirir"
+CLI_ErrorBackgroundRequiresValue = "Hata: --bg bir renk değeri gerektirir"
+CLI_ErrorPrometheusRequiresValue = "Hata: --prometheus bir port numarası gerektirir"
+CLI_ErrorIntervalRequiresValue = "Hata: --interval bir aralık değeri gerektirir"
+CLI_ErrorInvalidInterval = "Geçersiz aralık: %v"
+CLI_ErrorPIDRequiresValue = "Hata: --pid bir PID değeri gerektirir"
+CLI_ErrorInvalidPID = "Geçersiz PID: %v"
+CLI_TestingIOReportPowerMetrics = "IOReport güç metrikleri test ediliyor..."
+CLI_TestSample = "Örnek %d:"
+CLI_TestSocTemp = "  SoC Sıcaklık: %.1f°C"
+CLI_TestCPU = "  CPU: %.2fW | GPU: %.2fW (%d MHz, %.0f%% aktif)"
+CLI_TestANE = "  ANE: %.2fW | DRAM: %.2fW | GPU SRAM: %.2fW | Toplam: %.2fW | %s"
+
+Headless_ErrorInitMetrics = "Metrikler başlatılamadı: %v"
+Headless_ErrorUnknownFormat = "Bilinmeyen format: %s. json kullanılacak."
+Headless_ErrorFormattingOutput = "Çıktı biçimlendirilirken hata: %v"
+Headless_ErrorPrometheusServer = "Prometheus sunucu hatası: %v"
+
+Info_OSValue = "macOS %s"
+Info_TFLOPsValue = "%.1f FP32 / %.1f FP16"
+Info_NotAvailable = "Yok"
+Info_PowerValue = "%.2f W (Ort %.0f W)"
+Info_NetworkValue = "↑ %s/s ↓ %s/s"
+Info_DiskValue = "O %s/s Y %s/s"
+Info_DRAMBWValue = "O %.1f / Y %.1f / %.1f GB/s"
+Info_FanValue = "%d RPM (%s, %d-%d)"
+Info_WiFiValue = "%s @ %dMbps (%s)"
+Info_VolumeValue = "%s / %s (%s boş)"
+
+Fan_CPUTemp = "CPU Sıcaklık"
+Fan_GPUTemp = "GPU Sıcaklık"
+Fan_NoFansDetected = "Fan algılanmadı"
+Fan_NoTemperatureSensorsDetected = "Sıcaklık sensörü algılanmadı"
+Fan_ControlActive = "[⚠ FAN KONTROLÜ AKTİF](fg:red,mod:bold)  [+/-](fg:%s,mod:bold) Hız  [a](fg:%s,mod:bold) Otomatik  [0/9](fg:%s,mod:bold) Min/Maks  [R](fg:green,mod:bold) Sıfırla  [l](fg:%s) Düzen  [F](fg:%s) Çıkış"
+Fan_ReadOnly = "[Salt okunur](fg:%s)  Yazmak için --fan-control kullanın  |  [l](fg:%s,mod:bold) Düzen  [F](fg:%s,mod:bold) Fan görünümünden çık"
+
+Metrics_PowerSparklineGroup = "%.2f W Toplam (Maks: %.2f W)"
+Metrics_PowerSparklineTitle = "Ort %.2f W | %s"
+Metrics_PowerHistoryDetail = "Güç Geçmişi (Ort %.1fW, Maks %.1fW)"
+Metrics_CPUHistoryDetail = "CPU Kullanım Geçmişi (%.1f%%)"
+Metrics_MemoryHistoryDetail = "Bellek: %.1f/%.1fGB, Swap: %.1fGB"
+
+TUI_KillPIDTitle = " PID %d SONLANDIRMAYI ONAYLA "
+
+Menu_Tooltip = "mactop — Apple Silicon İzleyici"
+Menu_SettingsTitle = "mactop Menü Çubuğu Ayarları"
+Menu_ShowCPUBar = "CPU Çubuğunu Göster"
+Menu_ShowGPUBar = "GPU Çubuğunu Göster"
+Menu_ShowANEBar = "ANE Çubuğunu Göster"
+Menu_ShowMemoryBar = "Bellek Çubuğunu Göster"
+Menu_ShowWattageInMenuBar = "Menü Çubuğunda Watt Göster"
+Menu_ShowPercentages = "Yüzdeleri Göster"
+Menu_StatusBarWidth = "Durum Çubuğu Genişliği:"
+Menu_StatusBarHeight = "Durum Çubuğu Yüksekliği:"
+Menu_BarFontSize = "Çubuk Yazı Boyutu:"
+Menu_WattageFontSize = "Watt Yazı Boyutu:"
+Menu_Colors = "Renkler:"
+Menu_LabelText = "Etiket Metni"
+Menu_BarOrder = "Çubuk Sırası:"
+Menu_DiskRate = "O %.0f KB/s  Y %.0f KB/s"
+Menu_FanItem = "Fan %d"
+
+Overlay_DRAM = "DRAM"
+Overlay_CollapsedMode = "Daraltılmış Mod"
+Overlay_ExpandedMode = "Genişletilmiş Mod"
+Overlay_Done = "Tamam"
+Overlay_RequiresScreenRecordingPermission = "Ekran Kaydı İzni Gerekli"
+Overlay_RequiresPermission = "İzin Gerekli"
+Overlay_OpacityHint = "Opaklık: %.0f%%  (ayarlamak için kaydırın)"
+Overlay_GPUCores = "%d GPU Çekirdek"
+Overlay_GPUFreqTFLOPs = "%dMHz • %.1f TFLOPS"
+Overlay_GPUFreqMHz = "%d MHz"
+Overlay_TempsDual = "CPU %.0f°C  GPU %.0f°C"
+Overlay_TempsSingle = "%.0f°C"
+
+# Fan modes & temperature categories
+Fan_Mode_Auto = "Otomatik"
+Fan_Mode_Manual = "Manuel"
+Fan_TargetRange = "Hedef: %d RPM  |  Aralık: %d – %d RPM"
+Temp_AvgOf = "%d ort., %s – %s"
+TempCategory_CPU_ECore = "CPU E-Çek."
+TempCategory_CPU_PCore = "CPU P-Çek."
+TempCategory_CPU_SCore = "CPU S-Çek."
+TempCategory_CPU_ECores = "CPU E-Çek."
+TempCategory_CPU_PCores = "CPU P-Çek."
+TempCategory_CPU_SCores = "CPU S-Çek."
+TempCategory_CPU_Core = "CPU Çek."
+TempCategory_CPU_Die = "CPU Die"
+TempCategory_GPU = "GPU"
+TempCategory_Memory = "Bellek"
+TempCategory_SSD = "SSD"
+TempCategory_NAND = "NAND"
+TempCategory_NVMe = "NVMe"
+TempCategory_Ambient = "Ortam"
+TempCategory_Board = "Kart"
+TempCategory_VRM = "VRM"
+TempCategory_SocPackage = "SoC"
+TempCategory_Thunderbolt = "Thunderbolt"
+TempCategory_Wireless = "Kablosuz"
+TempCategory_Display = "Ekran"
+TempCategory_Other = "Diğer"

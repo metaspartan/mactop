@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	ui "github.com/metaspartan/gotui/v5"
+	"github.com/metaspartan/mactop/v2/internal/i18n"
 )
 
 const (
@@ -61,11 +62,11 @@ func applyLayout(layoutName string) {
 	termWidth, termHeight := ui.TerminalDimensions()
 	if mainBlock != nil {
 		mainBlock.SetRect(0, 0, termWidth, termHeight)
-		mainBlock.TitleBottomLeft = fmt.Sprintf(" %d/%d layout (%s) ", currentLayoutNum+1, totalLayouts, currentColorName)
+		mainBlock.TitleBottomLeft = fmt.Sprintf(i18n.T("TUI_LayoutInfo"), currentLayoutNum+1, totalLayouts, currentColorName)
 		if termWidth < 93 {
 			mainBlock.TitleBottom = ""
 		} else {
-			mainBlock.TitleBottom = " Info: i | Layout: l | Color: c | BG: b | Exit: q "
+			mainBlock.TitleBottom = i18n.T("TUI_InfoLayoutColorExit")
 		}
 	}
 	grid = ui.NewGrid()
