@@ -379,10 +379,10 @@ func renderInfoText(infoLines, asciiArt []string, layout infoLayout, themeColor 
 }
 
 func fanRPMBar(fan FanInfo, themeColor string) []string {
-	modeStr := "Auto"
+	modeStr := i18n.T("Fan_Mode_Auto")
 	modeColor := "green"
 	if fan.Mode == 1 {
-		modeStr = "Manual"
+		modeStr = i18n.T("Fan_Mode_Manual")
 		modeColor = "yellow"
 	}
 
@@ -405,7 +405,7 @@ func fanRPMBar(fan FanInfo, themeColor string) []string {
 	return []string{
 		fmt.Sprintf("[%s](fg:%s,mod:bold)  [%s](fg:%s) [%4d](fg:%s,mod:bold) / %d RPM  [%s](fg:%s)",
 			fan.Name, themeColor, bar, rpmColor, fan.ActualRPM, rpmColor, fan.MaxRPM, modeStr, modeColor),
-		fmt.Sprintf("    Target: %d RPM  |  Range: %d – %d RPM",
+		fmt.Sprintf("    "+i18n.T("Fan_TargetRange"),
 			fan.TargetRPM, fan.MinRPM, fan.MaxRPM),
 	}
 }
@@ -613,6 +613,53 @@ type tempGroup struct {
 	max   float64
 }
 
+// tempCategoryKeys maps internal English category names (used for grouping
+// in buildGroupedTempLines) to their i18n message IDs. Pluralized variants
+// (CPU [E|P|S]-Cores) are stored separately for use when a group has > 1
+// sensors; singulars are used otherwise.
+var (
+	tempCategoryKeys = map[string]string{
+		"CPU E-Core":  "TempCategory_CPU_ECore",
+		"CPU P-Core":  "TempCategory_CPU_PCore",
+		"CPU S-Core":  "TempCategory_CPU_SCore",
+		"CPU Core":    "TempCategory_CPU_Core",
+		"CPU Die":     "TempCategory_CPU_Die",
+		"GPU":         "TempCategory_GPU",
+		"Memory":      "TempCategory_Memory",
+		"SSD":         "TempCategory_SSD",
+		"NAND":        "TempCategory_NAND",
+		"NVMe":        "TempCategory_NVMe",
+		"Ambient":     "TempCategory_Ambient",
+		"Board":       "TempCategory_Board",
+		"VRM":         "TempCategory_VRM",
+		"SoC Package": "TempCategory_SocPackage",
+		"Thunderbolt": "TempCategory_Thunderbolt",
+		"Wireless":    "TempCategory_Wireless",
+		"Display":     "TempCategory_Display",
+		"Other":       "TempCategory_Other",
+	}
+	tempCategoryPluralKeys = map[string]string{
+		"CPU E-Core": "TempCategory_CPU_ECores",
+		"CPU P-Core": "TempCategory_CPU_PCores",
+		"CPU S-Core": "TempCategory_CPU_SCores",
+	}
+)
+
+// localizeTempCategory returns the localized display name for an internal
+// English category key. When plural is true and the category has a
+// pluralized form (E/P/S-Cores), that is used instead.
+func localizeTempCategory(cat string, plural bool) string {
+	if plural {
+		if k, ok := tempCategoryPluralKeys[cat]; ok {
+			return i18n.T(k)
+		}
+	}
+	if k, ok := tempCategoryKeys[cat]; ok {
+		return i18n.T(k)
+	}
+	return cat
+}
+
 func formatTempGroupLine(cat string, g *tempGroup, themeColor string) string {
 	avg := g.sum / float64(g.count)
 	tempColor := themeColor
@@ -621,23 +668,12 @@ func formatTempGroupLine(cat string, g *tempGroup, themeColor string) string {
 	} else if avg > 70 {
 		tempColor = "yellow"
 	}
-	// Pluralize core category names for display
-	displayName := cat
-	if g.count > 1 {
-		switch cat {
-		case "CPU E-Core":
-			displayName = "CPU E-Cores"
-		case "CPU P-Core":
-			displayName = "CPU P-Cores"
-		case "CPU S-Core":
-			displayName = "CPU S-Cores"
-		}
-	}
+	displayName := localizeTempCategory(cat, g.count > 1)
 	if g.count == 1 {
 		return fmt.Sprintf("  [%-16s](fg:%s)  [%s](fg:%s)",
 			displayName, themeColor, formatTemp(avg), tempColor)
 	}
-	return fmt.Sprintf("  [%-16s](fg:%s)  [%s](fg:%s)  [avg of %d, %s – %s](fg:%s)",
+	return fmt.Sprintf("  [%-16s](fg:%s)  [%s](fg:%s)  ["+i18n.T("Temp_AvgOf")+"](fg:%s)",
 		displayName, themeColor, formatTemp(avg), tempColor,
 		g.count, formatTemp(g.min), formatTemp(g.max), themeColor)
 }
