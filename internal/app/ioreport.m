@@ -652,11 +652,6 @@ static double g_dramIdlePowerW = 0.3;  // DRAM idle/static power (leakage + refr
 static volatile int g_calib_running = 0;
 static volatile int64_t g_calib_bytes = 0;
 
-// Background calibration state — calibration runs on a detached pthread
-// so initIOReport() returns immediately. g_bg_calibration_done starts at 1
-// ("done") for chips that skip calibration entirely (M1-M4 with AMC Stats).
-static volatile int g_bg_calibration_done = 1;
-
 static void *calibThread(void *arg) {
   size_t sz = 256ULL * 1024 * 1024; // 256MB per thread (>> L2 cache per core)
   volatile char *buf = malloc(sz);
@@ -683,8 +678,6 @@ static void *bgCalibrationThread(void *arg) {
   (void)arg;
   initKperfDramBW();
   calibrateDramBwFromPower();
-  __sync_synchronize(); // memory fence before signaling done
-  g_bg_calibration_done = 1;
   return NULL;
 }
 
@@ -931,7 +924,6 @@ int initIOReport() {
     // This avoids blocking initIOReport() for ~2.5s on M5+ chips.
     // Until calibration completes, DRAM BW uses the default fallback
     // constant (g_dramGBsPerWatt = 25.1) which provides reasonable estimates.
-    g_bg_calibration_done = 0;
     pthread_t bgThread;
     if (pthread_create(&bgThread, NULL, bgCalibrationThread, NULL) == 0) {
       pthread_detach(bgThread); // fire-and-forget
@@ -939,18 +931,12 @@ int initIOReport() {
       // If thread creation fails, run synchronously as fallback
       initKperfDramBW();
       calibrateDramBwFromPower();
-      g_bg_calibration_done = 1;
     }
   }
 
   return 0;
 }
 
-// isDramCalibrationComplete returns 1 when background DRAM BW calibration
-// has finished (or was never needed). Used by Go layer for status display.
-int isDramCalibrationComplete(void) {
-  return g_bg_calibration_done;
-}
 
 void debugIOReport() {
   if (initIOReport() != 0) {

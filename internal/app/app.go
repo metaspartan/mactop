@@ -1494,8 +1494,15 @@ var shutdownOnce sync.Once
 func shutdownAndExit(closeDone bool) {
 	shutdownOnce.Do(func() {
 		if closeDone {
-			defer func() { _ = recover() }()
-			close(done)
+			// Scope the recover to just close(done): if the channel is
+			// already closed and panics, swallow it inside this inner
+			// func so the rest of the shutdown sequence (workers, UI,
+			// os.Exit) still runs. A defer at the outer scope would
+			// abort the closure on panic, leaving subprocesses alive.
+			func() {
+				defer func() { _ = recover() }()
+				close(done)
+			}()
 		}
 		shutdownWorkers()
 		ui.Close()
