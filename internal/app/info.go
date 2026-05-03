@@ -161,9 +161,11 @@ func buildVolumeLines(formatLine func(string, string) string) []string {
 	if len(volumes) > 0 {
 		lines = append(lines, "-------------------------")
 		for _, v := range volumes {
-			used := formatBytes(v.Used*1e9, diskUnit)
-			total := formatBytes(v.Total*1e9, diskUnit)
-			avail := formatBytes(v.Available*1e9, diskUnit)
+			// Decimal units match macOS Finder/Disk Utility (an 8TB drive
+			// shows as ~8.0 TB, not 7.3 TiB).
+			used := formatBytesDecimal(v.Used*1e9, diskUnit)
+			total := formatBytesDecimal(v.Total*1e9, diskUnit)
+			avail := formatBytesDecimal(v.Available*1e9, diskUnit)
 			lines = append(lines, formatLine(v.Name, fmt.Sprintf(i18n.T("Info_VolumeValue"), used, total, avail)))
 		}
 	}

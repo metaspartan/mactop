@@ -1310,9 +1310,13 @@ func updateNetDiskUI(netdiskMetrics NetDiskMetrics) {
 		if i >= 3 {
 			break
 		}
-		used := formatBytes(v.Used*1024*1024*1024, diskUnit)
-		total := formatBytes(v.Total*1024*1024*1024, diskUnit)
-		avail := formatBytes(v.Available*1024*1024*1024, diskUnit)
+		// VolumeInfo fields are stored in decimal GB (bytes / 1e9). Convert
+		// back to raw bytes and format with decimal units to match macOS
+		// Finder / Disk Utility (e.g. an 8TB drive shows as ~8.0 TB, not
+		// 7.3 TiB).
+		used := formatBytesDecimal(v.Used*1e9, diskUnit)
+		total := formatBytesDecimal(v.Total*1e9, diskUnit)
+		avail := formatBytesDecimal(v.Available*1e9, diskUnit)
 
 		fmt.Fprintf(&sb, i18n.T("Metrics_DiskFree")+"\n", v.Name, used, total, avail)
 	}

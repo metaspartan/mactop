@@ -180,6 +180,45 @@ func formatBytes(val float64, unitType string) string {
 	return fmt.Sprintf("%.1f%s", value, suffix)
 }
 
+// formatBytesDecimal formats a raw byte count using SI (1000-based) units.
+// macOS Finder, Disk Utility, and storage vendors all report disk sizes in
+// decimal — an "8TB" drive is 8 × 10^12 bytes, not 8 × 2^40 — so disk usage
+// should use this rather than formatBytes (which is 1024-based).
+func formatBytesDecimal(val float64, unitType string) string {
+	units := []string{"B", "KB", "MB", "GB", "TB"}
+
+	targetUnit := strings.ToLower(unitType)
+	if targetUnit == "" {
+		targetUnit = "auto"
+	}
+
+	value := val
+	suffix := ""
+
+	switch targetUnit {
+	case "byte":
+		suffix = "B"
+	case "kb":
+		value /= 1000
+		suffix = "KB"
+	case "mb":
+		value /= 1000 * 1000
+		suffix = "MB"
+	case "gb":
+		value /= 1000 * 1000 * 1000
+		suffix = "GB"
+	default:
+		i := 0
+		for value >= 1000 && i < len(units)-1 {
+			value /= 1000
+			i++
+		}
+		suffix = units[i]
+	}
+
+	return fmt.Sprintf("%.1f%s", value, suffix)
+}
+
 func formatTemp(celsius float64) string {
 	if strings.ToLower(tempUnit) == "fahrenheit" {
 		f := (celsius * 9 / 5) + 32
