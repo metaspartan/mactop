@@ -177,7 +177,7 @@ Prometheus 메트릭: %s
 --fan-control: 대화형 팬 속도 제어 활성화 (SMC에 기록, 주의 사용*)
 --menubar: macOS 메뉴 막대 상태 항목으로 실행 (TUI 없음)
 
-테마 파일: 사용자 정의 색상을 위해 ~/.mactop/theme.json 을 생성하세요
+테마 파일: 사용자 정의 색상을 위해 $XDG_CONFIG_HOME/mactop 또는 ~/.mactop 에 theme.json 을 생성하세요
 """
 
 Info_Auto = "자동"
@@ -246,7 +246,7 @@ CLI_HelpText = """
       --dump-debug        진단: IOReport/HID/SMC/NVMe 디버그 정보를 출력하고 종료
 
 테마 파일:
-  ~/.mactop/theme.json 을 생성해 사용자 정의 hex 색상을 설정하세요:
+  $XDG_CONFIG_HOME/mactop 또는 ~/.mactop 에 theme.json 을 생성해 사용자 정의 hex 색상을 설정하세요:
   {"foreground": "#9580FF", "background": "#22212C"}
 
 더 많은 정보: https://github.com/metaspartan/mactop (Carsen Klock)

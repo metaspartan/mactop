@@ -176,7 +176,7 @@ Intervallo Aggiornamento: %dms
 --fan-control: Controllo ventole interattivo (SMC)*
 --menubar: Modalità barra dei menu macOS
 
-File Tema: Crea ~/.mactop/theme.json per colori personalizzati.
+File tema: crea theme.json in $XDG_CONFIG_HOME/mactop o ~/.mactop per colori personalizzati.
 """
 
 Info_Auto = "Auto"
@@ -246,7 +246,7 @@ Opzioni:
       --dump-debug        Diagnostica: mostra info debug IOReport/HID/SMC/NVMe ed esci
 
 File Tema:
-  Crea ~/.mactop/theme.json con colori hex personalizzati:
+  Crea theme.json in $XDG_CONFIG_HOME/mactop o ~/.mactop con colori hex personalizzati:
   {"foreground": "#9580FF", "background": "#22212C"}
 
 Per maggiori informazioni: https://github.com/metaspartan/mactop di Carsen Klock.

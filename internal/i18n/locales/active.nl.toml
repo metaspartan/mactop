@@ -176,7 +176,7 @@ Verversingsinterval: %dms
 --fan-control: Interactieve ventilatorregeling (SMC)*
 --menubar: macOS-menubalk modus
 
-Themabestand: Maak ~/.mactop/theme.json voor aangepaste kleuren.
+Themabestand: maak theme.json in $XDG_CONFIG_HOME/mactop of ~/.mactop voor aangepaste kleuren.
 """
 
 Info_Auto = "Automatisch"
@@ -246,7 +246,7 @@ Opties:
       --dump-debug        Diagnostiek: IOReport/HID/SMC/NVMe debug-info tonen en afsluiten
 
 Themabestand:
-  Maak ~/.mactop/theme.json met aangepaste hex-kleuren:
+  Maak theme.json in $XDG_CONFIG_HOME/mactop of ~/.mactop met aangepaste hex-kleuren:
   {"foreground": "#9580FF", "background": "#22212C"}
 
 Meer informatie: https://github.com/metaspartan/mactop door Carsen Klock.

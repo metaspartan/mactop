@@ -177,7 +177,7 @@ Prometheus 指标: %s
 --fan-control: 启用交互式风扇控制 (修改 SMC 状态)*
 --menubar: 作为 macOS 菜单栏组件运行 (无 TUI 终端界面)
 
-自定义主题: 请创建 ~/.mactop/theme.json 配置文件进行自定义着色
+自定义主题：请在 $XDG_CONFIG_HOME/mactop 或 ~/.mactop 中创建 theme.json 配置文件进行自定义着色
 """
 
 Info_Auto = "自动"
@@ -247,7 +247,7 @@ CLI_HelpText = """
       --dump-debug        诊断：输出 IOReport/HID/SMC/NVMe 调试信息并退出
 
 主题文件:
-  创建 ~/.mactop/theme.json 以使用自定义十六进制颜色:
+  在 $XDG_CONFIG_HOME/mactop 或 ~/.mactop 中创建 theme.json 以使用自定义十六进制颜色:
   {"foreground": "#9580FF", "background": "#22212C"}
 
 更多信息: https://github.com/metaspartan/mactop （Carsen Klock）

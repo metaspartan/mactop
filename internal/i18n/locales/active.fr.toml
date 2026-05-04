@@ -176,7 +176,7 @@ Fréquence MAJ: %dms
 --fan-control: Mode Contrôle
 --menubar: Mode barre des menus macOS
 
-Fichier de Thème: Créez ~/.mactop/theme.json
+Fichier de thème : créez theme.json dans $XDG_CONFIG_HOME/mactop ou ~/.mactop
 """
 
 Info_Auto = "Auto"
@@ -246,7 +246,7 @@ Options :
       --dump-debug        Diagnostic : afficher les infos de debug IOReport/HID/SMC/NVMe puis quitter
 
 Fichier de thème :
-  Créez ~/.mactop/theme.json avec des couleurs hex personnalisées :
+  Créez theme.json dans $XDG_CONFIG_HOME/mactop ou ~/.mactop avec des couleurs hex personnalisées :
   {"foreground": "#9580FF", "background": "#22212C"}
 
 Pour plus d’informations : https://github.com/metaspartan/mactop par Carsen Klock.
