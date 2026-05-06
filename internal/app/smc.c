@@ -3,6 +3,17 @@
 #include <stdio.h>
 #include <string.h>
 
+static unsigned int SMCFourCC(const char *value) {
+  return ((unsigned int)(unsigned char)value[0] << 24) |
+         ((unsigned int)(unsigned char)value[1] << 16) |
+         ((unsigned int)(unsigned char)value[2] << 8) |
+         (unsigned int)(unsigned char)value[3];
+}
+
+static int SMCIsType(unsigned int dataType, const char *type) {
+  return dataType == SMCFourCC(type);
+}
+
 io_connect_t SMCOpen(void) {
   kern_return_t result;
   io_iterator_t iterator;
@@ -49,6 +60,20 @@ kern_return_t SMCCall(io_connect_t conn, int index,
                                    &structureOutputSize);
 }
 
+static kern_return_t SMCCallChecked(io_connect_t conn, int index,
+                                    SMCKeyData_t *inputStructure,
+                                    SMCKeyData_t *outputStructure) {
+  kern_return_t result =
+      SMCCall(conn, index, inputStructure, outputStructure);
+  if (result != kIOReturnSuccess) {
+    return result;
+  }
+  if (outputStructure->result != 0) {
+    return kIOReturnError;
+  }
+  return kIOReturnSuccess;
+}
+
 kern_return_t SMCReadKey(io_connect_t conn, const char *key,
                          SMCKeyData_t *val) {
   kern_return_t result;
@@ -62,7 +87,8 @@ kern_return_t SMCReadKey(io_connect_t conn, const char *key,
   inputStructure.key = (key[0] << 24) | (key[1] << 16) | (key[2] << 8) | key[3];
   inputStructure.data8 = SMC_CMD_READ_KEYINFO;
 
-  result = SMCCall(conn, KERNEL_INDEX_SMC, &inputStructure, &outputStructure);
+  result =
+      SMCCallChecked(conn, KERNEL_INDEX_SMC, &inputStructure, &outputStructure);
   if (result != kIOReturnSuccess) {
     return result;
   }
@@ -72,7 +98,8 @@ kern_return_t SMCReadKey(io_connect_t conn, const char *key,
   inputStructure.keyInfo.dataSize = val->keyInfo.dataSize;
   inputStructure.data8 = SMC_CMD_READ_BYTES;
 
-  result = SMCCall(conn, KERNEL_INDEX_SMC, &inputStructure, &outputStructure);
+  result =
+      SMCCallChecked(conn, KERNEL_INDEX_SMC, &inputStructure, &outputStructure);
   if (result != kIOReturnSuccess) {
     return result;
   }
@@ -88,10 +115,15 @@ double SMCGetFloatValue(io_connect_t conn, const char *key) {
     return 0.0;
   }
 
-  if (val.keyInfo.dataType == 1718383648) {
+  if (SMCIsType(val.keyInfo.dataType, "flt ") &&
+      val.keyInfo.dataSize >= sizeof(float)) {
     float f;
     memcpy(&f, val.bytes, 4);
     return (double)f;
+  }
+  if (SMCIsType(val.keyInfo.dataType, "ui8 ") &&
+      val.keyInfo.dataSize >= 1) {
+    return (double)(unsigned char)val.bytes[0];
   }
 
   return 0.0;
@@ -125,7 +157,8 @@ kern_return_t SMCGetKeyFromIndex(io_connect_t conn, int index,
   inputStructure.data8 = SMC_CMD_READ_INDEX;
   inputStructure.data32 = index;
 
-  result = SMCCall(conn, KERNEL_INDEX_SMC, &inputStructure, &outputStructure);
+  result =
+      SMCCallChecked(conn, KERNEL_INDEX_SMC, &inputStructure, &outputStructure);
   if (result != kIOReturnSuccess) {
     return result;
   }
@@ -152,7 +185,8 @@ kern_return_t SMCGetKeyInfo(io_connect_t conn, const char *key,
   inputStructure.key = (key[0] << 24) | (key[1] << 16) | (key[2] << 8) | key[3];
   inputStructure.data8 = SMC_CMD_READ_KEYINFO;
 
-  result = SMCCall(conn, KERNEL_INDEX_SMC, &inputStructure, &outputStructure);
+  result =
+      SMCCallChecked(conn, KERNEL_INDEX_SMC, &inputStructure, &outputStructure);
   if (result != kIOReturnSuccess) {
     return result;
   }
@@ -164,7 +198,6 @@ kern_return_t SMCGetKeyInfo(io_connect_t conn, const char *key,
 kern_return_t SMCWriteKey(io_connect_t conn, const char *key,
                           unsigned int dataType, SMCBytes_t bytes,
                           unsigned int dataSize) {
-  kern_return_t result;
   SMCKeyData_t inputStructure;
   SMCKeyData_t outputStructure;
 
@@ -177,8 +210,8 @@ kern_return_t SMCWriteKey(io_connect_t conn, const char *key,
   inputStructure.keyInfo.dataType = dataType;
   memcpy(inputStructure.bytes, bytes, dataSize);
 
-  result = SMCCall(conn, KERNEL_INDEX_SMC, &inputStructure, &outputStructure);
-  return result;
+  return SMCCallChecked(conn, KERNEL_INDEX_SMC, &inputStructure,
+                        &outputStructure);
 }
 
 kern_return_t SMCSetFloat(io_connect_t conn, const char *key, float value) {
@@ -191,7 +224,18 @@ kern_return_t SMCSetFloat(io_connect_t conn, const char *key, float value) {
 
   SMCBytes_t bytes;
   memset(bytes, 0, sizeof(bytes));
-  memcpy(bytes, &value, sizeof(float));
+  if (SMCIsType(keyInfo.dataType, "flt ") &&
+      keyInfo.dataSize >= sizeof(float)) {
+    memcpy(bytes, &value, sizeof(float));
+  } else if (SMCIsType(keyInfo.dataType, "ui8 ") &&
+             keyInfo.dataSize >= 1) {
+    if (value < 0.0f || value > 255.0f) {
+      return kIOReturnBadArgument;
+    }
+    bytes[0] = (char)(unsigned char)value;
+  } else {
+    return kIOReturnUnsupported;
+  }
 
   return SMCWriteKey(conn, key, keyInfo.dataType, bytes, keyInfo.dataSize);
 }
