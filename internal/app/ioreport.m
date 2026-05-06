@@ -1589,7 +1589,7 @@ static int readFanInfo(fan_info_t *fans, int maxFans) {
     snprintf(key, sizeof(key), "F%dTg", i);
     fans[i].targetRPM = (int)SMCGetFloatValue(g_smcConn, key);
 
-    // Read mode: F%dMd (flt type — 0.0=auto, 1.0=forced)
+    // Read mode: F%dMd (0=auto, 1=forced; data type varies by Mac model)
     snprintf(key, sizeof(key), "F%dMd", i);
     fans[i].mode = (int)SMCGetFloatValue(g_smcConn, key);
 
