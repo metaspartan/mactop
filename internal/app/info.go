@@ -123,7 +123,7 @@ func buildInfoLines(themeColor string) []string {
 			formatDualANEClusterStatus(
 				lastCPUMetrics.ANEClusterActive[0],
 				lastCPUMetrics.ANEClusterActive[1],
-				lastCPUMetrics.ANEPowered,
+				aneClusterLabelModeFor(lastCPUMetrics),
 			),
 		)
 		for i, line := range infoLines {

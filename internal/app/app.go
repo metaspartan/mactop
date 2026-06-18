@@ -1117,18 +1117,20 @@ func aneGaugeTitle(m CPUMetrics, aneUtil, bw float64, bwMode bool) string {
 	if m.ANEExclave {
 		return fmt.Sprintf("ANE: %s", aneOnOffLabel(aneUtil))
 	}
+	if m.ANEPowered && !bwMode {
+		// IORegistry power-state fallback (non-exclave Ultra dies on macOS 27):
+		// the C side populates aneActive (the duty cycle) but never anePower, so
+		// ANEW is provably 0 here — a wattage template (compact or not) would
+		// render "0.0W" and contradict the powered/idle label. This must run
+		// before the compact branch, since compact layouts would otherwise embed
+		// the dead watts via Metrics_ANEGaugeCompact.
+		return fmt.Sprintf("ANE %s", anePoweredLabel(aneUtil))
+	}
 	if isCompactLayout() {
 		if bwMode {
 			return fmt.Sprintf(i18n.T("Metrics_ANEGaugeBWCompact"), bw)
 		}
 		return fmt.Sprintf(i18n.T("Metrics_ANEGaugeCompact"), m.ANEW)
-	}
-	if m.ANEPowered && !bwMode {
-		// IORegistry power-state fallback (non-exclave Ultra dies on macOS 27):
-		// the C side populates aneActive (the duty cycle) but never anePower, so
-		// ANEW is provably 0 here — a "(0.00W)" suffix would contradict the
-		// "powered" label. Show the powered/idle word without wattage.
-		return fmt.Sprintf("ANE %s", anePoweredLabel(aneUtil))
 	}
 	if bwMode {
 		return fmt.Sprintf(i18n.T("Metrics_ANEGaugeBW"), aneUtil, bw)
@@ -1167,10 +1169,48 @@ func aneClusterIsActive(pct float64) bool {
 	return pct > 0
 }
 
-func formatDualANEClusterStatus(c0, c1 float64, powered bool) string {
+// aneClusterLabelMode identifies which word set the dual-cluster helpers should
+// use, so the per-cluster status agrees with the gauge and single-series chart
+// (aneGaugeTitle / aneChartTitle) instead of hard-coding one wording for every
+// power-state tier.
+type aneClusterLabelMode int
+
+const (
+	aneClusterLabelPercent aneClusterLabelMode = iota // "ANE0 NN%" (residency/bandwidth)
+	aneClusterLabelPowered                            // "ANE0 powered/idle" (IORegistry fallback)
+	aneClusterLabelExclave                            // "ANE0 ON/idle" (M5 / M5 Max)
+)
+
+// aneClusterLabelModeFor derives the label mode from metrics, mirroring the
+// tier checks in aneGaugeTitle / shouldRenderDualANEClusters: exclave takes
+// priority (binary ON/idle), then the ANEPowered fallback (powered/idle),
+// otherwise percentages.
+func aneClusterLabelModeFor(m CPUMetrics) aneClusterLabelMode {
+	if m.ANEExclave {
+		return aneClusterLabelExclave
+	}
+	if m.ANEPowered {
+		return aneClusterLabelPowered
+	}
+	return aneClusterLabelPercent
+}
+
+func formatDualANEClusterStatus(c0, c1 float64, mode aneClusterLabelMode) string {
 	active0 := aneClusterIsActive(c0)
 	active1 := aneClusterIsActive(c1)
-	if powered {
+	switch mode {
+	case aneClusterLabelExclave:
+		switch {
+		case active0 && active1:
+			return "ANE0 & ANE1 ON"
+		case active0 && !active1:
+			return "ANE0 ON, ANE1 idle"
+		case !active0 && active1:
+			return "ANE0 idle, ANE1 ON"
+		default:
+			return "idle"
+		}
+	case aneClusterLabelPowered:
 		switch {
 		case active0 && active1:
 			return "ANE0 & ANE1 powered"
@@ -1196,16 +1236,21 @@ func formatDualANEClusterStatus(c0, c1 float64, powered bool) string {
 
 // formatDualANEClusterChartText builds a consistent title + per-line labels for
 // the history_soc dual-cluster ANE chart. Title summarizes the combined state;
-// line labels match each cluster's individual powered/idle (or %) reading.
-func formatDualANEClusterChartText(c0, c1 float64, powered bool, nClusters int) (title string, label0, label1 string) {
-	if powered {
+// line labels match each cluster's individual ON/idle, powered/idle, or %
+// reading depending on the tier the gauge is in.
+func formatDualANEClusterChartText(c0, c1 float64, mode aneClusterLabelMode, nClusters int) (title string, label0, label1 string) {
+	switch mode {
+	case aneClusterLabelExclave:
+		label0 = fmt.Sprintf("ANE0 %s", aneOnOffLabel(c0))
+		label1 = fmt.Sprintf("ANE1 %s", aneOnOffLabel(c1))
+	case aneClusterLabelPowered:
 		label0 = fmt.Sprintf("ANE0 %s", anePoweredLabel(c0))
 		label1 = fmt.Sprintf("ANE1 %s", anePoweredLabel(c1))
-	} else {
+	default:
 		label0 = fmt.Sprintf("ANE0 %.0f%%", c0)
 		label1 = fmt.Sprintf("ANE1 %.0f%%", c1)
 	}
-	title = fmt.Sprintf("ANE (%d clusters) · %s", nClusters, formatDualANEClusterStatus(c0, c1, powered))
+	title = fmt.Sprintf("ANE (%d clusters) · %s", nClusters, formatDualANEClusterStatus(c0, c1, mode))
 	return title, label0, label1
 }
 
@@ -1415,7 +1460,7 @@ func renderANEHistoryChart(cpuMetrics CPUMetrics, anePct, aneWatts, aneBW float6
 		if nClusters < 2 {
 			nClusters = clusterCount
 		}
-		title, label0, label1 := formatDualANEClusterChartText(cluster0, cluster1, cpuMetrics.ANEPowered, nClusters)
+		title, label0, label1 := formatDualANEClusterChartText(cluster0, cluster1, aneClusterLabelModeFor(cpuMetrics), nClusters)
 		aneHistoryChart.Title = title
 		aneHistoryChart.DataLabels = []string{label0, label1}
 		aneHistoryChart.MaxVal = scaleMax

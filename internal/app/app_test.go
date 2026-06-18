@@ -601,3 +601,72 @@ func TestANEDualClusterChartGatesOnPowerStateTier(t *testing.T) {
 		t.Fatal("single-die must not qualify for dual clusters")
 	}
 }
+
+// TestANECompactGaugePowerStateTitle guards Issue F: on a compact layout
+// (tiny/micro/nano/pico), the ANEPowered power-state fallback must still take
+// priority over the compact branch in aneGaugeTitle, otherwise the compact
+// wattage template renders "0.0W" (ANEW is provably 0 on this path).
+func TestANECompactGaugePowerStateTitle(t *testing.T) {
+	resetANETestState(t)
+	origConfig := currentConfig
+	t.Cleanup(func() { currentConfig = origConfig })
+	currentConfig = AppConfig{DefaultLayout: LayoutMicro}
+
+	powered := CPUMetrics{ANEPowered: true, ANEActive: 100, ANEW: 0}
+	title := aneGaugeTitle(powered, aneUtilizationPercent(powered), powered.ANEBW, aneBWLabelMode(powered))
+	if title != "ANE powered" {
+		t.Fatalf("compact power-state title: got %q, want %q", title, "ANE powered")
+	}
+	if strings.Contains(title, "0.00") || strings.Contains(title, "0.0W") {
+		t.Fatalf("compact power-state title must not embed wattage: got %q", title)
+	}
+
+	// Sanity: a normal (non-power-state) sample on the compact layout must still
+	// use the compact wattage template, so the fix doesn't regress compact mode.
+	normal := CPUMetrics{ANEActive: 40, ANEW: 1.5}
+	normalTitle := aneGaugeTitle(normal, aneUtilizationPercent(normal), normal.ANEBW, aneBWLabelMode(normal))
+	if !strings.HasSuffix(normalTitle, "W") {
+		t.Fatalf("compact normal title should embed wattage: got %q", normalTitle)
+	}
+}
+
+// TestANEExclaveDualClusterLabels guards Issue G: on a multi-die exclave chip
+// (M5-class), the dual-cluster chart labels and info-panel status must use the
+// ON/idle wording (aneOnOffLabel), matching the main gauge and single-series
+// chart — not the powered/idle or percentage wording.
+func TestANEExclaveDualClusterLabels(t *testing.T) {
+	m := CPUMetrics{ANEExclave: true, ANEClusterActive: []float64{100, 0}, ANEClusterCount: 2}
+	mode := aneClusterLabelModeFor(m)
+	if mode != aneClusterLabelExclave {
+		t.Fatalf("exclave mode: got %v, want %v", mode, aneClusterLabelExclave)
+	}
+
+	// Info-panel combined status: ON/idle, never "powered" or "active".
+	status := formatDualANEClusterStatus(m.ANEClusterActive[0], m.ANEClusterActive[1], mode)
+	if status != "ANE0 ON, ANE1 idle" {
+		t.Fatalf("exclave status: got %q, want %q", status, "ANE0 ON, ANE1 idle")
+	}
+
+	// Chart title + per-line labels: ON/idle wording, no % (duty is binary).
+	title, label0, label1 := formatDualANEClusterChartText(m.ANEClusterActive[0], m.ANEClusterActive[1], mode, 2)
+	if !strings.Contains(title, "ANE0 ON, ANE1 idle") {
+		t.Fatalf("exclave chart title: got %q", title)
+	}
+	if label0 != "ANE0 ON" || label1 != "ANE1 idle" {
+		t.Fatalf("exclave chart labels: got %q / %q, want %q / %q", label0, label1, "ANE0 ON", "ANE1 idle")
+	}
+	if strings.Contains(label0, "%") || strings.Contains(label0, "powered") {
+		t.Fatalf("exclave label must not use %% or powered: got %q", label0)
+	}
+
+	// ANEPowered multi-die keeps the powered/idle wording (regression guard for
+	// the mode-routing, not a new behavior).
+	powered := CPUMetrics{ANEPowered: true, ANEClusterActive: []float64{100, 0}, ANEClusterCount: 2}
+	pmode := aneClusterLabelModeFor(powered)
+	if pmode != aneClusterLabelPowered {
+		t.Fatalf("powered mode: got %v, want %v", pmode, aneClusterLabelPowered)
+	}
+	if got := formatDualANEClusterStatus(100, 0, pmode); got != "ANE0 powered, ANE1 idle" {
+		t.Fatalf("powered status: got %q, want %q", got, "ANE0 powered, ANE1 idle")
+	}
+}
