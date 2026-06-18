@@ -107,7 +107,13 @@ func buildInfoLines(themeColor string) []string {
 		formatLine(i18n.T("Info_DRAMBW"), fmt.Sprintf(i18n.T("Info_DRAMBWValue"), lastCPUMetrics.DRAMReadBW, lastCPUMetrics.DRAMWriteBW, lastCPUMetrics.DRAMBWCombined)),
 	}
 
-	if len(lastCPUMetrics.ANEClusterActive) > 1 {
+	// Only surface per-cluster ANE status on a power-state tier (ANEPowered /
+	// ANEExclave). ANEClusterActive always carries the IORegistry power-state
+	// duty cycle, so on a multi-die chip with a working PMP residency channel the
+	// main Info_ANEUsage line reads a residency % while this line would describe
+	// power-state active/idle — diverging. Mirror shouldRenderDualANEClusters so
+	// the info panel, gauge, and chart agree on when to split clusters.
+	if shouldRenderDualANEClusters(lastCPUMetrics) {
 		nClusters := lastCPUMetrics.ANEClusterCount
 		if nClusters < 2 {
 			nClusters = len(lastCPUMetrics.ANEClusterActive)
