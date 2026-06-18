@@ -90,12 +90,42 @@ func buildInfoLines(themeColor string) []string {
 		"",
 		formatLine(i18n.T("Info_CPUUsage"), fmt.Sprintf("%.2f%%", float64(cpuGauge.Percent))),
 		formatLine(i18n.T("Info_GPUUsage"), fmt.Sprintf("%d%%", int(lastGPUMetrics.ActivePercent))),
-		formatLine(i18n.T("Info_ANEUsage"), fmt.Sprintf("%d%%", int(aneUtilizationPercent(lastCPUMetrics)))),
+		formatLine(i18n.T("Info_ANEUsage"), func() string {
+			anePct := aneUtilizationPercent(lastCPUMetrics)
+			if lastCPUMetrics.ANEExclave {
+				return aneOnOffLabel(anePct)
+			}
+			if lastCPUMetrics.ANEPowered {
+				return anePoweredLabel(anePct)
+			}
+			return fmt.Sprintf("%d%%", int(anePct))
+		}()),
 		formatLine(i18n.T("Info_Power"), fmt.Sprintf(i18n.T("Info_PowerValue"), lastCPUMetrics.PackageW, avgWatts)),
 		formatLine(i18n.T("Info_Thermals"), thermalStr),
 		formatLine(i18n.T("Info_Network"), fmt.Sprintf(i18n.T("Info_NetworkValue"), formatBytes(lastNetDiskMetrics.OutBytesPerSec, networkUnit), formatBytes(lastNetDiskMetrics.InBytesPerSec, networkUnit))),
 		formatLine(i18n.T("Info_Disk"), fmt.Sprintf(i18n.T("Info_DiskValue"), formatBytes(lastNetDiskMetrics.ReadKBytesPerSec*1024, diskUnit), formatBytes(lastNetDiskMetrics.WriteKBytesPerSec*1024, diskUnit))),
 		formatLine(i18n.T("Info_DRAMBW"), fmt.Sprintf(i18n.T("Info_DRAMBWValue"), lastCPUMetrics.DRAMReadBW, lastCPUMetrics.DRAMWriteBW, lastCPUMetrics.DRAMBWCombined)),
+	}
+
+	if len(lastCPUMetrics.ANEClusterActive) > 1 {
+		nClusters := lastCPUMetrics.ANEClusterCount
+		if nClusters < 2 {
+			nClusters = len(lastCPUMetrics.ANEClusterActive)
+		}
+		clusterLine := formatLine(
+			fmt.Sprintf("ANE clusters (%d)", nClusters),
+			formatDualANEClusterStatus(
+				lastCPUMetrics.ANEClusterActive[0],
+				lastCPUMetrics.ANEClusterActive[1],
+				lastCPUMetrics.ANEPowered,
+			),
+		)
+		for i, line := range infoLines {
+			if strings.Contains(line, i18n.T("Info_ANEUsage")) {
+				infoLines = append(infoLines[:i+1], append([]string{clusterLine}, infoLines[i+1:]...)...)
+				break
+			}
+		}
 	}
 
 	if bat := GetBatteryInfo(); bat.Displayable() {

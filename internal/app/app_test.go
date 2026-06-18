@@ -458,3 +458,35 @@ func TestANEResidencyTier(t *testing.T) {
 		t.Fatal("working watts must keep the wattage label even with residency")
 	}
 }
+
+// TestANEExclaveBinary covers the exclave ANE path (M5 / M5 Max): the
+// power-domain signal is binary, must collapse to 0/100, must render an ON/idle
+// label, and must NOT latch the bandwidth mode (which would make the gauge show
+// the binary value as a misleading percentage).
+func TestANEExclaveBinary(t *testing.T) {
+	resetANETestState(t)
+
+	// Powered: any non-zero duty cycle collapses to 100 and reads "ON".
+	on := CPUMetrics{ANEExclave: true, ANEPowered: true, ANEActive: 73}
+	if got := aneUtilizationPercent(on); got != 100 {
+		t.Fatalf("exclave powered: got %v, want 100", got)
+	}
+	if got := aneOnOffLabel(aneUtilizationPercent(on)); got != "ON" {
+		t.Fatalf("exclave powered label: got %q, want ON", got)
+	}
+	// Crucially, the exclave path must not latch the GB/s label — otherwise the
+	// gauge falls through to a %-form template and prints the binary value as %.
+	if aneBWModeLatched.Load() || aneBWLabelMode(on) {
+		t.Fatal("exclave path must not latch bandwidth mode")
+	}
+
+	// Idle: reads 0 and "idle".
+	resetANETestState(t)
+	off := CPUMetrics{ANEExclave: true, ANEPowered: true, ANEActive: 0}
+	if got := aneUtilizationPercent(off); got != 0 {
+		t.Fatalf("exclave idle: got %v, want 0", got)
+	}
+	if got := aneOnOffLabel(aneUtilizationPercent(off)); got != "idle" {
+		t.Fatalf("exclave idle label: got %q, want idle", got)
+	}
+}

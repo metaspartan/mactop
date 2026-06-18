@@ -21,6 +21,9 @@
 #include <pthread.h>
 #include <notify.h>
 
+// Max H11ANEIn driver-interface nodes (Ultra-class chips expose 2).
+#define MAX_ANE_SERVICES 4
+
 // Wi-Fi link info structure
 typedef struct {
   char interface_name[32];
@@ -1471,6 +1474,19 @@ typedef struct {
   // derive dramReadBytes/dramWriteBytes. Used by Go to compute exact GB/s
   // independent of scheduling jitter on usleep(durationMs).
   int64_t actualDurationNs;
+  // Per-cluster ANE power-domain duty cycle (0-100%) from each H11ANEIn node.
+  // Only populated by the IORegistry fallback; length is aneClusterCount.
+  int aneClusterCount;
+  double aneClusterActive[MAX_ANE_SERVICES];
+  // 1 => aneActive is the binary ANE power-domain duty cycle (M5 Max / macOS 27
+  // non-root fallback: ANE powered vs idle), NOT a true utilization %.
+  int aneIsPowerState;
+  // 1 => the ANE is an exclave-based driver (Apple H16+, e.g. M5 / M5 Max).
+  // On these parts IOPowerManagement.CurrentPowerState stays pinned high while
+  // ANY background ML service (mediaanalysisd, photoanalysisd, …) uses the ANE,
+  // so the power-state signal is only meaningful as a binary powered/idle
+  // indicator — never a utilization %. The UI gates on this per chip family.
+  int aneIsExclave;
   // Fan data
   int fanCount;
   fan_info_t fans[8];
@@ -2558,6 +2574,141 @@ static void readNVMeSMARTTemps(void) {
   }
 }
 
+// --- ANE activity fallback via IORegistry power state -----------------------
+// On M5 Max / macOS 27 the PMP performance-floor IOReport channels that mactop
+// derives ANE utilization from (ANE-AF-BW / ANE-DCS-BW) are EMPTY for a non-root
+// process — the whole PMP group returns 0 channels — so the normal aneActive
+// computation is stuck at a constant 0%. The Apple Neural Engine driver
+// (IOClass "H11ANEIn") publishes IOPowerManagement.CurrentPowerState in the
+// IORegistry: 0 when the ANE is idle/unpowered, 1 when it is powered for
+// inference. That property is readable without root, so sampling its duty cycle
+// across the measurement window gives a usable ANE activity estimate.
+//
+// MaxPowerState is 1 on current silicon (binary on/off), so this is a coarse
+// "fraction of the window the ANE was powered" signal rather than a fine-grained
+// load percentage; it reads ~100% during sustained on-device inference and 0%
+// at idle. The ANE power domain has a short cool-down tail (~5s on M5 Max) after
+// the last inference before it powers off, so the reading lingers near 100% for
+// a few seconds after activity stops — acceptable for a live monitor and far
+// better than the constant 0% it replaces. It is only used as a fallback when no
+// PMP ANE utilization channel is present (chips that expose PMP keep using the
+// higher-resolution floor-residency signal). No finer-grained non-root counter
+// exists: the ANE HAL / load-balancer IORegistry nodes carry only static device
+// info, and the PMP performance-floor channels are empty for non-root here.
+//
+// Ultra-class chips (M1/M2/M3 Ultra, etc.) fuse two dies and expose two
+// H11ANEIn driver-interface nodes (H11ANE + H11ANE1, NumANEs=2). Single-die
+// parts (M5 Max, M4 Pro, …) expose exactly one. Use the plural service lookup
+// and OR per-slice power state so either cluster being powered counts as active.
+static int collectAneServices(io_service_t *out, int maxOut) {
+  if (out == NULL || maxOut <= 0) return 0;
+
+  io_iterator_t iterator = 0;
+  io_object_t entry;
+  int count = 0;
+
+  CFMutableDictionaryRef matching = IOServiceMatching("H11ANEIn");
+  if (matching == NULL) return 0;
+  if (IOServiceGetMatchingServices(kIOMainPortDefault, matching, &iterator) !=
+      kIOReturnSuccess) {
+    return 0;
+  }
+
+  while ((entry = IOIteratorNext(iterator)) != 0 && count < maxOut) {
+    out[count++] = entry;
+  }
+  IOObjectRelease(iterator);
+  return count;
+}
+
+// Returns the ANE CurrentPowerState (>=0), or -1 if unavailable.
+static int readAnePowerState(io_service_t svc) {
+  if (svc == MACH_PORT_NULL) return -1;
+  CFTypeRef pm = IORegistryEntryCreateCFProperty(
+      svc, CFSTR("IOPowerManagement"), kCFAllocatorDefault, 0);
+  if (pm == NULL) return -1;
+  int state = -1;
+  if (CFGetTypeID(pm) == CFDictionaryGetTypeID()) {
+    CFNumberRef cur = (CFNumberRef)CFDictionaryGetValue(
+        (CFDictionaryRef)pm, CFSTR("CurrentPowerState"));
+    if (cur != NULL && CFGetTypeID(cur) == CFNumberGetTypeID()) {
+      int v = 0;
+      if (CFNumberGetValue(cur, kCFNumberIntType, &v)) state = v;
+    }
+  }
+  CFRelease(pm);
+  return state;
+}
+
+// Detect an exclave-based ANE driver (Apple H16+, e.g. M5 / M5 Max). These
+// publish IOExclaveProxy=Yes and IONameMatched "ane,*exclave". On exclave ANE
+// the IOPowerManagement.CurrentPowerState duty cycle is pinned high by
+// background macOS ML services, so it must be presented as a binary powered/idle
+// state rather than a percentage. Older non-exclave parts (M1..M4, Ultra dies)
+// return 0 here and keep their per-die duty-cycle %.
+static int aneServiceIsExclave(io_service_t svc) {
+  if (svc == MACH_PORT_NULL) return 0;
+  int isExclave = 0;
+  CFTypeRef proxy = IORegistryEntryCreateCFProperty(
+      svc, CFSTR("IOExclaveProxy"), kCFAllocatorDefault, 0);
+  if (proxy != NULL) {
+    if (CFGetTypeID(proxy) == CFBooleanGetTypeID())
+      isExclave = CFBooleanGetValue((CFBooleanRef)proxy) ? 1 : 0;
+    CFRelease(proxy);
+  }
+  if (!isExclave) {
+    CFTypeRef nm = IORegistryEntryCreateCFProperty(
+        svc, CFSTR("IONameMatched"), kCFAllocatorDefault, 0);
+    if (nm != NULL) {
+      if (CFGetTypeID(nm) == CFStringGetTypeID() &&
+          CFStringFind((CFStringRef)nm, CFSTR("exclave"),
+                       kCFCompareCaseInsensitive)
+                  .location != kCFNotFound)
+        isExclave = 1;
+      CFRelease(nm);
+    }
+  }
+  return isExclave;
+}
+
+// Sort key so H11ANE (die 0) precedes H11ANE1 (die 1) in per-cluster arrays.
+static int aneServiceSortKey(io_service_t svc) {
+  io_name_t name;
+  if (IORegistryEntryGetName(svc, name) != KERN_SUCCESS) return 99;
+  if (strcmp(name, "H11ANE") == 0) return 0;
+  if (strcmp(name, "H11ANE1") == 0) return 1;
+  return 50;
+}
+
+static void sortAneServicesByDie(io_service_t *svcs, int count) {
+  for (int i = 0; i < count - 1; i++) {
+    for (int j = i + 1; j < count; j++) {
+      if (aneServiceSortKey(svcs[j]) < aneServiceSortKey(svcs[i])) {
+        io_service_t tmp = svcs[i];
+        svcs[i] = svcs[j];
+        svcs[j] = tmp;
+      }
+    }
+  }
+}
+
+// Per-slice aggregate across all H11ANEIn nodes: 1 if any cluster is powered,
+// 0 if all readable nodes are idle, -1 if none are readable.
+static int readAnyAnePowered(io_service_t *svcs, int count) {
+  if (svcs == NULL || count <= 0) return -1;
+
+  int anyReadable = 0;
+  int anyPowered = 0;
+  for (int i = 0; i < count; i++) {
+    int st = readAnePowerState(svcs[i]);
+    if (st < 0) continue;
+    anyReadable = 1;
+    if (st >= 1) anyPowered = 1;
+  }
+  if (!anyReadable) return -1;
+  return anyPowered ? 1 : 0;
+}
+
 PowerMetrics samplePowerMetrics(int durationMs) {
   PowerMetrics metrics = {0};
 
@@ -2592,7 +2743,66 @@ PowerMetrics samplePowerMetrics(int durationMs) {
   if (sample1 == NULL)
     return metrics;
 
-  usleep(durationMs * 1000);
+  // Sample the ANE power-state duty cycle across the measurement window, in
+  // place of a single window sleep so it adds no extra latency. Used as the
+  // fallback ANE-activity signal when the PMP performance-floor channels are
+  // absent (M5 Max / macOS 27, non-root). anePowerStatePct < 0 => unavailable.
+  double anePowerStatePct = -1.0;
+  // Exclave ANE (M5 / M5 Max): power-state signal is binary-only. Recorded here
+  // but only surfaced (metrics.aneIsExclave) if the binary power-state fallback
+  // is actually used — i.e. no util-floor channel AND no bandwidth signal exist.
+  // That way a working ANE channel (e.g. metaspartan's combined RD+WR PMP path)
+  // keeps its real %/GB/s display instead of being overridden by ON/idle.
+  int aneExclaveDetected = 0;
+  {
+    io_service_t aneSvcs[MAX_ANE_SERVICES];
+    int aneSvcCount = collectAneServices(aneSvcs, MAX_ANE_SERVICES);
+    sortAneServicesByDie(aneSvcs, aneSvcCount);
+    for (int ai = 0; ai < aneSvcCount; ai++) {
+      if (aneServiceIsExclave(aneSvcs[ai])) {
+        aneExclaveDetected = 1;
+        break;
+      }
+    }
+    int slices = durationMs / 50; // ~50ms cadence (20 samples over a 1s window)
+    if (slices < 1) slices = 1;
+    useconds_t sliceUs = (useconds_t)((long)durationMs * 1000 / slices);
+    int samples = 0, powered = 0;
+    int perSamples[MAX_ANE_SERVICES] = {0};
+    int perPowered[MAX_ANE_SERVICES] = {0};
+    for (int si = 0; si < slices; si++) {
+      if (aneSvcCount > 0) {
+        int st = readAnyAnePowered(aneSvcs, aneSvcCount);
+        if (st >= 0) {
+          samples++;
+          if (st >= 1) powered++;
+        }
+        for (int ai = 0; ai < aneSvcCount; ai++) {
+          int nodeSt = readAnePowerState(aneSvcs[ai]);
+          if (nodeSt >= 0) {
+            perSamples[ai]++;
+            if (nodeSt >= 1) perPowered[ai]++;
+          }
+        }
+      }
+      usleep(sliceUs);
+    }
+    metrics.aneClusterCount = aneSvcCount;
+    for (int ci = 0; ci < MAX_ANE_SERVICES; ci++) {
+      metrics.aneClusterActive[ci] = -1.0;
+    }
+    for (int ci = 0; ci < aneSvcCount && ci < MAX_ANE_SERVICES; ci++) {
+      if (perSamples[ci] > 0) {
+        metrics.aneClusterActive[ci] =
+            (double)perPowered[ci] / (double)perSamples[ci] * 100.0;
+      }
+    }
+    for (int ai = 0; ai < aneSvcCount; ai++) {
+      if (aneSvcs[ai] != MACH_PORT_NULL) IOObjectRelease(aneSvcs[ai]);
+    }
+    if (samples > 0)
+      anePowerStatePct = (double)powered / (double)samples * 100.0;
+  }
 
   CFDictionaryRef sample2 =
       IOReportCreateSamples(g_subscription, g_channels, NULL);
@@ -2677,6 +2887,7 @@ PowerMetrics samplePowerMetrics(int durationMs) {
   int64_t pmpAneWriteBytes = 0;
   int64_t pmpAneCombinedBytes = 0; // combined "ANE RD+WR" (chips without split RD/WR)
   bool sawAnePmpActivity = false;  // any positive residency on ANE* PMP channels (macOS 27+)
+  bool sawAneUtilChannel = false;  // a usable PMP ANE floor/util channel was present at all
 
   for (CFIndex i = 0; i < count; i++) {
     CFDictionaryRef item = (CFDictionaryRef)CFArrayGetValueAtIndex(channels, i);
@@ -3033,6 +3244,7 @@ PowerMetrics samplePowerMetrics(int durationMs) {
         // residency deltas. Idle states: OFF/IDLE/DOWN/SLEEP plus the lowest
         // floor request (VMIN for SOC Floor, F1 for DCS Floor, 0% for Fast-Die CE).
         if (stateCount > 1 && (isAneFloorChannel || isAneEngineStateChannel)) {
+          sawAneUtilChannel = true; // PMP exposes a real ANE util signal here
           int64_t totalTime = 0;
           int64_t activeTime = 0;
           for (int32_t s = 0; s < stateCount; s++) {
@@ -3261,6 +3473,21 @@ PowerMetrics samplePowerMetrics(int durationMs) {
     // would be misleading.
     metrics.aneReadBytes = pmpAneCombinedBytes;
     metrics.aneWriteBytes = 0;
+  }
+
+  // ANE utilization fallback (M5 Max / macOS 27): when no PMP ANE floor/util
+  // channel was present AND no ANE bandwidth (AMC or PMP RD/WR/RD+WR) is
+  // available, aneActive would be stuck at 0% even under on-device inference.
+  // Substitute the H11ANE driver's IOPowerManagement power-state duty cycle
+  // sampled across the window (see collectAneServices). Any working channel —
+  // including the combined RD+WR PMP bandwidth path — takes precedence so its
+  // real %/GB-s display is kept (maintainer preference for layout 19), and the
+  // exclave binary ON/idle treatment only applies in this last-resort case.
+  bool haveAneBandwidth = (metrics.aneReadBytes + metrics.aneWriteBytes) > 0;
+  if (!sawAneUtilChannel && !haveAneBandwidth && anePowerStatePct >= 0.0) {
+    metrics.aneActive = anePowerStatePct;
+    metrics.aneIsPowerState = 1; // signal the UI to label this "powered", not a %
+    metrics.aneIsExclave = aneExclaveDetected; // binary ON/idle only here
   }
 
   // Fallback: estimate DRAM BW from DRAM power after local calibration.

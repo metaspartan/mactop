@@ -85,6 +85,10 @@ typedef struct {
     int64_t aneReadBytes;
     int64_t aneWriteBytes;
     int64_t actualDurationNs;
+    int aneClusterCount;
+    double aneClusterActive[4];
+    int aneIsPowerState;
+    int aneIsExclave;
     int fanCount;
     fan_info_t fans[8];
     int tempSensorCount;
@@ -163,6 +167,15 @@ type SocMetrics struct {
 	ANEWriteBW      float64      `json:"ane_write_bw_gbs"`
 	ANEBWCombined   float64      `json:"ane_bw_combined_gbs"`
 	ANEActive       float64      `json:"ane_active"`
+	// ANEPowered is true when ANEActive is the binary ANE power-domain signal
+	// (M5 Max / macOS 27 non-root fallback) rather than a true utilization %.
+	ANEPowered      bool         `json:"ane_powered,omitempty"`
+	// ANEExclave is true on exclave-based ANE drivers (M5 / M5 Max), where the
+	// power-state signal is binary powered/idle only — never a utilization %.
+	ANEExclave      bool         `json:"ane_exclave,omitempty"`
+	// Per-cluster ANE power-domain duty (0-100%) from each H11ANEIn node.
+	ANEClusterCount  int          `json:"ane_cluster_count,omitempty"`
+	ANEClusterActive []float64    `json:"ane_cluster_active,omitempty"`
 	Fans            []FanInfo    `json:"-"`
 	TempSensors     []TempSensor `json:"-"`
 }
@@ -257,6 +270,14 @@ func sampleSocMetrics(durationMs int) SocMetrics {
 		}
 	}
 
+	aneClusterCount := int(pm.aneClusterCount)
+	aneClusterActive := make([]float64, 0, aneClusterCount)
+	for i := 0; i < aneClusterCount && i < 4; i++ {
+		if pm.aneClusterActive[i] >= 0 {
+			aneClusterActive = append(aneClusterActive, float64(pm.aneClusterActive[i]))
+		}
+	}
+
 	return SocMetrics{
 		CPUPower:        float64(pm.cpuPower),
 		GPUPower:        float64(pm.gpuPower),
@@ -282,8 +303,12 @@ func sampleSocMetrics(durationMs int) SocMetrics {
 		ANEReadBW:       aneReadBW,
 		ANEWriteBW:      aneWriteBW,
 		ANEBWCombined:   aneBWCombined,
-		ANEActive:       float64(pm.aneActive),
-		Fans:            fans,
+		ANEActive:        float64(pm.aneActive),
+		ANEPowered:       pm.aneIsPowerState != 0,
+		ANEExclave:       pm.aneIsExclave != 0,
+		ANEClusterCount:  aneClusterCount,
+		ANEClusterActive: aneClusterActive,
+		Fans:             fans,
 		TempSensors:     tempSensors,
 	}
 }
