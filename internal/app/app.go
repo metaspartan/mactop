@@ -1108,6 +1108,34 @@ func aneOnOffLabel(dutyPct float64) string {
 	return "idle"
 }
 
+// aneGaugeTitle produces the title for the ANE gauge, mirroring the utilization
+// source selection in aneUtilizationPercent so the title matches the gauge's
+// percent value. Extracted from updateCPUGaugeTitles so the label logic (in
+// particular the power-state fallback never showing a wattage, since the C side
+// leaves ANEW at 0 there) is unit-testable without a live UI widget.
+func aneGaugeTitle(m CPUMetrics, aneUtil, bw float64, bwMode bool) string {
+	if m.ANEExclave {
+		return fmt.Sprintf("ANE: %s", aneOnOffLabel(aneUtil))
+	}
+	if isCompactLayout() {
+		if bwMode {
+			return fmt.Sprintf(i18n.T("Metrics_ANEGaugeBWCompact"), bw)
+		}
+		return fmt.Sprintf(i18n.T("Metrics_ANEGaugeCompact"), m.ANEW)
+	}
+	if m.ANEPowered && !bwMode {
+		// IORegistry power-state fallback (non-exclave Ultra dies on macOS 27):
+		// the C side populates aneActive (the duty cycle) but never anePower, so
+		// ANEW is provably 0 here — a "(0.00W)" suffix would contradict the
+		// "powered" label. Show the powered/idle word without wattage.
+		return fmt.Sprintf("ANE %s", anePoweredLabel(aneUtil))
+	}
+	if bwMode {
+		return fmt.Sprintf(i18n.T("Metrics_ANEGaugeBW"), aneUtil, bw)
+	}
+	return fmt.Sprintf(i18n.T("Metrics_ANEGauge"), aneUtil, m.ANEW)
+}
+
 func aneClusterIsActive(pct float64) bool {
 	return pct > 0
 }
@@ -1152,6 +1180,22 @@ func formatDualANEClusterChartText(c0, c1 float64, powered bool, nClusters int) 
 	}
 	title = fmt.Sprintf("ANE (%d clusters) · %s", nClusters, formatDualANEClusterStatus(c0, c1, powered))
 	return title, label0, label1
+}
+
+// shouldRenderDualANEClusters reports whether the history_soc layout should plot
+// the per-die dual-cluster trace. ANEClusterActive is always the IORegistry
+// power-state duty cycle (populated on every sample regardless of the channel
+// that drove aneUtilizationPercent), so the dual trace only matches the gauge
+// when the gauge is itself in a power-state tier (ANEPowered/ANEExclave). On a
+// multi-die chip with a working PMP residency / AMC bandwidth channel, the gauge
+// reads residency/bandwidth % while this trace would read power-state duty —
+// diverging — so it returns false and the caller falls back to the
+// gauge-consistent single-series path.
+func shouldRenderDualANEClusters(m CPUMetrics) bool {
+	if len(m.ANEClusterActive) <= 1 {
+		return false
+	}
+	return m.ANEPowered || m.ANEExclave
 }
 
 func clampANEPercent(pct float64) float64 {
@@ -1310,8 +1354,15 @@ func renderANEHistoryChart(cpuMetrics CPUMetrics, anePct, aneWatts, aneBW float6
 		scaleMax = 50.0
 	}
 
-	clusterCount := len(cpuMetrics.ANEClusterActive)
-	if currentConfig.DefaultLayout == LayoutHistorySoC && clusterCount > 1 && len(aneCluster0History) > 0 {
+	// The per-die dual-cluster trace only matches the gauge when the gauge is
+	// itself reading the IORegistry power-state duty cycle (the ANEPowered /
+	// ANEExclave tiers): ANEClusterActive is populated from that duty cycle on
+	// every sample (ioreport.m), regardless of whether a working PMP residency
+	// or bandwidth channel drove aneUtilizationPercent. On a multi-die M5-class
+	// chip with a live PMP/AMC channel, plotting power-state duty here while the
+	// gauge shows residency/bandwidth % diverges, so fall through to the
+	// gauge-consistent single-series path in that case.
+	if currentConfig.DefaultLayout == LayoutHistorySoC && shouldRenderDualANEClusters(cpuMetrics) && len(aneCluster0History) > 0 {
 		visibleC0 := aneCluster0History[len(aneCluster0History)-visibleWidth:]
 		visibleC1 := aneCluster1History[len(aneCluster1History)-visibleWidth:]
 		for _, series := range [][]float64{visibleC0, visibleC1} {
@@ -1332,6 +1383,7 @@ func renderANEHistoryChart(cpuMetrics CPUMetrics, anePct, aneWatts, aneBW float6
 		aneColor := historyLineColor(func(t *CustomThemeConfig) string { return t.ANE }, ui.ColorRed)
 		aneHistoryChart.Data = [][]float64{displayC0, displayC1}
 		aneHistoryChart.LineColors = []ui.Color{aneColor, aneColor}
+		clusterCount := len(cpuMetrics.ANEClusterActive)
 		nClusters := cpuMetrics.ANEClusterCount
 		if nClusters < 2 {
 			nClusters = clusterCount
@@ -1727,23 +1779,9 @@ func updateCPUGaugeTitles(totalUsage float64, cpuMetrics CPUMetrics) {
 		// Exclave ANE (M5 / M5 Max): binary ON/idle only. aneUtil is 0 or 100, so
 		// the gauge bar reads empty/full and neither the title nor the bar label
 		// shows a percentage.
-		aneGauge.Title = fmt.Sprintf("ANE: %s", aneOnOffLabel(aneUtil))
 		aneGauge.Label = aneOnOffLabel(aneUtil)
-	} else if isCompactLayout() {
-		if bwMode {
-			aneGauge.Title = fmt.Sprintf(i18n.T("Metrics_ANEGaugeBWCompact"), cpuMetrics.ANEBW)
-		} else {
-			aneGauge.Title = fmt.Sprintf(i18n.T("Metrics_ANEGaugeCompact"), cpuMetrics.ANEW)
-		}
-	} else if cpuMetrics.ANEPowered && !bwMode {
-		aneGauge.Title = fmt.Sprintf("ANE %s (%.2fW)", anePoweredLabel(aneUtil), cpuMetrics.ANEW)
-	} else {
-		if bwMode {
-			aneGauge.Title = fmt.Sprintf(i18n.T("Metrics_ANEGaugeBW"), aneUtil, cpuMetrics.ANEBW)
-		} else {
-			aneGauge.Title = fmt.Sprintf(i18n.T("Metrics_ANEGauge"), aneUtil, cpuMetrics.ANEW)
-		}
 	}
+	aneGauge.Title = aneGaugeTitle(cpuMetrics, aneUtil, cpuMetrics.ANEBW, bwMode)
 	aneGauge.Percent = int(aneUtil)
 }
 

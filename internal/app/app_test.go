@@ -2,6 +2,7 @@ package app
 
 import (
 	"math"
+	"strings"
 	"testing"
 	"time"
 
@@ -488,5 +489,71 @@ func TestANEExclaveBinary(t *testing.T) {
 	}
 	if got := aneOnOffLabel(aneUtilizationPercent(off)); got != "idle" {
 		t.Fatalf("exclave idle label: got %q, want idle", got)
+	}
+}
+
+// TestANEPowerStateGaugeTitle covers the IORegistry power-state fallback title
+// (non-exclave Ultra dies on macOS 27 where PMP channels are empty): the C side
+// sets aneActive (the duty cycle) but leaves anePower at 0, so the gauge title
+// must read "ANE powered" / "ANE idle" with NO wattage suffix — a "(0.00W)"
+// would contradict the powered/idle label (regression guarded here).
+func TestANEPowerStateGaugeTitle(t *testing.T) {
+	resetANETestState(t)
+
+	// Non-compact layout (default): power-state fallback uses anePoweredLabel
+	// and must not embed the dead watts value.
+	powered := CPUMetrics{ANEPowered: true, ANEActive: 100, ANEW: 0}
+	util := aneUtilizationPercent(powered)
+	if util != 100 {
+		t.Fatalf("power-state powered util: got %v, want 100", util)
+	}
+	title := aneGaugeTitle(powered, util, powered.ANEBW, aneBWLabelMode(powered))
+	if title != "ANE powered" {
+		t.Fatalf("power-state powered title: got %q, want %q", title, "ANE powered")
+	}
+	if strings.Contains(title, "W") || strings.Contains(title, "0.00") {
+		t.Fatalf("power-state title must not embed wattage: got %q", title)
+	}
+
+	resetANETestState(t)
+	idle := CPUMetrics{ANEPowered: true, ANEActive: 0, ANEW: 0}
+	title = aneGaugeTitle(idle, aneUtilizationPercent(idle), idle.ANEBW, aneBWLabelMode(idle))
+	if title != "ANE idle" {
+		t.Fatalf("power-state idle title: got %q, want %q", title, "ANE idle")
+	}
+}
+
+// TestANEDualClusterChartGatesOnPowerStateTier guards the Cursor Bugbot fix:
+// the per-die dual-cluster trace is plotted only when the gauge is also in a
+// power-state tier (ANEPowered/ANEExclave). ANEClusterActive is always the
+// IORegistry power-state duty cycle, so on a multi-die chip with a working PMP
+// residency channel the dual path must NOT be taken — otherwise the chart
+// plots power-state duty while the gauge shows residency %.
+func TestANEDualClusterChartGatesOnPowerStateTier(t *testing.T) {
+	// Multi-die metrics with a working PMP residency channel: ANEPowered is
+	// false, so the dual-cluster power-state path must be skipped.
+	twoClustersPMP := CPUMetrics{
+		ANEActive:        62.5, // live PMP residency drives the gauge
+		ANEClusterActive: []float64{80, 0},
+		ANEClusterCount:  2,
+	}
+	if twoClustersPMP.ANEPowered || twoClustersPMP.ANEExclave {
+		t.Fatal("fixture must represent the non-power-state PMP case")
+	}
+	if shouldRenderDualANEClusters(twoClustersPMP) {
+		t.Fatal("PMP multi-die (no power-state tier) must NOT take the dual power-state path")
+	}
+
+	// The same multi-die metrics in the power-state fallback tier qualify.
+	powerState := twoClustersPMP
+	powerState.ANEPowered = true
+	if !shouldRenderDualANEClusters(powerState) {
+		t.Fatal("power-state multi-die must qualify for dual clusters")
+	}
+
+	// Single die never qualifies regardless of tier.
+	single := CPUMetrics{ANEPowered: true, ANEClusterActive: []float64{100}, ANEClusterCount: 1}
+	if shouldRenderDualANEClusters(single) {
+		t.Fatal("single-die must not qualify for dual clusters")
 	}
 }
