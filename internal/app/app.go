@@ -1136,6 +1136,33 @@ func aneGaugeTitle(m CPUMetrics, aneUtil, bw float64, bwMode bool) string {
 	return fmt.Sprintf(i18n.T("Metrics_ANEGauge"), aneUtil, m.ANEW)
 }
 
+// aneChartTitle produces the title for the ANE history chart, mirroring the
+// power-state tier handling of renderANEHistoryChart's early-return branch. It
+// exists so the chart-title contract (ANEPowered never showing a wattage, since
+// ANEW is provably 0 on that fallback path) is unit-testable without a live UI
+// widget.
+func aneChartTitle(m CPUMetrics, anePct, peak, aneWatts, aneBW float64, bwMode bool, isPeakLayout bool) string {
+	if m.ANEExclave {
+		return fmt.Sprintf("ANE: %s", aneOnOffLabel(anePct))
+	}
+	if m.ANEPowered && !bwMode {
+		// Power-state fallback: anePower is never set, so ANEW is 0 and any
+		// wattage-bearing template would render "... 0.00W". Use the
+		// powered/idle word, matching aneGaugeTitle.
+		return fmt.Sprintf("ANE: %s", anePoweredLabel(anePct))
+	}
+	if isPeakLayout {
+		if bwMode {
+			return fmt.Sprintf(i18n.T("Metrics_ANEHistoryPeakBW"), anePct, peak, aneBW)
+		}
+		return fmt.Sprintf(i18n.T("Metrics_ANEHistoryPeak"), anePct, peak, aneWatts)
+	}
+	if bwMode {
+		return fmt.Sprintf(i18n.T("Metrics_ANEHistoryDetailBW"), anePct, aneBW)
+	}
+	return fmt.Sprintf(i18n.T("Metrics_ANEHistoryDetail"), anePct, aneWatts)
+}
+
 func aneClusterIsActive(pct float64) bool {
 	return pct > 0
 }
@@ -1396,18 +1423,27 @@ func renderANEHistoryChart(cpuMetrics CPUMetrics, anePct, aneWatts, aneBW float6
 	}
 
 	aneHistoryChart.Data = [][]float64{visibleRaw}
-	if cpuMetrics.ANEExclave {
-		// Exclave ANE (M5 / M5 Max): binary powered/idle, never a %. The history
-		// trace is the 0/100 power-domain series; the title and data label carry
-		// ON/idle so layout 19 matches the gauge instead of showing "100.0%".
-		state := aneOnOffLabel(anePct)
+	if cpuMetrics.ANEExclave || (cpuMetrics.ANEPowered && !bwMode) {
+		// Power-state ANE tiers where a utilization percentage or wattage would
+		// be misleading: ANEExclave (M5 / M5 Max) is binary ON/idle, and the
+		// ANEPowered IORegistry fallback leaves ANEW at 0 (the C side never sets
+		// anePower on this path). The history trace is the 0/100 power-domain
+		// series; the title and data label carry ON/idle (exclave) or
+		// powered/idle (ANEPowered) so the chart matches the gauge instead of
+		// showing "100.0%" or "... 0.00W".
+		var state string
+		if cpuMetrics.ANEExclave {
+			state = aneOnOffLabel(anePct)
+		} else {
+			state = anePoweredLabel(anePct)
+		}
 		aneColor := ui.ColorRed
 		if currentConfig.DefaultLayout != LayoutHistorySoC {
 			aneColor = ui.ColorMagenta
 		}
 		aneHistoryChart.LineColors = []ui.Color{historyLineColor(func(t *CustomThemeConfig) string { return t.ANE }, aneColor)}
 		aneHistoryChart.DataLabels = []string{state}
-		aneHistoryChart.Title = fmt.Sprintf("ANE: %s", state)
+		aneHistoryChart.Title = aneChartTitle(cpuMetrics, anePct, 0, aneWatts, aneBW, bwMode, currentConfig.DefaultLayout == LayoutHistorySoC)
 		aneHistoryChart.MaxVal = scaleMax
 		return
 	}
@@ -1425,20 +1461,10 @@ func renderANEHistoryChart(cpuMetrics CPUMetrics, anePct, aneWatts, aneBW float6
 			currentPeak = visiblePeak[len(visiblePeak)-1]
 		}
 		aneHistoryChart.LineColors = []ui.Color{historyLineColor(func(t *CustomThemeConfig) string { return t.ANE }, ui.ColorRed)} // ANE red in SoC
-		if bwMode {
-			// macOS 27+: the ANE energy counter is dead, so a wattage reading
-			// would always be a meaningless 0.00W — show bandwidth instead.
-			aneHistoryChart.Title = fmt.Sprintf(i18n.T("Metrics_ANEHistoryPeakBW"), anePct, currentPeak, aneBW)
-		} else {
-			aneHistoryChart.Title = fmt.Sprintf(i18n.T("Metrics_ANEHistoryPeak"), anePct, currentPeak, aneWatts)
-		}
+		aneHistoryChart.Title = aneChartTitle(cpuMetrics, anePct, currentPeak, aneWatts, aneBW, bwMode, true)
 	} else {
 		aneHistoryChart.LineColors = []ui.Color{historyLineColor(func(t *CustomThemeConfig) string { return t.ANE }, ui.ColorMagenta)}
-		if bwMode {
-			aneHistoryChart.Title = fmt.Sprintf(i18n.T("Metrics_ANEHistoryDetailBW"), anePct, aneBW)
-		} else {
-			aneHistoryChart.Title = fmt.Sprintf(i18n.T("Metrics_ANEHistoryDetail"), anePct, aneWatts)
-		}
+		aneHistoryChart.Title = aneChartTitle(cpuMetrics, anePct, 0, aneWatts, aneBW, bwMode, false)
 	}
 	aneHistoryChart.MaxVal = scaleMax
 }

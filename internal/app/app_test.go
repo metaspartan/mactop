@@ -523,6 +523,50 @@ func TestANEPowerStateGaugeTitle(t *testing.T) {
 	}
 }
 
+// TestANEPowerStateChartTitle guards the second half of the 0.00W regression
+// (Cursor Bugbot "ANE chart ignores power-state labels"): on the history_soc
+// (peak) and detail layouts, renderANEHistoryChart must NOT route a power-state
+// ANEPowered sample through the wattage-bearing Metrics_ANEHistory* templates,
+// because ANEW is provably 0 on this fallback path. Both layouts must surface
+// the powered/idle word with no wattage or percentage.
+func TestANEPowerStateChartTitle(t *testing.T) {
+	powered := CPUMetrics{ANEPowered: true, ANEActive: 100, ANEW: 0}
+	util := aneUtilizationPercent(powered)
+
+	for _, tc := range []struct {
+		name        string
+		isPeakLayout bool
+	}{
+		{"history_soc (peak)", true},
+		{"detail", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			title := aneChartTitle(powered, util, util, powered.ANEW, powered.ANEBW, aneBWLabelMode(powered), tc.isPeakLayout)
+			if title != "ANE: powered" {
+				t.Fatalf("chart title: got %q, want %q", title, "ANE: powered")
+			}
+			if strings.Contains(title, "0.00") || strings.Contains(title, "W") {
+				t.Fatalf("power-state chart title must not embed wattage: got %q", title)
+			}
+		})
+	}
+
+	// Idle duty cycle on the power-state path.
+	idle := CPUMetrics{ANEPowered: true, ANEActive: 0, ANEW: 0}
+	title := aneChartTitle(idle, aneUtilizationPercent(idle), 0, idle.ANEW, idle.ANEBW, aneBWLabelMode(idle), true)
+	if title != "ANE: idle" {
+		t.Fatalf("idle chart title: got %q, want %q", title, "ANE: idle")
+	}
+
+	// Sanity: a non-power-state sample must still use the wattage template so the
+	// fix doesn't regress normal residency/watts operation.
+	normal := CPUMetrics{ANEActive: 55, ANEW: 3.5}
+	normalTitle := aneChartTitle(normal, aneUtilizationPercent(normal), 60, normal.ANEW, normal.ANEBW, false, true)
+	if !strings.HasSuffix(normalTitle, "W)") {
+		t.Fatalf("normal peak title should embed wattage: got %q", normalTitle)
+	}
+}
+
 // TestANEDualClusterChartGatesOnPowerStateTier guards the Cursor Bugbot fix:
 // the per-die dual-cluster trace is plotted only when the gauge is also in a
 // power-state tier (ANEPowered/ANEExclave). ANEClusterActive is always the
