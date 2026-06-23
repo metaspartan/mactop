@@ -523,6 +523,38 @@ func TestANEPowerStateGaugeTitle(t *testing.T) {
 	}
 }
 
+// TestANEGaugeInnerLabel guards the gauge's inner bar label (Cursor review of
+// #77 "ANEPowered gauge still shows percent"): power-state tiers must render a
+// word so the bar doesn't print "NN%" while the title reads ON/idle or
+// powered/idle. Other tiers return "" (the Gauge's default percent label).
+func TestANEGaugeInnerLabel(t *testing.T) {
+	resetANETestState(t)
+
+	// Exclave: binary ON/idle word.
+	if got := aneGaugeInnerLabel(CPUMetrics{ANEExclave: true}, 100, false); got != "ON" {
+		t.Fatalf("exclave on: got %q, want ON", got)
+	}
+	if got := aneGaugeInnerLabel(CPUMetrics{ANEExclave: true}, 0, false); got != "idle" {
+		t.Fatalf("exclave idle: got %q, want idle", got)
+	}
+	// ANEPowered (non-exclave) without bandwidth mode: powered/idle word, never
+	// a percentage — even when the duty cycle is a partial value like 73.
+	if got := aneGaugeInnerLabel(CPUMetrics{ANEPowered: true}, 73, false); got != "powered" {
+		t.Fatalf("powered partial duty: got %q, want powered", got)
+	}
+	if got := aneGaugeInnerLabel(CPUMetrics{ANEPowered: true}, 0, false); got != "idle" {
+		t.Fatalf("powered idle: got %q, want idle", got)
+	}
+	// ANEPowered but bandwidth mode active: not a power-state label (defers to %).
+	if got := aneGaugeInnerLabel(CPUMetrics{ANEPowered: true}, 50, true); got != "" {
+		t.Fatalf("powered+bwMode: got %q, want empty", got)
+	}
+	// Ordinary tiers (residency / bandwidth / watts): default percent label.
+	if got := aneGaugeInnerLabel(CPUMetrics{ANEActive: 80}, 80, true); got != "" {
+		t.Fatalf("residency tier: got %q, want empty", got)
+	}
+}
+
 // TestANEPowerStateChartTitle guards the second half of the 0.00W regression
 // (Cursor Bugbot "ANE chart ignores power-state labels"): on the history_soc
 // (peak) and detail layouts, renderANEHistoryChart must NOT route a power-state
@@ -534,7 +566,7 @@ func TestANEPowerStateChartTitle(t *testing.T) {
 	util := aneUtilizationPercent(powered)
 
 	for _, tc := range []struct {
-		name        string
+		name         string
 		isPeakLayout bool
 	}{
 		{"history_soc (peak)", true},

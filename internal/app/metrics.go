@@ -101,37 +101,37 @@ func normalizeSocMetricsPower(m SocMetrics) SocMetrics {
 
 func cpuMetricsFromSoc(m SocMetrics, coreUsages []float64, avgUsage float64, throttled bool) CPUMetrics {
 	return CPUMetrics{
-		CPUW:            m.CPUPower,
-		GPUW:            m.GPUPower,
-		ANEW:            m.ANEPower,
+		CPUW:             m.CPUPower,
+		GPUW:             m.GPUPower,
+		ANEW:             m.ANEPower,
 		ANEActive:        m.ANEActive,
 		ANEPowered:       m.ANEPowered,
 		ANEExclave:       m.ANEExclave,
 		ANEClusterCount:  m.ANEClusterCount,
 		ANEClusterActive: m.ANEClusterActive,
-		ANEReadBW:       m.ANEReadBW,
-		ANEWriteBW:      m.ANEWriteBW,
-		DRAMW:           m.DRAMPower,
-		GPUSRAMW:        m.GPUSRAMPower,
-		SystemW:         m.SystemPower,
-		PackageW:        m.TotalPower,
-		Throttled:       throttled,
-		CPUTemp:         float64(m.CPUTemp),
-		GPUTemp:         float64(m.GPUTemp),
-		EClusterActive:  int(m.EClusterActive),
-		PClusterActive:  int(m.PClusterActive),
-		EClusterFreqMHz: int(m.EClusterFreqMHz),
-		PClusterFreqMHz: int(m.PClusterFreqMHz),
-		SClusterActive:  int(m.SClusterActive),
-		SClusterFreqMHz: int(m.SClusterFreqMHz),
-		DRAMReadBW:      m.DRAMReadBW,
-		DRAMWriteBW:     m.DRAMWriteBW,
-		DRAMBWCombined:  m.DRAMBWCombined,
-		ANEBW:           m.ANEBWCombined,
-		Fans:            m.Fans,
-		TempSensors:     m.TempSensors,
-		CoreUsages:      coreUsages,
-		AvgUsage:        avgUsage,
+		ANEReadBW:        m.ANEReadBW,
+		ANEWriteBW:       m.ANEWriteBW,
+		DRAMW:            m.DRAMPower,
+		GPUSRAMW:         m.GPUSRAMPower,
+		SystemW:          m.SystemPower,
+		PackageW:         m.TotalPower,
+		Throttled:        throttled,
+		CPUTemp:          float64(m.CPUTemp),
+		GPUTemp:          float64(m.GPUTemp),
+		EClusterActive:   int(m.EClusterActive),
+		PClusterActive:   int(m.PClusterActive),
+		EClusterFreqMHz:  int(m.EClusterFreqMHz),
+		PClusterFreqMHz:  int(m.PClusterFreqMHz),
+		SClusterActive:   int(m.SClusterActive),
+		SClusterFreqMHz:  int(m.SClusterFreqMHz),
+		DRAMReadBW:       m.DRAMReadBW,
+		DRAMWriteBW:      m.DRAMWriteBW,
+		DRAMBWCombined:   m.DRAMBWCombined,
+		ANEBW:            m.ANEBWCombined,
+		Fans:             m.Fans,
+		TempSensors:      m.TempSensors,
+		CoreUsages:       coreUsages,
+		AvgUsage:         avgUsage,
 	}
 }
 
@@ -207,35 +207,43 @@ func aneUtilizationPercent(m CPUMetrics) float64 {
 		return pct
 	}
 	// 3. Bandwidth activity estimate (M1-M4 on macOS 27: AMC byte counters).
-	if m.ANEBW > 0 {
-		// ANE traffic with zero watts proves the energy counter is dead (an
-		// idle ANE produces neither). Latch bandwidth mode for the session so
-		// the UI label stays in GB/s form even when traffic later drops to 0,
-		// instead of reverting to a misleading "@ 0.00 W".
-		aneBWModeLatched.Store(true)
-		// Monotonic session max via CAS (callers run on several goroutines).
-		// 3% ratchet hysteresis: a single burst-aligned sample window
-		// marginally above the sustained plateau would otherwise become the
-		// permanent 100% reference, pinning genuine saturation at a
-		// misleading 96-98%. Bursts within 3% read as 100% via the clamp
-		// below; real step-ups beyond 3% still re-scale the reference.
-		for {
-			cur := math.Float64frombits(maxANEBWSeenBits.Load())
-			if m.ANEBW <= cur*1.03 {
-				break
-			}
-			if maxANEBWSeenBits.CompareAndSwap(math.Float64bits(cur), math.Float64bits(m.ANEBW)) {
-				break
-			}
-		}
-		ref := max(math.Float64frombits(maxANEBWSeenBits.Load()), aneBWRefFloorGBs)
-		pct := m.ANEBW / ref * 100
-		if pct > 100 {
-			pct = 100
-		}
-		return pct
+	return aneBandwidthUtilization(m)
+}
+
+// aneBandwidthUtilization is the tier-3 ANE estimate: the AMC/PMP byte-counter
+// activity signal used on M1-M4 / macOS 27, where the energy counter is dead.
+// It latches bandwidth-form labeling and scales the current traffic against an
+// adaptive session-max reference. Returns 0 when no traffic is present.
+func aneBandwidthUtilization(m CPUMetrics) float64 {
+	if m.ANEBW <= 0 {
+		return 0
 	}
-	return 0
+	// ANE traffic with zero watts proves the energy counter is dead (an idle
+	// ANE produces neither). Latch bandwidth mode for the session so the UI
+	// label stays in GB/s form even when traffic later drops to 0, instead of
+	// reverting to a misleading "@ 0.00 W".
+	aneBWModeLatched.Store(true)
+	// Monotonic session max via CAS (callers run on several goroutines). 3%
+	// ratchet hysteresis: a single burst-aligned sample window marginally above
+	// the sustained plateau would otherwise become the permanent 100%
+	// reference, pinning genuine saturation at a misleading 96-98%. Bursts
+	// within 3% read as 100% via the clamp below; real step-ups beyond 3% still
+	// re-scale the reference.
+	for {
+		cur := math.Float64frombits(maxANEBWSeenBits.Load())
+		if m.ANEBW <= cur*1.03 {
+			break
+		}
+		if maxANEBWSeenBits.CompareAndSwap(math.Float64bits(cur), math.Float64bits(m.ANEBW)) {
+			break
+		}
+	}
+	ref := max(math.Float64frombits(maxANEBWSeenBits.Load()), aneBWRefFloorGBs)
+	pct := m.ANEBW / ref * 100
+	if pct > 100 {
+		pct = 100
+	}
+	return pct
 }
 
 // aneBWLabelMode reports whether ANE displays should use the bandwidth-form

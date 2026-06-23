@@ -13,6 +13,35 @@ import (
 	"github.com/metaspartan/mactop/v2/internal/i18n"
 )
 
+// insertANEClusterLine inserts a per-die ANE status line directly after the ANE
+// Usage line, but only on a power-state tier (ANEPowered / ANEExclave) where
+// ANEClusterActive's IORegistry duty cycle is the meaningful signal. Mirrors
+// shouldRenderDualANEClusters so the info panel, gauge, and chart agree on when
+// to split clusters. Returns the list unchanged otherwise.
+func insertANEClusterLine(infoLines []string, formatLine func(string, string) string) []string {
+	if !shouldRenderDualANEClusters(lastCPUMetrics) {
+		return infoLines
+	}
+	nClusters := lastCPUMetrics.ANEClusterCount
+	if nClusters < 2 {
+		nClusters = len(lastCPUMetrics.ANEClusterActive)
+	}
+	clusterLine := formatLine(
+		fmt.Sprintf("ANE clusters (%d)", nClusters),
+		formatDualANEClusterStatus(
+			lastCPUMetrics.ANEClusterActive[0],
+			lastCPUMetrics.ANEClusterActive[1],
+			aneClusterLabelModeFor(lastCPUMetrics),
+		),
+	)
+	for i, line := range infoLines {
+		if strings.Contains(line, i18n.T("Info_ANEUsage")) {
+			return append(infoLines[:i+1], append([]string{clusterLine}, infoLines[i+1:]...)...)
+		}
+	}
+	return infoLines
+}
+
 func buildInfoLines(themeColor string) []string {
 	uptimeSeconds, _ := GetNativeUptime()
 	uptimeStr := formatTime(float64(uptimeSeconds))
@@ -107,48 +136,13 @@ func buildInfoLines(themeColor string) []string {
 		formatLine(i18n.T("Info_DRAMBW"), fmt.Sprintf(i18n.T("Info_DRAMBWValue"), lastCPUMetrics.DRAMReadBW, lastCPUMetrics.DRAMWriteBW, lastCPUMetrics.DRAMBWCombined)),
 	}
 
-	// Only surface per-cluster ANE status on a power-state tier (ANEPowered /
-	// ANEExclave). ANEClusterActive always carries the IORegistry power-state
-	// duty cycle, so on a multi-die chip with a working PMP residency channel the
-	// main Info_ANEUsage line reads a residency % while this line would describe
-	// power-state active/idle — diverging. Mirror shouldRenderDualANEClusters so
-	// the info panel, gauge, and chart agree on when to split clusters.
-	if shouldRenderDualANEClusters(lastCPUMetrics) {
-		nClusters := lastCPUMetrics.ANEClusterCount
-		if nClusters < 2 {
-			nClusters = len(lastCPUMetrics.ANEClusterActive)
-		}
-		clusterLine := formatLine(
-			fmt.Sprintf("ANE clusters (%d)", nClusters),
-			formatDualANEClusterStatus(
-				lastCPUMetrics.ANEClusterActive[0],
-				lastCPUMetrics.ANEClusterActive[1],
-				aneClusterLabelModeFor(lastCPUMetrics),
-			),
-		)
-		for i, line := range infoLines {
-			if strings.Contains(line, i18n.T("Info_ANEUsage")) {
-				infoLines = append(infoLines[:i+1], append([]string{clusterLine}, infoLines[i+1:]...)...)
-				break
-			}
-		}
-	}
+	infoLines = insertANEClusterLine(infoLines, formatLine)
 
 	if bat := GetBatteryInfo(); bat.Displayable() {
 		infoLines = append(infoLines, formatLine(i18n.T("Info_Battery"), fmt.Sprintf(i18n.T("Info_BatteryValue"), *bat.Percent, batteryStateLabel(bat))))
 	}
 
-	// Fan section
-	if len(lastCPUMetrics.Fans) > 0 {
-		infoLines = append(infoLines, "")
-		for _, fan := range lastCPUMetrics.Fans {
-			modeStr := i18n.T("Info_Auto")
-			if fan.Mode == 1 {
-				modeStr = i18n.T("Info_Manual")
-			}
-			infoLines = append(infoLines, formatLine(fan.Name, fmt.Sprintf(i18n.T("Info_FanValue"), fan.ActualRPM, modeStr, fan.MinRPM, fan.MaxRPM)))
-		}
-	}
+	infoLines = append(infoLines, buildFanLines(formatLine)...)
 
 	infoLines = append(infoLines, buildNetworkLinkLines(formatLine)...)
 	infoLines = append(infoLines, buildVolumeLines(formatLine)...)
@@ -164,6 +158,23 @@ func buildInfoLines(themeColor string) []string {
 	infoLines = append(infoLines, buildThunderboltInfoLines(themeColor)...)
 
 	return infoLines
+}
+
+// buildFanLines renders the fan section (blank separator + one line per fan),
+// or nil when no fans are present.
+func buildFanLines(formatLine func(string, string) string) []string {
+	if len(lastCPUMetrics.Fans) == 0 {
+		return nil
+	}
+	lines := []string{""}
+	for _, fan := range lastCPUMetrics.Fans {
+		modeStr := i18n.T("Info_Auto")
+		if fan.Mode == 1 {
+			modeStr = i18n.T("Info_Manual")
+		}
+		lines = append(lines, formatLine(fan.Name, fmt.Sprintf(i18n.T("Info_FanValue"), fan.ActualRPM, modeStr, fan.MinRPM, fan.MaxRPM)))
+	}
+	return lines
 }
 
 func buildNetworkLinkLines(formatLine func(string, string) string) []string {
