@@ -65,15 +65,15 @@ var (
 	// ANE estimate state shared between the sampler goroutine (latch writes in
 	// sampleSocMetrics) and the UI/menubar/overlay goroutines (reads + adaptive
 	// max updates in aneUtilizationPercent) — atomics to avoid a data race.
-	maxANEBWSeenBits    atomic.Uint64 // float64 bits; monotonic session max
-	aneBWModeLatched    atomic.Bool
-	aneResidencyLatched atomic.Bool // M5-class: ANEActive (PMP residency) seen this session
-	aneUsageHistory     = make([]float64, 100)
-	aneCluster0History, aneCluster1History                                  []float64
-	dramReadHistory     = make([]float64, 100)
-	dramWriteHistory    = make([]float64, 100)
-	aneReadBwHistory    = make([]float64, 100)
-	aneWriteBwHistory   = make([]float64, 100)
+	maxANEBWSeenBits                       atomic.Uint64 // float64 bits; monotonic session max
+	aneBWModeLatched                       atomic.Bool
+	aneResidencyLatched                    atomic.Bool // M5-class: ANEActive (PMP residency) seen this session
+	aneUsageHistory                        = make([]float64, 100)
+	aneCluster0History, aneCluster1History []float64
+	dramReadHistory                        = make([]float64, 100)
+	dramWriteHistory                       = make([]float64, 100)
+	aneReadBwHistory                       = make([]float64, 100)
+	aneWriteBwHistory                      = make([]float64, 100)
 
 	// previousLayout remembers the layout active before a direct switchToLayout
 	// jump (e.g. the 'a' ANE/BW history shortcut), so the key toggles back.

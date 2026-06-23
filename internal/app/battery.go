@@ -115,12 +115,12 @@ import (
 // real 0%. Consumers should treat a nil/omitted Percent as "charge unknown",
 // not as "no battery" (use Present for that).
 type BatteryInfo struct {
-	Present     bool    `json:"present" yaml:"present" xml:"Present" toon:"present"`
-	Percent     *int    `json:"percent,omitempty" yaml:"percent,omitempty" xml:"Percent,omitempty" toon:"percent"`
-	Charging    bool    `json:"charging" yaml:"charging" xml:"Charging" toon:"charging"`
-	OnACPower   bool    `json:"on_ac_power" yaml:"on_ac_power" xml:"OnACPower" toon:"on_ac_power"`
-	State       string  `json:"state" yaml:"state" xml:"State" toon:"state"`
-	PowerWatts  float64 `json:"power_watts" yaml:"power_watts" xml:"PowerWatts" toon:"power_watts"`
+	Present    bool    `json:"present" yaml:"present" xml:"Present" toon:"present"`
+	Percent    *int    `json:"percent,omitempty" yaml:"percent,omitempty" xml:"Percent,omitempty" toon:"percent"`
+	Charging   bool    `json:"charging" yaml:"charging" xml:"Charging" toon:"charging"`
+	OnACPower  bool    `json:"on_ac_power" yaml:"on_ac_power" xml:"OnACPower" toon:"on_ac_power"`
+	State      string  `json:"state" yaml:"state" xml:"State" toon:"state"`
+	PowerWatts float64 `json:"power_watts" yaml:"power_watts" xml:"PowerWatts" toon:"power_watts"`
 }
 
 var (
