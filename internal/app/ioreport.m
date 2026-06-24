@@ -2053,6 +2053,38 @@ static void dumpSMCFanKeys(void) {
   }
 }
 
+// dumpSMCFanCandidates scans every SMC key and prints those whose decoded value
+// lands in a plausible fan-RPM range. Apple Silicon fan keys are near-arbitrary
+// per-generation FourCCs (iStat/TG Pro keep a hand-curated per-model map; the
+// Asahi macsmc driver reads the key from the device tree) — the actual-RPM key
+// is NOT universally "F0Ac". On models where F0Ac reads 0, this surfaces the key
+// whose value matches the RPM shown by another tool, so it can be mapped in.
+static void dumpSMCFanCandidates(void) {
+  if (!g_smcConn)
+    return;
+  printf("\n=== SMC keys with fan-RPM-plausible values (200-6000) ===\n");
+  printf("(Match against the RPM another tool shows to find the tach key.\n");
+  printf(" CPU/GPU frequency keys in MHz may also appear here — ignore those.)\n");
+  int total = SMCGetKeyCount(g_smcConn);
+  for (int i = 0; i < total; i++) {
+    char k[5];
+    if (SMCGetKeyFromIndex(g_smcConn, i, k) != kIOReturnSuccess)
+      continue;
+    double v = SMCGetFloatValue(g_smcConn, k);
+    if (v < 200.0 || v > 6000.0)
+      continue;
+    SMCKeyData_keyInfo_t ki;
+    char t[5] = {0};
+    if (SMCGetKeyInfo(g_smcConn, k, &ki) == kIOReturnSuccess) {
+      t[0] = (ki.dataType >> 24) & 0xff;
+      t[1] = (ki.dataType >> 16) & 0xff;
+      t[2] = (ki.dataType >> 8) & 0xff;
+      t[3] = ki.dataType & 0xff;
+    }
+    printf("  %-4s  type=%-4s  value=%.2f\n", k, t, v);
+  }
+}
+
 void dumpAllSMCTemps(void) {
   if (!g_smcConn) {
     printf("SMC connection not available\n");
@@ -2128,6 +2160,7 @@ void dumpAllSMCTemps(void) {
   }
 
   dumpSMCFanKeys();
+  dumpSMCFanCandidates();
 }
 
 // Read fan data from SMC
