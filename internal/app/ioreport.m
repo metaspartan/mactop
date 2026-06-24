@@ -2644,8 +2644,16 @@ static int collectAneServices(io_service_t *out, int maxOut) {
     return 0;
   }
 
-  while ((entry = IOIteratorNext(iterator)) != 0 && count < maxOut) {
-    out[count++] = entry;
+  // Drain the whole iterator: store up to maxOut, release any beyond the cap.
+  // IOIteratorNext returns a +1 reference per entry, so stopping early (the cap
+  // is hit) would leak the over-cap entry the loop condition already fetched.
+  // Stored entries are released by the caller.
+  while ((entry = IOIteratorNext(iterator)) != 0) {
+    if (count < maxOut) {
+      out[count++] = entry;
+    } else {
+      IOObjectRelease(entry);
+    }
   }
   IOObjectRelease(iterator);
   return count;
