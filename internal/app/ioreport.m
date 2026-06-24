@@ -2025,6 +2025,34 @@ static void loadAllTempSensors() {
 }
 
 // Diagnostic dump: print ALL SMC temperature keys, including filtered ones
+// dumpSMCFanKeys lists every SMC key beginning with 'F' (fans) with its raw
+// FourCC data type and the value decoded by SMCGetFloatValue. The type column
+// is the key diagnostic for "fan reads 0 RPM" reports: it shows whether F*Ac is
+// flt / fpe2 / ui16 etc. and whether the decoder handles it.
+static void dumpSMCFanKeys(void) {
+  if (!g_smcConn)
+    return;
+  printf("\n=== SMC Fan Keys (F*) ===\n");
+  int total = SMCGetKeyCount(g_smcConn);
+  for (int i = 0; i < total; i++) {
+    char k[5];
+    if (SMCGetKeyFromIndex(g_smcConn, i, k) != kIOReturnSuccess)
+      continue;
+    if (k[0] != 'F')
+      continue;
+    SMCKeyData_keyInfo_t ki;
+    char t[5] = {0};
+    if (SMCGetKeyInfo(g_smcConn, k, &ki) == kIOReturnSuccess) {
+      t[0] = (ki.dataType >> 24) & 0xff;
+      t[1] = (ki.dataType >> 16) & 0xff;
+      t[2] = (ki.dataType >> 8) & 0xff;
+      t[3] = ki.dataType & 0xff;
+    }
+    printf("  %-4s  type=%-4s  value=%.2f\n", k, t,
+           SMCGetFloatValue(g_smcConn, k));
+  }
+}
+
 void dumpAllSMCTemps(void) {
   if (!g_smcConn) {
     printf("SMC connection not available\n");
@@ -2098,6 +2126,8 @@ void dumpAllSMCTemps(void) {
     float val = (float)SMCGetFloatValue(g_smcConn, g_gpu_keys[i]);
     printf("  GPU[%d] = %s  %.1f°C\n", i, g_gpu_keys[i], val);
   }
+
+  dumpSMCFanKeys();
 }
 
 // Read fan data from SMC
