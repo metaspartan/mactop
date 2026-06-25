@@ -2025,14 +2025,17 @@ static void loadAllTempSensors() {
 }
 
 // Diagnostic dump: print ALL SMC temperature keys, including filtered ones
-// dumpSMCFanKeys lists every SMC key beginning with 'F' (fans) with its raw
-// FourCC data type and the value decoded by SMCGetFloatValue. The type column
-// is the key diagnostic for "fan reads 0 RPM" reports: it shows whether F*Ac is
-// flt / fpe2 / ui16 etc. and whether the decoder handles it.
+// dumpSMCFanKeys lists every SMC key beginning with 'F' (fans) with the raw
+// SMCReadKey RESULT CODE, FourCC type, size, raw bytes, and decoded value.
+// Critically it shows the read result separately from the value: SMCGetFloatValue
+// returns 0.0 both for a genuine 0 AND for a failed read, so "value=0.00" alone
+// is ambiguous. If F0Ac shows result!=0x0 the tach key is unreadable to an
+// unprivileged process (the M2 Ultra "0 RPM" case — TG Pro reads via a
+// privileged helper); if result=0x0 with raw=00 00 00 00 the value is truly 0.
 static void dumpSMCFanKeys(void) {
   if (!g_smcConn)
     return;
-  printf("\n=== SMC Fan Keys (F*) ===\n");
+  printf("\n=== SMC Fan Keys (F*) — result code distinguishes read-fail from true 0 ===\n");
   int total = SMCGetKeyCount(g_smcConn);
   for (int i = 0; i < total; i++) {
     char k[5];
@@ -2040,7 +2043,8 @@ static void dumpSMCFanKeys(void) {
       continue;
     if (k[0] != 'F')
       continue;
-    SMCKeyData_keyInfo_t ki;
+    // Declared type/size via key info (works even if the value read is gated).
+    SMCKeyData_keyInfo_t ki = {0};
     char t[5] = {0};
     if (SMCGetKeyInfo(g_smcConn, k, &ki) == kIOReturnSuccess) {
       t[0] = (ki.dataType >> 24) & 0xff;
@@ -2048,8 +2052,19 @@ static void dumpSMCFanKeys(void) {
       t[2] = (ki.dataType >> 8) & 0xff;
       t[3] = ki.dataType & 0xff;
     }
-    printf("  %-4s  type=%-4s  value=%.2f\n", k, t,
-           SMCGetFloatValue(g_smcConn, k));
+    SMCKeyData_t v;
+    kern_return_t r = SMCReadKey(g_smcConn, k, &v);
+    if (r != kIOReturnSuccess) {
+      printf("  %-4s  type=%-4s  size=%u  *** READ FAILED result=0x%08x ***\n",
+             k, t, ki.dataSize, r);
+      continue;
+    }
+    char hex[40] = {0};
+    unsigned int n = v.keyInfo.dataSize < 8 ? v.keyInfo.dataSize : 8;
+    for (unsigned int b = 0; b < n; b++)
+      snprintf(hex + b * 3, 4, "%02x ", (unsigned char)v.bytes[b]);
+    printf("  %-4s  type=%-4s  size=%u  raw=%-24s  value=%.2f\n", k, t,
+           v.keyInfo.dataSize, hex, SMCGetFloatValue(g_smcConn, k));
   }
 }
 
