@@ -1,637 +1,259 @@
-# mactop
+# mactop-desktop
 
-[![Go Report Card](https://goreportcard.com/badge/github.com/metaspartan/mactop/v2)](https://goreportcard.com/report/github.com/metaspartan/mactop/v2)
-[![GoDoc](https://godoc.org/github.com/metaspartan/mactop?status.svg)](https://godoc.org/github.com/metaspartan/mactop/v2)
-![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/metaspartan/mactop/total) ![GitHub Release](https://img.shields.io/github/v/release/metaspartan/mactop)
+A desktop fork of [mactop](https://github.com/metaspartan/mactop) — an Apple Silicon monitoring tool that exposes real-time CPU, GPU, ANE, DRAM, power, temperature, and system metrics through native macOS APIs.
 
-[![Homebrew Badge](https://img.shields.io/badge/homebrew-%23FBB040.svg?style=for-the-badge&logo=homebrew&logoColor=black)](https://formulae.brew.sh/formula/mactop)
+**mactop-desktop** keeps the same metrics engine as upstream mactop and adds an Electron desktop UI with three planned views: **Simple**, **Advanced**, and **Complex**. It is aimed at developers building macOS apps who need a practical reference for Apple Silicon device information and public APIs.
 
-`mactop` is a terminal-based monitoring tool "top" designed to display real-time metrics for Apple Silicon chips written by Carsen Klock. It provides a simple and efficient way to monitor CPU and GPU usage, E-Cores and P-Cores, power consumption, GPU frequency, temperatures, and other system metrics directly from your terminal
+> **Status:** Early migration. The Go metrics core is unchanged. The legacy terminal UI (TUI) is still present during development and will be removed once the desktop app reliably consumes the same data.
 
-![mactop](mactop.gif)
+## Architecture
+
+```mermaid
+flowchart LR
+  desktopApp["Electron Desktop App"] --> electronMain["Electron Main Process"]
+  electronMain -->|"spawn or request JSON"| goSidecar["Go Sidecar"]
+  goSidecar --> headlessData["HeadlessOutput"]
+  headlessData --> nativeCollectors["SMC, IOReport, IOKit, Mach APIs"]
+  desktopApp --> simpleView["Simple View"]
+  desktopApp --> advancedView["Advanced View"]
+  desktopApp --> complexView["Complex View"]
+```
+
+- **Go sidecar** (`internal/app/`): unchanged metrics collection via SMC, IOReport, IOKit, Mach, and CGO.
+- **Desktop app** (`desktop/`): Electron shell that will consume `HeadlessOutput` JSON from the Go binary.
+- **Headless bridge**: `collectHeadlessData()` in `internal/app/headless.go` is the initial data contract between Go and Electron.
 
 ## Compatibility
 
-- Apple Silicon Only (ARM64)
+- Apple Silicon only (ARM64)
 - macOS Monterey 12.3+
 
-## Features
+## Desktop App (Work in Progress)
 
-- **No sudo required** - Uses native Apple APIs (SMC, IOReport, IOKit, IOHIDEventSystemClient)
-- Apple Silicon Monitor Top written in Go Lang and CGO
-- Real-time CPU, GPU, ANE, DRAM, and system power wattage usage display
-- GPU frequency and usage percentage display
-- CPU and GPU temperatures + Thermal State
-- **M5 Super Core (S-Core) Support**: Full support for Apple M5's new CPU architecture (E-cores, P-cores, S-cores)
-- **DRAM Bandwidth Monitoring**: Real-time DRAM read/write bandwidth (GB/s) — uses auto-calibrated power-based estimation on M5+ chips (no sudo required)
-- **Comprehensive Temperature Sensors**: All available SMC temperature sensors (CPU Die, GPU, Memory, SSD, Airflow, and more) with human-readable labels
-- **Fan Monitoring**: Real-time fan RPM, target speed, mode (Auto/Manual), and visual RPM bars
-- **Fan Speed Control**: Optional interactive fan speed control via `--fan-control` flag (writes to SMC)
-- Detailed native metrics for CPU cores (E-cores, P-cores, and S-cores on M5+) via Apple's Mach Kernel API
-- Memory usage and swap information
-- Network usage information (upload/download speeds)
-- **Thunderbolt bandwidth monitoring**: Real-time throughput for Thunderbolt Bridge interfaces
-- **Thunderbolt Device Tree**: Visual tree of connected Thunderbolt/USB4 devices and their speeds
-- **RDMA Support**: Detection of RDMA over Thunderbolt 5 availability
-- **Battery Monitoring**: Battery percentage and charging state on MacBooks (auto-detected; shown in TUI, headless output, and Prometheus metrics)
-- Disk I/O activity (read/write speeds)
-- Proportional per process GPU usage (experimental)
-- Multiple volume display (shows Mac HD + mounted external volumes)
-- Easy-to-read terminal UI
-- **20 Layouts**: (`l` to cycle layouts) — includes a GPU + Memory focused layout with a DRAM read/write bandwidth history chart
-  - New `history_soc` layout (`a` to jump to it): four large history StepCharts showing **CPU, GPU, ANE, and DRAM + ANE Bandwidth (Read/Write)** side-by-side, with a compact process list at the bottom. Ideal for observing sustained load, on-device Neural Engine inference, and memory bandwidth behavior over time.
-- **Persistent Settings**: Remembers your Layout and Theme choice across restarts
-- Customizable UI color (green, red, blue, skyblue, magenta, yellow, gold, silver, white, lime, orange, violet, pink, and more) (`c` to cycle colors)
-- Customizable background color (`b` to cycle colors)
-- Customizable update interval (default is 1000ms) (`-` or `=` to speed up, `+` to slow down)
-- Process list matching htop format (VIRT in GB, CPU normalized by core count)
-- **Process Management**: Kill processes directly from the UI (F9) with safe confirmation.
-- **Process Filter**: Search and filter processes by name (`/`)
-- **Navigation**: Enhanced Vim-like navigation (`g` top, `G` bottom, `j`/`k` scroll)
-- **Headless Mode**: Output JSON metrics to stdout for scripting/logging (`--headless`)
-- **JSON Formatting**: Pretty print JSON output (`--pretty`) or set collection count (`--count <n>`)
-- **Output Formats**: JSON (default), YAML, XML, CSV, and [TOON](https://github.com/toon-format/toon) (`--format <format>`)
-- **Freeze**: Pause/Resume process list updates (`f`)
-- Party Mode (Randomly cycles through colors) (`p` to toggle)
-- Optional Prometheus Metrics server (default is disabled) (`-p <port>` or `--prometheus <port>`)
-  - Exports: CPU/GPU/ANE usage, E/P/S-core averages, per-core usage (labeled by type), power components, DRAM bandwidth (read/write/combined), memory, network, disk, fan RPM, temperature sensors, thermal state, battery (on MacBooks), and more
-- **macOS Menu Bar Mode**: Run as a native menu bar status item (`--menubar`) with sparkline charts, CPU/GPU/Memory gauges, power metrics, DRAM bandwidth, fan RPM, and full system stats
-- Support for all Apple Silicon models
-- **Auto-detect Light/Dark Mode**: Automatically adjusts UI colors based on your terminal's background color or system theme.
-- **Configurable Units**: Customize units for network, disk, and temperature display (`--unit-network`, `--unit-disk`, `--unit-temp`)
-- **Multi-Language Support (i18n)**: 20 languages with automatic system language detection — English, Arabic, Chinese (Simplified & Traditional), Dutch, French, German, Hebrew, Hindi, Indonesian, Italian, Japanese, Korean, Polish, Portuguese, Russian, Spanish, Thai, Turkish, Vietnamese (`--lang` to override)
+The Electron app lives in [`desktop/`](desktop/).
 
-## Install via Homebrew
+### Planned Views
 
-You can install [mactop](https://github.com/metaspartan/mactop) via Homebrew! <https://brew.sh>
+| View | Purpose |
+|------|---------|
+| **Simple** | At-a-glance CPU, GPU, memory, power, and temperatures |
+| **Advanced** | Per-core usage, DRAM bandwidth, fans, network, and process list |
+| **Complex** | Full metrics: Thunderbolt tree, RDMA, volumes, sensors, and diagnostics |
+
+### Development
 
 ```bash
-brew install mactop
+# Build the Go sidecar
+make build
+
+# Install desktop dependencies
+cd desktop && npm install
+
+# Run the desktop app (expects ../mactop binary)
+npm start
 ```
 
-```bash
-mactop
-```
+The desktop app currently spawns the Go binary in headless mode and polls JSON metrics. UI views are placeholders until the migration matures.
 
-## Updating via Homebrew
+## Legacy Terminal UI (Temporary)
 
-```bash
-brew update
-```
+The upstream TUI remains available while the desktop app is being built:
 
 ```bash
-brew upgrade mactop
-```
-
-## Installation
-
-To install `mactop`, follow these steps:
-
-1. Ensure you have Go installed on your machine. If not, you can install it by following the instructions here: [Go Installation Guide](https://go.dev/doc/install).
-
-2. Clone the repository:
-
-   ```bash
-   git clone https://github.com/metaspartan/mactop.git
-   cd mactop
-   ```
-
-3. Build the application:
-
-   ```bash
-   go build
-   ```
-
-4. Run the application:
-
-   ```bash
-   ./mactop
-   ```
-
-## Usage
-
-After installation, you can start `mactop` by simply running:
-
-```bash
+make build
 ./mactop
 ```
 
-Example with flags:
+TUI removal is a later milestone, after the desktop app renders the same metrics reliably.
+
+## Features
+
+All metrics below come from the unchanged Go core and will be surfaced in the desktop app.
+
+- **No sudo required** — Uses native Apple APIs (SMC, IOReport, IOKit, IOHIDEventSystemClient)
+- Apple Silicon monitor written in Go and CGO
+- Real-time CPU, GPU, ANE, DRAM, and system power wattage
+- GPU frequency and usage percentage
+- CPU and GPU temperatures + thermal state
+- **M5 Super Core (S-Core) support**: E-cores, P-cores, and S-cores
+- **DRAM bandwidth monitoring**: Real-time DRAM read/write bandwidth (GB/s)
+- **Comprehensive temperature sensors**: All available SMC temperature sensors with human-readable labels
+- **Fan monitoring**: Real-time fan RPM, target speed, mode (Auto/Manual)
+- **Fan speed control**: Optional via `--fan-control` flag (writes to SMC)
+- Detailed native metrics for CPU cores via Apple's Mach Kernel API
+- Memory usage and swap information
+- Network usage (upload/download speeds)
+- **Thunderbolt bandwidth monitoring**: Real-time throughput for Thunderbolt Bridge interfaces
+- **Thunderbolt device tree**: Connected Thunderbolt/USB4 devices and speeds
+- **RDMA support**: Detection of RDMA over Thunderbolt 5 availability
+- **Battery monitoring**: Percentage and charging state on MacBooks
+- Disk I/O activity (read/write speeds)
+- Proportional per-process GPU usage (experimental)
+- Multiple volume display (Mac HD + mounted external volumes)
+- **Headless mode**: JSON metrics to stdout for scripting and desktop bridge (`--headless`)
+- **Output formats**: JSON (default), YAML, XML, CSV, and [TOON](https://github.com/toon-format/toon)
+- Optional Prometheus metrics server (`-p <port>` or `--prometheus <port>`)
+- **macOS menu bar mode**: Native menu bar status item (`--menubar`)
+- Support for all Apple Silicon models
+- **Configurable units**: Network, disk, and temperature (`--unit-network`, `--unit-disk`, `--unit-temp`)
+- **Multi-language support (i18n)**: 20 languages (`--lang` to override)
+
+### Legacy TUI-only features (until desktop parity)
+
+- 20 terminal layouts, themes, party mode, process kill/filter, vim-like navigation
+- Overlay HUD (`--overlay`) and fan control hotkeys
+
+## Installation (Go Sidecar)
+
+1. Install [Go](https://go.dev/doc/install).
+
+2. Clone this repository:
+
+   ```bash
+   git clone https://github.com/itsryanthedev/mactop-desktop.git
+   cd mactop-desktop
+   ```
+
+3. Build:
+
+   ```bash
+   make build
+   ```
+
+4. Run headless (desktop bridge):
+
+   ```bash
+   ./mactop --headless --count 1 --pretty
+   ```
+
+## Headless Mode (Desktop Data Bridge)
+
+Headless mode is the primary interface for the Electron app during migration:
 
 ```bash
-mactop --interval 1000 --foreground green --lang ja
+# Single sample (scripts, smoke tests)
+./mactop --headless --count 1
+
+# Continuous stream with pretty printing
+./mactop --headless --pretty
+
+# Other formats
+./mactop --headless --format yaml
 ```
 
-Custom Hex Colors:
+## CLI Flags
 
-```bash
-# Use Dracula theme colors
-mactop --foreground "#9580FF" --bg "#22212C"
-```
+- `--headless`: Run without TUI; output metrics to stdout
+- `--format`: Headless output format (json, yaml, xml, csv, toon). Default: json
+- `--count`: Number of samples in headless mode (0 = infinite)
+- `--pretty`: Pretty-print JSON in headless mode
+- `--interval` / `-i`: Update interval in milliseconds (default: 1000)
+- `--prometheus` / `-p`: Enable Prometheus metrics server on the given port
+- `--unit-network`: auto, byte, kb, mb, gb (default: auto)
+- `--unit-disk`: auto, byte, kb, mb, gb (default: auto)
+- `--unit-temp`: celsius, fahrenheit (default: celsius)
+- `--lang`: Language override (e.g. `en`, `es`, `ja`, `zh`)
+- `--fan-control`: Interactive fan control (**writes to SMC**; requires `sudo`)
+- `--menubar`: macOS menu bar status item
+- `--overlay`: Floating overlay HUD (**requires Screen Recording permission**)
+- `--dump-fps`, `--dump-temps`, `--dump-debug`: Diagnostics
+- `--version` / `-v`, `--help` / `-h`
 
-Headless Mode (JSON Output):
-
-```bash
-# Run once and exit (great for scripts)
-mactop --headless --count 1
-
-# Run continuously with pretty printing
-mactop --headless --pretty
-
-# Run with different output formats (json, yaml, xml, toon)
-mactop --headless --format toon
-```
-
-## mactop Flags
-
-- `--headless`: Run in headless mode (no TUI, output to stdout).
-- `--format`: Output format for headless mode (json, yaml, xml, toon). Default is json.
-- `--count`: Number of samples to collect in headless mode (0 = infinite).
-- `--pretty`: Pretty print JSON output in headless mode.
-- `--interval` or `-i`: Set the update interval in milliseconds. Default is 1000.
-- `--foreground`: Set the UI foreground color. Accepts named colors (green, red, blue, etc.) or hex colors (#9580FF).
-- `--bg` or `--background`: Set the UI background color. Accepts named colors (mocha-base, etc.) or hex colors (#22212C).
-- `--prometheus` or `-p`: Set and enable the local Prometheus metrics server on the given port. Default is disabled. (e.g. -p 2112 to enable Prometheus metrics on port 2112)
-- `--unit-network`: Network unit: auto, byte, kb, mb, gb (default: auto)
-- `--unit-disk`: Disk unit: auto, byte, kb, mb, gb (default: auto)
-- `--unit-temp`: Temperature unit: celsius, fahrenheit (default: celsius)
-- `--lang`: Language override (e.g., `en`, `es`, `ja`, `zh`). Auto-detects system language if not set. Priority: CLI flag > `MACTOP_LANG` env var > `config.json` > system language.
-- `--fan-control`: Enable interactive fan speed control (**⚠️ writes to SMC** — use with caution). **Requires root**: writing SMC fan keys is privileged, so you must run `sudo mactop --fan-control`. Without root every fan write is silently rejected (`kIOReturnNotPrivileged`) and the controls appear to do nothing.
-- `--menubar`: Run as a macOS menu bar status item alongside the TUI.
-- `--overlay`: Run as a floating overlay HUD window with FPS metrics. (**Requires Screen Recording permission** — see [Permissions](#permissions) below)
-- `--dump-fps`: Diagnostic tool that dumps display info, screen recording permission status, and tests CGDisplayStream at multiple output sizes. Useful for troubleshooting FPS display issues.
-- `--dump-temps`: Diagnostic: dump all raw SMC temperature keys and exit.
-- `--dump-debug`: Diagnostic: dump IOReport/HID/SMC/NVMe debug info and exit.
-- `--version` or `-v`: Print the version of mactop.
-- `--help` or `-h`: Show a help message about these flags and how to run mactop.
+Legacy TUI flags (`--foreground`, `--bg`, etc.) remain available until TUI removal.
 
 ## Permissions
 
-mactop uses native Apple APIs and **does not require sudo** for core functionality (CPU, GPU, power, memory, temperatures, fans).
+Core metrics do **not** require sudo (CPU, GPU, power, memory, temperatures, fans).
 
-### Screen Recording (required for FPS overlay)
+**Screen Recording** is required for FPS/overlay metrics on macOS 15+: enable it for your terminal or Electron app under **System Settings → Privacy & Security → Screen Recording**.
 
-The `--overlay` mode uses `CGDisplayStream` to track display frame rates (FPS and frame interval). On **macOS 15 (Sequoia) and later**, this requires **Screen Recording** permission for your terminal app:
+## Roadmap
 
-1. Open **System Settings → Privacy & Security → Screen Recording**
-2. Enable the toggle for your terminal app (Terminal.app, Ghostty, iTerm2, Warp, etc.)
-3. Restart your terminal if prompted
+1. **Now**: README rebrand, `desktop/` scaffold, headless JSON bridge
+2. **Next**: Simple view with live metrics from Go sidecar
+3. **Then**: Advanced and Complex views
+4. **Later**: Remove TUI and terminal-only dependencies (`gotui`)
+5. **Future**: Packaged `.app` distribution with embedded Go binary
 
-Without this permission, the overlay will still work but FPS and frame interval metrics will show `0` / `-`.
+## Confirmed Apple Silicon Chips
 
-> **Tip:** Run `mactop --dump-fps` to verify screen recording access and test CGDisplayStream on your hardware. This is useful for troubleshooting if FPS metrics still aren't appearing.
-
-## Overlay Customization
-
-The overlay HUD (`--overlay`) supports customization via `~/.mactop/config.json`. You can control which metrics appear in collapsed mode, their order in expanded mode, and the overlay opacity.
-
-### Collapsed Mode Sections
-
-Choose which metrics appear when the overlay is collapsed (default: FPS, Frame, CPU, GPU, Memory):
-
-```json
-{
-  "overlay": {
-    "collapsed_sections": ["fps", "cpu", "gpu", "memory"]
-  }
-}
-```
-
-### Expanded Mode Section Order
-
-Reorder sections in expanded mode. Sections appear in the order listed:
-
-```json
-{
-  "overlay": {
-    "expanded_order": [
-      "fps", "frame", "cpu", "gpu", "memory",
-      "power", "temps", "thermal", "fans",
-      "bandwidth", "gpu_freq", "ane", "network"
-    ]
-  }
-}
-```
-
-### Available Sections
-
-| Section | Description |
-|---------|-------------|
-| `fps` | Display FPS counter with sparkline |
-| `frame` | Frame interval (ms) with sparkline |
-| `cpu` | CPU usage bar with sparkline |
-| `gpu` | GPU usage bar with sparkline |
-| `ane` | ANE (Neural Engine) usage bar |
-| `memory` | Memory usage bar |
-| `swap` | Swap usage (only shown when swap is active) |
-| `power` | Power breakdown (Package + CPU/GPU/ANE/DRAM) |
-| `bandwidth` | DRAM bandwidth (GB/s) |
-| `gpu_freq` | GPU frequency and TFLOPs |
-| `temps` | CPU and GPU temperatures |
-| `thermal` | Thermal state |
-| `fans` | Fan RPM (only shown when fans present) |
-| `network` | Network throughput |
-
-### Persisted Opacity
-
-```json
-{
-  "overlay": {
-    "opacity": 0.75
-  }
-}
-```
-
-## Theme File Support
-
-Create `theme.json` in mactop's config directory to customize colors:
-
-- If `XDG_CONFIG_HOME` is set to an absolute path: `$XDG_CONFIG_HOME/mactop/theme.json`
-- Otherwise: `~/.mactop/theme.json`
-
-### Basic Colors
-
-```json
-{
-  "foreground": "#9580FF",
-  "background": "#22212C"
-}
-```
-
-### Per-Component Colors (Optional)
-
-Individual component colors that override the foreground:
-
-- `cpu`: CPU gauge, CPU cores widget, CPU history chart
-- `gpu`: GPU gauge, GPU sparkline, GPU history chart
-- `memory`: Memory gauge, Memory history chart
-- `ane`: ANE (Apple Neural Engine) gauge
-- `bandwidth`: DRAM Bandwidth history chart (falls back to memory color)
-- `network`: Network box, Network sparklines
-- `power`: Power box, Power sparkline, Power history chart
-- `thunderbolt`: Thunderbolt/RDMA box
-- `processList`: Process list border and text color
-- `processListDim`: Non-current-user (root/system) process text color (default: grey)
-- `processListSelected`: Selected row foreground text color (default: auto contrast)
-- `systemInfo`: System info box color
-
-### Example: Colorful Theme
-
-```json
-{
-  "foreground": "#B0BEC5",
-  "background": "#212121",
-  "cpu": "#FF5252",
-  "gpu": "#448AFF",
-  "memory": "#69F0AE",
-  "ane": "#E040FB",
-  "network": "#FFAB40",
-  "power": "#FF6E40",
-  "thunderbolt": "#E91E63",
-  "processList": "#FFEB3B",
-  "processListDim": "#555555",
-  "processListSelected": "#FFFFFF",
-  "systemInfo": "#00BCD4"
-}
-```
-
-### Example: Dracula PRO Palette
-
-| Element    | Hex       |
-|------------|-----------|
-| Background | `#22212C` |
-| Foreground | `#F8F8F2` |
-| Purple     | `#9580FF` |
-| Cyan       | `#80FFEA` |
-| Green      | `#8AFF80` |
-| Pink       | `#FF80BF` |
-| Orange     | `#FFCA80` |
-| Red        | `#FF9580` |
-
-Priority order: CLI flags > theme.json > saved config.
-
-## Config and Log Paths
-
-mactop supports XDG directory variables while preserving the original path layout when those variables are unset.
-
-| File | XDG path when set | Legacy fallback |
-|------|-------------------|-----------------|
-| Config | `$XDG_CONFIG_HOME/mactop/config.json` | `~/.mactop/config.json` |
-| Theme | `$XDG_CONFIG_HOME/mactop/theme.json` | `~/.mactop/theme.json` |
-| Log | `$XDG_STATE_HOME/mactop/mactop.log` | `~/.mactop/mactop.log` |
-
-Relative XDG paths are ignored; XDG base directories must be absolute paths.
-
-## mactop Commands
-
-Use the following keys to interact with the application while its running:
-
-- `q`: Quit the application.
-- `r`: Refresh the UI data manually.
-- `c`: Cycle through the color themes.
-- `b`: Cycle through the background colors.
-- `p`: Party Mode (Randomly cycles through colors)
-- `i`: Toggle Info layout (displays system info)
-- `F` (Shift+f): Toggle Fan & Thermals layout (fan monitoring + all temperature sensors)
-- `l`: Cycle through the 19 available layouts.
-- `+` or `=`: Increase update interval (slower updates).
-- `-`: Decrease update interval (faster updates).
-- `F9`: Kill the currently selected process (pauses updates while selecting).
-- `Arrow Keys` or `h/j/k/l`: Navigate the process list and select columns.
-- `g` / `G`: Jump to the top or bottom of the process list.
-- `/`: Search/Filter the process list by name (Esc to clear).
-- `Enter` or `Space`: Sort by the selected column.
-- `h` or `?`: Toggle the help menu.
-
-### Fan Control Keys (requires `--fan-control` flag + `sudo`, only active in Fan layout)
-
-> Fan control writes to the SMC, which is privileged — run with `sudo mactop --fan-control`.
-> Without root the keys below have no effect (mactop will show a warning in the Fan panel).
-> Note: on recent macOS the system thermal governor may also override manual fan targets.
-
-- `+` or `=`: Increase fan speed (+100 RPM)
-- `-`: Decrease fan speed (-100 RPM)
-- `a`: Toggle auto/manual fan mode
-- `0`: Set all fans to minimum speed
-- `9`: Set all fans to maximum speed
-- `R` (Shift+r): Reset all fans to automatic control
-
-## Example Theme (Green) Screenshot (mactop -c green) on Advanced layout (Hit "l" key to toggle)
-
-![mactop theme](screenshota.png)
-
-## Example Headless Output (mactop --headless --count 1)
-
-```json
-[{
-  "timestamp": "2025-12-22T18:16:57-07:00",
-  "soc_metrics": {
-    "cpu_power": 2.1959999999999997,
-    "gpu_power": 5.38552801,
-    "ane_power": 0,
-    "dram_power": 5.702,
-    "gpu_sram_power": 0.158,
-    "system_power": 37.47166092432617,
-    "total_power": 50.91318893432617,
-    "gpu_freq_mhz": 643,
-    "soc_temp": 62.562572,
-    "cpu_temp": 62.562572,
-    "gpu_temp": 58.38886
-  },
-  "memory": {
-    "total": 137438953472,
-    "used": 74062512128,
-    "available": 63376441344,
-    "swap_total": 5368709120,
-    "swap_used": 4094689280
-  },
-  "net_disk": {
-    "out_packets_per_sec": 589.4371024829012,
-    "out_bytes_per_sec": 196028.18012655922,
-    "in_packets_per_sec": 593.3256375185223,
-    "in_bytes_per_sec": 74461.55739710879,
-    "read_ops_per_sec": 0.32404458630175986,
-    "write_ops_per_sec": 40.18152870141822,
-    "read_kbytes_per_sec": 1.2961783452070395,
-    "write_kbytes_per_sec": 308.4904461592754
-  },
-  "cpu_usage": 15.140564910346725,
-  "gpu_usage": 53.51970510465884,
-  "core_usages": [
-    42.244224422442244,
-    37.17105263157895,
-    55.26315789473685,
-    37.704918032786885,
-    27.21311475409836,
-    21.241830065359476,
-    14.563106796116504,
-    6.148867313915858,
-    4.193548387096775,
-    1.9417475728155338,
-    30.718954248366014,
-    20.846905537459286,
-    1.9417475728155338,
-    1.2944983818770228,
-    0.3236245954692557,
-    0,
-    0,
-    0,
-    0,
-    0
-  ],
-  "system_info": {
-    "name": "Apple M1 Ultra",
-    "core_count": 20,
-    "e_core_count": 4,
-    "p_core_count": 16,
-    "gpu_core_count": 64
-  },
-  "thermal_state": "Normal",
-  "thunderbolt_info": {
-    "buses": [
-      {
-        "name": "TB4 Bus 5",
-        "status": "Active (USB)",
-        "icon": "⏺",
-        "speed": "Up to 40 Gb/s",
-        "domain_uuid": "9FDBA52F-DF7C-425E-B67B-FB80F9E1DCD6",
-        "switch_uid": "0x05AC38BE5E390FE5",
-        "receptacle_id": "6",
-        "devices": [
-          {
-            "name": "ASM236X NVME",
-            "mode": "USB",
-            "info_string": "USB, SSD"
-          }
-        ],
-        "network_stats": {
-          "interface_name": "en7",
-          "bytes_in": 0,
-          "bytes_out": 0,
-          "bytes_in_per_sec": 0,
-          "bytes_out_per_sec": 0,
-          "packets_in": 0,
-          "packets_out": 0
-        }
-      },
-      {
-        "name": "TB4 Bus 4",
-        "status": "Inactive",
-        "icon": "○",
-        "speed": "Up to 40 Gb/s",
-        "domain_uuid": "5DD6DE43-051D-4B32-B044-23E57AA0EEC8",
-        "switch_uid": "0x05AC38BE5E390FE4",
-        "receptacle_id": "5",
-        "network_stats": {
-          "interface_name": "en6",
-          "bytes_in": 0,
-          "bytes_out": 0,
-          "bytes_in_per_sec": 0,
-          "bytes_out_per_sec": 0,
-          "packets_in": 0,
-          "packets_out": 0
-        }
-      },
-      {
-        "name": "TB4 @ TB3 Bus 3",
-        "status": "Active",
-        "icon": "ϟ",
-        "speed": "20 Gb/s",
-        "domain_uuid": "AF4CE493-9005-4E9D-8B8B-0198D27BABA3",
-        "switch_uid": "0x05AC38BE5E390FE3",
-        "receptacle_id": "4",
-        "devices": [
-          {
-            "name": "Studio Display",
-            "vendor": "Apple Inc.",
-            "vendor_id": "0x0001",
-            "mode": "TB3",
-            "switch_uid": "0x0001AFBD0C588A00",
-            "device_id": "0x801F",
-            "info_string": "Apple Inc., TB3"
-          }
-        ],
-        "network_stats": {
-          "interface_name": "en5",
-          "bytes_in": 0,
-          "bytes_out": 0,
-          "bytes_in_per_sec": 0,
-          "bytes_out_per_sec": 0,
-          "packets_in": 0,
-          "packets_out": 0
-        }
-      },
-      {
-        "name": "TB4 Bus 2",
-        "status": "Inactive",
-        "icon": "○",
-        "speed": "Up to 40 Gb/s",
-        "domain_uuid": "D589EEFE-98CF-42EC-A729-6C3E523AA321",
-        "switch_uid": "0x05AC38BE5E390FE2",
-        "receptacle_id": "3",
-        "network_stats": {
-          "interface_name": "en4",
-          "bytes_in": 0,
-          "bytes_out": 0,
-          "bytes_in_per_sec": 0,
-          "bytes_out_per_sec": 0,
-          "packets_in": 0,
-          "packets_out": 0
-        }
-      },
-      {
-        "name": "TB4 Bus 1",
-        "status": "Inactive",
-        "icon": "○",
-        "speed": "Up to 40 Gb/s",
-        "domain_uuid": "6DAC6FCD-E102-4CCD-9D01-A75540E660CA",
-        "switch_uid": "0x05AC38BE5E390FE1",
-        "receptacle_id": "2",
-        "network_stats": {
-          "interface_name": "en3",
-          "bytes_in": 0,
-          "bytes_out": 0,
-          "bytes_in_per_sec": 0,
-          "bytes_out_per_sec": 0,
-          "packets_in": 0,
-          "packets_out": 0
-        }
-      },
-      {
-        "name": "TB4 Bus 0",
-        "status": "Inactive",
-        "icon": "○",
-        "speed": "Up to 40 Gb/s",
-        "domain_uuid": "63A80A32-E70C-4F22-84BE-EDE632A5BA3E",
-        "switch_uid": "0x05AC38BE5E390FE0",
-        "receptacle_id": "1",
-        "network_stats": {
-          "interface_name": "en2",
-          "bytes_in": 0,
-          "bytes_out": 0,
-          "bytes_in_per_sec": 0,
-          "bytes_out_per_sec": 0,
-          "packets_in": 0,
-          "packets_out": 0
-        }
-      }
-    ]
-  },
-  "tb_net_total_bytes_in_per_sec": 0,
-  "tb_net_total_bytes_out_per_sec": 0,
-  "rdma_status": {
-    "available": false,
-    "status": "RDMA Disabled (use rdma_ctl enable in Recovery Mode)"
-  },
-  "cpu_temp": 62.562572,
-  "gpu_temp": 58.38886
-}
-]
-```
-
-## Confirmed tested working Apple Silicon chips
-
-- M1
-- M1 Pro
-- M1 Max
-- M1 Ultra
-- M2
-- M2 Pro
-- M2 Max
-- M2 Ultra
-- M3
-- M3 Pro
-- M3 Max
-- M3 Ultra
-- M4
-- M4 Pro
-- M4 Max
+- M1, M1 Pro, M1 Max, M1 Ultra
+- M2, M2 Pro, M2 Max, M2 Ultra
+- M3, M3 Pro, M3 Max, M3 Ultra
+- M4, M4 Pro, M4 Max
+- M5, M5 Pro, M5 Max
 - A18 Pro
-- M5
-- M5 Pro
-- M5 Max
-
-(If you have a confirmed working Apple Silicon chip that is not listed, please open an issue, so we may add it here!)
 
 ## Contributing
 
-Contributions are what make the open-source community such an amazing place to learn, inspire, and create. Any contributions you make are **greatly appreciated**.
+1. Fork **mactop-desktop**
+2. Create a feature branch (`git checkout -b feature/your-feature`)
+3. Commit your changes
+4. Push and open a Pull Request
 
-1. Fork mactop
-2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the Branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+Run `make test` and `make sexy` before submitting Go changes.
 
-## What does mactop use to get real-time data?
+## What APIs Does mactop Use?
 
-- **Apple SMC**: For SoC temperature sensors, System Power (PSTR), fan speed monitoring (FNum, F*Ac/Mn/Mx/Tg/Md), fan speed control via SMCWrite, and comprehensive temperature sensor enumeration
-- **IOReport API**: For CPU, GPU, ANE, and DRAM power consumption (no sudo required) — DRAM power is also used for auto-calibrated bandwidth estimation on M5+ chips
-- **IOKit**: For GPU frequency table from `pmgr` device
-- **IOHIDEventSystemClient**: Fallback for SoC temperature sensors
-- **NSProcessInfo.thermalState**: For system thermal state (Nominal/Fair/Serious/Critical)
-- **Mach Kernel API** (`host_processor_info`): For CPU metrics (E-cores, P-cores, and S-cores on M5+) via CGO
+- **Apple SMC**: Temperature sensors, system power, fan monitoring and control
+- **IOReport API**: CPU, GPU, ANE, and DRAM power (no sudo)
+- **IOKit**: GPU frequency from `pmgr`
+- **IOHIDEventSystemClient**: Fallback SoC temperature sensors
+- **NSProcessInfo.thermalState**: Thermal state (Nominal/Fair/Serious/Critical)
+- **Mach Kernel API** (`host_processor_info`): Per-core CPU metrics via CGO
 
 ## License
 
-Distributed under the MIT License. See `LICENSE` for more information.
+Distributed under the MIT License. See [`LICENSE`](LICENSE).
 
-## Author and Contact
+This project is a derivative work of [mactop](https://github.com/metaspartan/mactop) by Carsen Klock. Original copyright and license notices in source files are preserved.
 
-Carsen Klock - [@carsenklock](https://x.com/carsenklock)
+## Fork Maintainer
 
-Project Link: [https://github.com/metaspartan/mactop](https://github.com/metaspartan/mactop)
+Ryan The Dev — [mactop-desktop](https://github.com/itsryanthedev/mactop-desktop)
 
-## Disclaimer
+## Upstream Author
 
-This tool is not officially supported by Apple. It is provided as is, and may not work as expected. Use at your own risk.
+Carsen Klock — [@carsenklock](https://x.com/carsenklock)
+
+Upstream: [https://github.com/metaspartan/mactop](https://github.com/metaspartan/mactop)
+
+## Thanks to Upstream Contributors
+
+mactop-desktop would not exist without [mactop](https://github.com/metaspartan/mactop) and everyone who contributed to it. Thank you to:
+
+- [Carsen Klock](https://github.com/metaspartan) (metaspartan, Meta Spartan)
+- [Shahab](https://github.com/tausiq19)
+- [ObsidianArch02](https://github.com/ObsidianArch02) / abnormal749 / 陳柏瑋
+- [Raghav](https://github.com/raghavawasthi2005)
+- [Jon Snow](https://github.com/lifesparts)
+- [Michael Freeman](https://github.com/mfreeman451)
+- [Oleksandr Redko](https://github.com/oleksandr-redko)
+- [Scott Spencer](https://github.com/ssp3nc3r)
+- [Aleksandr Izmailov](https://github.com/aizmailov)
+- [Anthony Molinaro](https://github.com/anthonymolinaro)
+- [ArjunDivecha](https://github.com/ArjunDivecha)
+- [Chris Yuan](https://github.com/honglong)
+- [Dogan Can](https://github.com/dogancanbaz)
+- [Piotr Godlewski](https://github.com/piotrek-godlewski) / Piotrek Rybiec
+- [Po-Hsuan Huang](https://github.com/aben20807)
+- [Yaroslav](https://github.com/yarkm13)
+- [Zhizhen He](https://github.com/hezhizhen)
+- [anemll](https://github.com/realanemll)
+- [ivanfioravanti](https://github.com/ivanfioravanti)
+- [lisiyang](https://github.com/lisiyang)
+- [mayor](https://github.com/gavinlinasd)
+- [sean10](https://github.com/sean10reborn)
+- goreleaserbot (release automation)
+- Claude (tooling assistance)
 
 ## Acknowledgements
 
-- [gotui](https://github.com/metaspartan/gotui) for the modern terminal UI framework.
-- [asitop](https://github.com/tlkh/asitop) for the original inspiration!
-- [htop](https://github.com/htop-dev/htop) for the process list and CPU cores inspiration!
+- [mactop](https://github.com/metaspartan/mactop) by Carsen Klock — the foundation of this project
+- [gotui](https://github.com/metaspartan/gotui) — terminal UI framework (legacy, pending removal)
+- [asitop](https://github.com/tlkh/asitop) — original inspiration
+- [htop](https://github.com/htop-dev/htop) — process list and CPU core inspiration
 
-## Download History
+## Disclaimer
 
-[![Download History](https://skill-history.com/chart/metaspartan/mactop.svg)](https://skill-history.com/metaspartan/mactop)
+This tool is not officially supported by Apple. It is provided as-is. Use at your own risk.

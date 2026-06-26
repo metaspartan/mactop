@@ -5,3 +5,6 @@ dist
 .DS_Store
 .idea/
 .ai/
+desktop/node_modules/
+desktop/dist/
+desktop/out/

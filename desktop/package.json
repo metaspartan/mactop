@@ -1,0 +1,14 @@
+{
+  "name": "mactop-desktop",
+  "version": "0.1.0",
+  "description": "Electron desktop app for Apple Silicon system metrics",
+  "main": "electron/main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron ."
+  },
+  "devDependencies": {
+    "electron": "^34.5.8"
+  }
+}
