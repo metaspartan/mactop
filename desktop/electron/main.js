@@ -94,8 +94,8 @@ function stopPolling() {
 
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 1280,
-    height: 800,
+    width: 1100,
+    height: 720,
     minWidth: 960,
     minHeight: 600,
     title: "mactop-desktop",

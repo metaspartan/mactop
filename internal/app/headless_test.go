@@ -64,4 +64,10 @@ func TestHeadlessIntegration(t *testing.T) {
 	if sample.SystemInfo.CoreCount == 0 {
 		t.Error("Expected non-zero core count")
 	}
+	if sample.ThermalState == "" {
+		t.Error("Expected non-empty thermal state")
+	}
+	if sample.ThermalLevel < -1 || sample.ThermalLevel > 4 {
+		t.Errorf("Expected thermal level in [-1, 4], got %d", sample.ThermalLevel)
+	}
 }

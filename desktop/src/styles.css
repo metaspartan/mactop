@@ -7,6 +7,10 @@
   --muted: #9aa6bd;
   --accent: #6ea8fe;
   --danger: #ff7b72;
+  --cpu-accent: #6ea8fe;
+  --gpu-accent: #b197fc;
+  --memory-accent: #63e6be;
+  --header-height: 5.5rem;
 }
 
 * {
@@ -18,6 +22,7 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   background: var(--bg);
   color: var(--text);
+  overflow: hidden;
 }
 
 .app-header {
@@ -28,6 +33,7 @@ body {
   padding: 1.25rem 1.5rem;
   border-bottom: 1px solid var(--border);
   background: #0d1016;
+  height: var(--header-height);
 }
 
 h1,
@@ -63,8 +69,15 @@ p {
   font-weight: 600;
 }
 
+.tab:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 main {
-  padding: 1.5rem;
+  padding: 1.25rem 1.5rem;
+  height: calc(100vh - var(--header-height));
+  overflow: hidden;
 }
 
 .status {
@@ -79,6 +92,167 @@ main {
   background: rgba(255, 123, 114, 0.12);
   border-color: rgba(255, 123, 114, 0.35);
   color: var(--danger);
+}
+
+.view {
+  height: 100%;
+}
+
+.simple-view {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  height: 100%;
+}
+
+.summary-strip {
+  display: flex;
+  align-items: baseline;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+  padding: 0 0.25rem;
+}
+
+.summary-chip {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.summary-meta {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.summary-updated {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.simple-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+  gap: 1rem;
+  flex: 1;
+  min-height: 0;
+}
+
+.simple-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  padding: 1.25rem 1.35rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 0;
+}
+
+.simple-label {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.simple-value {
+  margin: 0.5rem 0 0;
+  font-size: 2.75rem;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.simple-detail {
+  margin: 0.35rem 0 0;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.gauge {
+  margin-top: 1rem;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.gauge-fill {
+  height: 100%;
+  width: var(--fill, 0%);
+  border-radius: 999px;
+  transition: width 0.35s ease;
+}
+
+.simple-card-cpu .gauge-fill {
+  background: var(--cpu-accent);
+}
+
+.simple-card-gpu .gauge-fill {
+  background: var(--gpu-accent);
+}
+
+.simple-card-memory .gauge-fill {
+  background: var(--memory-accent);
+}
+
+.thermal-pill {
+  display: inline-block;
+  margin-top: 0.75rem;
+  padding: 0.55rem 1.1rem;
+  border-radius: 999px;
+  font-size: 1.35rem;
+  font-weight: 600;
+  border: 1px solid transparent;
+}
+
+.thermal-nominal {
+  background: rgba(99, 230, 190, 0.15);
+  border-color: rgba(99, 230, 190, 0.4);
+  color: #63e6be;
+}
+
+.thermal-fair {
+  background: rgba(255, 212, 59, 0.12);
+  border-color: rgba(255, 212, 59, 0.35);
+  color: #ffd43b;
+}
+
+.thermal-serious {
+  background: rgba(255, 169, 77, 0.12);
+  border-color: rgba(255, 169, 77, 0.35);
+  color: #ffa94d;
+}
+
+.thermal-critical {
+  background: rgba(255, 123, 114, 0.15);
+  border-color: rgba(255, 123, 114, 0.4);
+  color: var(--danger);
+}
+
+.thermal-sleeping,
+.thermal-unknown {
+  background: rgba(154, 166, 189, 0.12);
+  border-color: rgba(154, 166, 189, 0.3);
+  color: var(--muted);
+}
+
+.coming-soon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  text-align: center;
+  gap: 0.75rem;
+  color: var(--muted);
+}
+
+.coming-soon h2 {
+  color: var(--text);
+  font-size: 1.25rem;
 }
 
 .card-grid {
@@ -96,12 +270,6 @@ main {
 
 .card.wide {
   grid-column: 1 / -1;
-}
-
-.metric {
-  margin-top: 0.75rem;
-  font-size: 1.6rem;
-  font-weight: 700;
 }
 
 .hint {

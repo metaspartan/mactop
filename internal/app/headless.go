@@ -112,6 +112,7 @@ type HeadlessOutput struct {
 	CoreUsages            []float64            `json:"core_usages" yaml:"core_usages" xml:"CoreUsages" toon:"core_usages"`
 	SystemInfo            SystemInfo           `json:"system_info" yaml:"system_info" xml:"SystemInfo" toon:"system_info"`
 	ThermalState          string               `json:"thermal_state" yaml:"thermal_state" xml:"ThermalState" toon:"thermal_state"`
+	ThermalLevel          int                  `json:"thermal_level" yaml:"thermal_level" xml:"ThermalLevel" toon:"thermal_level"`
 	Processes             []HeadlessProcess    `json:"processes,omitempty" yaml:"processes,omitempty" xml:"Processes" toon:"processes"`
 	NetworkLinks          HeadlessNetworkLinks `json:"network_links" yaml:"network_links" xml:"NetworkLinks" toon:"network_links"`
 	Volumes               []HeadlessVolume     `json:"volumes,omitempty" yaml:"volumes,omitempty" xml:"Volumes" toon:"volumes"`
@@ -569,6 +570,7 @@ func collectHeadlessData(tbInfo *ThunderboltOutput, sysInfo SystemInfo) Headless
 		TBNetTotalBytesOutSec: tbNetTotalOut,
 		RDMAStatus:            rdmaStatus,
 		ThermalState:          thermalStr,
+		ThermalLevel:          int(thermalLevel),
 		Fans:                  headlessFans,
 		Temperatures:          orderedTemps,
 	}

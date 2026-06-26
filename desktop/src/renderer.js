@@ -1,39 +1,8 @@
-const tabs = document.querySelectorAll(".tab");
-const views = {
-  simple: document.getElementById("view-simple"),
-  advanced: document.getElementById("view-advanced"),
-  complex: document.getElementById("view-complex"),
-};
+import { formatPercent, formatWatts } from "./format.js";
+import { renderSimple, setSimpleLoading } from "./views/simple.js";
+import { getActiveView, initTabs, PHASE } from "./views/tabs.js";
+
 const statusEl = document.getElementById("status");
-
-function formatPercent(value) {
-  if (typeof value !== "number" || Number.isNaN(value)) {
-    return "—";
-  }
-  return `${value.toFixed(1)}%`;
-}
-
-function formatGiB(bytes) {
-  if (typeof bytes !== "number" || Number.isNaN(bytes)) {
-    return "—";
-  }
-  const gib = bytes / 1024 ** 3;
-  return `${gib.toFixed(1)} GiB`;
-}
-
-function formatWatts(value) {
-  if (typeof value !== "number" || Number.isNaN(value)) {
-    return "—";
-  }
-  return `${value.toFixed(1)} W`;
-}
-
-function formatTemp(celsius) {
-  if (typeof celsius !== "number" || Number.isNaN(celsius)) {
-    return "—";
-  }
-  return `${celsius.toFixed(1)} °C`;
-}
 
 function setStatus(message, isError = false) {
   if (!message) {
@@ -46,18 +15,6 @@ function setStatus(message, isError = false) {
   statusEl.hidden = false;
   statusEl.textContent = message;
   statusEl.classList.toggle("error", isError);
-}
-
-function renderSimple(metrics) {
-  const memory = metrics.memory || {};
-  const soc = metrics.soc_metrics || {};
-
-  document.getElementById("simple-cpu").textContent = formatPercent(metrics.cpu_usage);
-  document.getElementById("simple-gpu").textContent = formatPercent(metrics.gpu_usage);
-  document.getElementById("simple-memory").textContent = `${formatGiB(memory.used)} / ${formatGiB(memory.total)}`;
-  document.getElementById("simple-power").textContent = formatWatts(soc.total_power);
-  document.getElementById("simple-temp").textContent = formatTemp(soc.soc_temp ?? soc.cpu_temp);
-  document.getElementById("simple-thermal").textContent = metrics.thermal_state || "—";
 }
 
 function renderAdvanced(metrics) {
@@ -89,7 +46,7 @@ function renderAdvanced(metrics) {
 
   document.getElementById("advanced-processes").textContent = processes
     .slice(0, 10)
-    .map((proc) => `${proc.pid}\t${formatPercent(proc.cpu)}\t${proc.command}`)
+    .map((proc) => `${proc.pid}\t${formatPercent(proc.cpu_percent)}\t${proc.command}`)
     .join("\n");
 }
 
@@ -104,29 +61,20 @@ function renderMetrics(metrics) {
 
   setStatus("");
   renderSimple(metrics);
-  renderAdvanced(metrics);
-  renderComplex(metrics);
+
+  if (PHASE.advanced && getActiveView() === "advanced") {
+    renderAdvanced(metrics);
+  }
+  if (PHASE.complex && getActiveView() === "complex") {
+    renderComplex(metrics);
+  }
 }
 
-function switchView(viewName) {
-  tabs.forEach((tab) => {
-    const isActive = tab.dataset.view === viewName;
-    tab.classList.toggle("active", isActive);
-    tab.setAttribute("aria-selected", String(isActive));
-  });
-
-  Object.entries(views).forEach(([name, element]) => {
-    const isActive = name === viewName;
-    element.classList.toggle("active", isActive);
-    element.hidden = !isActive;
-  });
-}
-
-tabs.forEach((tab) => {
-  tab.addEventListener("click", () => switchView(tab.dataset.view));
-});
+initTabs();
 
 if (window.mactop) {
+  setSimpleLoading(true);
+
   window.mactop.onMetricsUpdate(renderMetrics);
   window.mactop.onMetricsError((message) => {
     setStatus(`Sidecar error: ${message}`, true);
@@ -135,7 +83,8 @@ if (window.mactop) {
   window.mactop
     .fetchMetrics()
     .then(renderMetrics)
-    .catch((err) => setStatus(`Sidecar error: ${err.message}`, true));
+    .catch((err) => setStatus(`Sidecar error: ${err.message}`, true))
+    .finally(() => setSimpleLoading(false));
 } else {
   setStatus("Desktop bridge unavailable. Run inside Electron.", true);
 }
