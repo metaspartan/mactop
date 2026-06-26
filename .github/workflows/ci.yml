@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  go:
+    name: Go (macOS)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Install make sexy tools
+        run: |
+          go install github.com/fzipp/gocyclo/cmd/gocyclo@latest
+          go install github.com/gordonklaus/ineffassign@latest
+
+      - name: make test
+        run: make test
+
+      - name: make sexy
+        run: make sexy
+
+      - name: make build
+        run: make build
+
+  desktop:
+    name: Desktop (npm)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: desktop
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: npm install
+        run: npm install

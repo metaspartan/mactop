@@ -1,0 +1,48 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+
+language: en-US
+
+reviews:
+  profile: assertive
+  request_changes_workflow: false
+  high_level_summary: true
+  poem: false
+  review_status: true
+  auto_review:
+    enabled: true
+    drafts: false
+    ignore_title_keywords:
+      - wip
+      - draft
+      - do not merge
+  path_filters:
+    - "!**/*.toml"
+    - "!**/*.json"
+    - "!go.sum"
+    - "!desktop/package-lock.json"
+  path_instructions:
+    - path: "internal/app/**"
+      instructions: |
+        macOS Apple Silicon metrics engine using CGO, IOKit, SMC, IOReport, and Mach APIs.
+        Flag missing error wrapping, data races, mutex misuse, and blocking work on hot paths.
+        Do not suggest cross-platform support unless the change explicitly targets portability.
+    - path: "desktop/**"
+      instructions: |
+        Electron shell that spawns the Go sidecar and consumes HeadlessOutput JSON.
+        Enforce contextIsolation, avoid nodeIntegration in the renderer, and validate preload IPC boundaries.
+    - path: "Makefile"
+      instructions: |
+        `make sexy` must pass before merge (gofmt, go vet, gocyclo complexity <= 15, ineffassign).
+  tools:
+    gitleaks:
+      enabled: true
+
+knowledge_base:
+  code_guidelines:
+    enabled: true
+    filePatterns:
+      - ".cursorrules"
+      - "docs/goals.md"
+
+chat:
+  auto_reply: true
