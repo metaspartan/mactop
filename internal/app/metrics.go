@@ -37,6 +37,9 @@ func startPrometheusServer(port string) {
 	registry.MustRegister(systemInfoGauge)
 	registry.MustRegister(fanRPM)
 	registry.MustRegister(tempSensorGauge)
+	registry.MustRegister(listeningPortsTotal)
+	registry.MustRegister(listeningPortsExternal)
+	registry.MustRegister(listeningPortsByProto)
 
 	initializePrometheusSeries(getSOCInfo())
 
@@ -673,7 +676,7 @@ func updatePrometheusSensors(fans []FanInfo, sensors []TempSensor) {
 	}
 }
 
-func collectProcessMetrics(done chan struct{}, processMetricsChan chan []ProcessMetrics, triggerChan chan struct{}) {
+func collectProcessMetrics(done chan struct{}, processMetricsChan chan []ProcessMetrics, portMetricsChan chan []PortMetrics, triggerChan chan struct{}) {
 	for {
 		select {
 		case <-done:
@@ -688,8 +691,37 @@ func collectProcessMetrics(done chan struct{}, processMetricsChan chan []Process
 			} else {
 				stderrLogger.Printf("Error getting process list: %v\n", err)
 			}
+
+			if ports, err := collectListeningPorts(); err == nil {
+				publishPrometheusPorts(ports)
+				select {
+				case portMetricsChan <- ports:
+				default:
+					select {
+					case <-portMetricsChan:
+					default:
+					}
+					select {
+					case portMetricsChan <- ports:
+					default:
+					}
+				}
+			} else {
+				stderrLogger.Printf("Error collecting listening ports: %v\n", err)
+			}
 		}
 	}
+}
+
+func publishPrometheusPorts(ports []PortMetrics) {
+	if prometheusPort == "" {
+		return
+	}
+	total, external, tcp, udp := portsSummary(ports)
+	listeningPortsTotal.Set(float64(total))
+	listeningPortsExternal.Set(float64(external))
+	listeningPortsByProto.With(prometheus.Labels{"protocol": "tcp"}).Set(float64(tcp))
+	listeningPortsByProto.With(prometheus.Labels{"protocol": "udp"}).Set(float64(udp))
 }
 
 func getMemoryMetrics() MemoryMetrics {

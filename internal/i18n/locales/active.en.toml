@@ -124,11 +124,24 @@ Process_MEM = "MEM"
 Process_TIME = "TIME"
 Process_CMD = "CMD"
 
+Port_PORT = "PORT"
+Port_PROTO = "PROTO"
+Port_BIND = "BIND"
+Port_PID = "PID"
+Port_USER = "USER"
+Port_ESTAB = "ESTAB"
+Port_CMD = "CMD"
+
 TUI_ProcessListFull = "Process List (↑/↓ scroll, / search, f freeze, F9 kill)"
 TUI_ProcessListFrozen = " Process List [FROZEN] (f to resume) "
 TUI_ProcessListSearch = " Search: %s_ (Esc to clear) "
 TUI_ProcessListKill = " Process List - KILL CONFIRMATION PENDING (PID %d) "
 TUI_ProcessListPID = " Process List [PID %d] (↑/↓ scroll, / search, f freeze, F9 kill) "
+TUI_PortsListFull = "Ports (↑/↓ scroll, / search, e external, f freeze, F9 kill)"
+TUI_PortsListFrozen = " Ports [FROZEN] (f to resume) "
+TUI_PortsListSearch = " Ports Search: %s_ (Esc to clear) "
+TUI_PortsListKill = " Ports - KILL CONFIRMATION PENDING (PID %d) "
+TUI_PortsListExternal = " Ports [EXTERNAL ONLY] (e show all, / search, F9 kill) "
 TUI_Cores = "%d Cores"
 TUI_ECores = "%d E-Cores"
 TUI_PCores = "%d P-Cores"
@@ -164,14 +177,16 @@ Update Interval: %dms
 - c / Shift + C: Cycle UI color themes forward / backward
 - b / Shift + B: Cycle UI background colors forward / backward
 - p: Toggle party mode (color cycling)
-- l / Shift + L: Cycle through the 20 available layouts forward / backward
+- l / Shift + L: Cycle through the 21 available layouts forward / backward
 - a: Jump to the ANE/BW history layout (press again to go back)
+- o: Jump to the ports layout (listening TCP/UDP ports; press again to go back)
 - i: Toggle information layout
 - Shift + F: Toggle fan control & thermals layout
 - F9: Kill selected process (y/n confirm)
-- f: Freeze the process list
-- /: Search process list
-- g/G: Jump to top/bottom of process list
+- f: Freeze the process/ports list
+- /: Search process/ports list
+- e: On ports layout, toggle external-only filter
+- g/G: Jump to top/bottom of process/ports list
 - + or -: Adjust update interval (faster/slower)
 - h or ?: Toggle this help menu
 - j/k or ↓/↑: Scroll help text

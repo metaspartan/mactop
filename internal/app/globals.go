@@ -163,6 +163,7 @@ var (
 	netdiskMetricsChan      = make(chan NetDiskMetrics, 1)
 	tbNetStatsChan          = make(chan []ThunderboltNetStats, 1)
 	processMetricsChan      = make(chan []ProcessMetrics, 1)
+	portMetricsChan         = make(chan []PortMetrics, 1)
 	ticker                  *time.Ticker
 
 	cachedHostname      string
@@ -338,5 +339,25 @@ var (
 			Help: "System information (value is always 1, labels contain info)",
 		},
 		[]string{"model", "core_count", "e_core_count", "p_core_count", "s_core_count", "gpu_core_count"},
+	)
+
+	listeningPortsTotal = prometheus.NewGauge(
+		prometheus.GaugeOpts{
+			Name: "mactop_listening_ports_total",
+			Help: "Number of listening TCP/UDP ports visible without root",
+		},
+	)
+	listeningPortsExternal = prometheus.NewGauge(
+		prometheus.GaugeOpts{
+			Name: "mactop_listening_ports_external",
+			Help: "Number of listening ports bound beyond localhost",
+		},
+	)
+	listeningPortsByProto = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "mactop_listening_ports",
+			Help: "Listening ports by protocol",
+		},
+		[]string{"protocol"},
 	)
 )

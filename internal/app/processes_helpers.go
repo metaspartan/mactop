@@ -98,6 +98,19 @@ func getProcessListTitle() (string, ui.Style) {
 }
 
 func attemptKillProcess() {
+	if isPortsLayoutActive() {
+		ports := currentViewPorts()
+		if len(ports) > 0 && processList.SelectedRow < len(ports)+1 {
+			if processList.SelectedRow > 0 {
+				processIndex := processList.SelectedRow - 1
+				if processIndex < len(ports) {
+					showKillModal(ports[processIndex].PID)
+				}
+			}
+		}
+		return
+	}
+
 	var currentViewProcesses []ProcessMetrics
 
 	// If search criteria exists, use that (even if nil/empty), otherwise use full list
@@ -126,6 +139,7 @@ func handleSearchToggle() {
 	searchMode = true
 	searchText = ""
 	filteredProcesses = nil
+	filteredPorts = nil
 	updateProcessList()
 }
 
@@ -133,6 +147,7 @@ func handleSearchClear() {
 	if searchText != "" {
 		searchText = ""
 		filteredProcesses = nil
+		filteredPorts = nil
 		updateProcessList()
 	}
 }
@@ -165,6 +180,24 @@ func handleVerticalNavigation(e ui.Event) {
 }
 
 func handleColumnNavigation(e ui.Event) {
+	if isPortsLayoutActive() {
+		switch e.ID {
+		case "<Left>":
+			if portSelectedColumn > 0 {
+				portSelectedColumn--
+				updateProcessList()
+			}
+		case "<Right>":
+			if portSelectedColumn < len(portColumns)-1 {
+				portSelectedColumn++
+				updateProcessList()
+			}
+		case "<Enter>", "<Space>":
+			handleSortToggle()
+		}
+		return
+	}
+
 	switch e.ID {
 	case "<Left>":
 		if selectedColumn > 0 {
@@ -186,6 +219,11 @@ func handleColumnNavigation(e ui.Event) {
 }
 
 func handleSortToggle() {
+	if isPortsLayoutActive() {
+		portSortReverse = !portSortReverse
+		updateProcessList()
+		return
+	}
 	sortReverse = !sortReverse
 	currentConfig.SortReverse = sortReverse
 	saveConfig()

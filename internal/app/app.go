@@ -858,7 +858,7 @@ func Run() {
 	}()
 
 	go collectMetrics(done, cpuMetricsChan, gpuMetricsChan, tbNetStatsChan, triggerProcessCollectionChan)
-	go collectProcessMetrics(done, processMetricsChan, triggerProcessCollectionChan)
+	go collectProcessMetrics(done, processMetricsChan, portMetricsChan, triggerProcessCollectionChan)
 	go collectNetDiskMetrics(done, netdiskMetricsChan)
 
 	uiEvents := ui.PollEvents()
