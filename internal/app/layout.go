@@ -30,9 +30,10 @@ const (
 	LayoutFan             = "fan"          // Fan control and temperature sensors
 	LayoutGPUMemory       = "gpu_memory"   // GPU + Memory focused with memory bandwidth chart
 	LayoutPorts           = "ports"        // Listening TCP/UDP ports per process
+	LayoutMemory          = "memory"       // Memory pressure, swap, DRAM bandwidth focused
 )
 
-var layoutOrder = []string{LayoutDefault, LayoutAlternative, LayoutAlternativeFull, LayoutVertical, LayoutCompact, LayoutDashboard, LayoutGaugesOnly, LayoutGPUFocus, LayoutCPUFocus, LayoutGPUMemory, LayoutNetworkIO, LayoutSmall, LayoutTiny, LayoutMicro, LayoutNano, LayoutPico, LayoutHistory, LayoutHistoryFull, LayoutHistorySoC, LayoutFan, LayoutPorts}
+var layoutOrder = []string{LayoutDefault, LayoutAlternative, LayoutAlternativeFull, LayoutVertical, LayoutCompact, LayoutDashboard, LayoutGaugesOnly, LayoutGPUFocus, LayoutCPUFocus, LayoutGPUMemory, LayoutMemory, LayoutNetworkIO, LayoutSmall, LayoutTiny, LayoutMicro, LayoutNano, LayoutPico, LayoutHistory, LayoutHistoryFull, LayoutHistorySoC, LayoutFan, LayoutPorts}
 
 func setupGrid() {
 	totalLayouts = len(layoutOrder)
@@ -139,6 +140,7 @@ func setCompactLikeLayout(layoutName string) bool {
 
 var namedLayoutSetters = map[string]func(){
 	LayoutPorts:           setPortsLayoutGrid,
+	LayoutMemory:          setMemoryLayoutGrid,
 	LayoutHistorySoC:      setHistorySoCLayoutGrid,
 	LayoutAlternative:     setAlternativeLayoutGrid,
 	LayoutAlternativeFull: setAlternativeFullLayoutGrid,
@@ -150,6 +152,30 @@ var namedLayoutSetters = map[string]func(){
 	LayoutCPUFocus:        setCPUFocusLayoutGrid,
 	LayoutNetworkIO:       setNetworkIOLayoutGrid,
 	LayoutSmall:           setSmallLayoutGrid,
+}
+
+func setMemoryLayoutGrid() {
+	// Each panel owns a distinct signal:
+	// memoryGauge / memoryHistoryChart = used+swap
+	// memoryPressurePanel / memoryPressureHistoryChart = kernel pressure
+	// memBWHistoryChart = DRAM bandwidth
+	// processList = process table
+	grid.Set(
+		ui.NewRow(1.0/5,
+			ui.NewCol(1.0/2, memoryGauge),
+			ui.NewCol(1.0/2, memoryPressurePanel),
+		),
+		ui.NewRow(1.0/5,
+			ui.NewCol(1.0/2, memoryHistoryChart),
+			ui.NewCol(1.0/2, memoryPressureHistoryChart),
+		),
+		ui.NewRow(1.0/5,
+			ui.NewCol(1.0, memBWHistoryChart),
+		),
+		ui.NewRow(2.0/5,
+			ui.NewCol(1.0, processList),
+		),
+	)
 }
 
 func setAlternativeLayoutGrid() {

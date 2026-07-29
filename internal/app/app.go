@@ -117,6 +117,7 @@ func setupUI() {
 	gpuValues = make([]float64, numPoints)
 	memoryUsedHistory = make([]float64, numPoints)
 	swapUsedHistory = make([]float64, numPoints)
+	memoryPressureHistory = make([]float64, numPoints)
 	cpuUsageHistory = make([]float64, numPoints)
 	powerUsageHistory = make([]float64, numPoints)
 	memBWReadHistory = make([]float64, numPoints)
@@ -192,6 +193,23 @@ func setupUI() {
 	memoryHistoryChart.ShowAxes = false
 	memoryHistoryChart.ShowRightAxis = true
 	memoryHistoryChart.LineColors = []ui.Color{ui.ColorBlue, ui.ColorMagenta}
+
+	memoryPressureHistoryChart = w.NewStepChart()
+	memoryPressureHistoryChart.Title = i18n.T("TUI_MemoryPressureHistory")
+	memoryPressureHistoryChart.ShowAxes = false
+	memoryPressureHistoryChart.ShowRightAxis = true
+	memoryPressureHistoryChart.LineColors = []ui.Color{ui.ColorGreen}
+
+	memoryPressureGauge = w.NewGauge()
+	memoryPressureGauge.Title = i18n.T("TUI_MemoryPressure")
+	memoryPressureGauge.Percent = 0
+	memoryPressureGauge.BarColor = ui.ColorGreen
+	memoryPressureGauge.LabelStyle = ui.NewStyle(SecondaryTextColor)
+
+	memoryPressurePanel = w.NewParagraph()
+	memoryPressurePanel.Title = i18n.T("TUI_MemoryPressure")
+	memoryPressurePanel.Text = i18n.T("TUI_Loading")
+	memoryPressurePanel.Border = true
 
 	cpuHistoryChart = w.NewStepChart()
 	cpuHistoryChart.Title = i18n.T("TUI_CPUUsageHistory")
@@ -966,10 +984,13 @@ func updateCPUUI(cpuMetrics CPUMetrics) {
 
 	memoryMetrics := getMemoryMetrics()
 	updateMemoryGaugeTitle(memoryMetrics)
-	memoryPercent := (float64(memoryMetrics.Used) / float64(memoryMetrics.Total)) * 100
-	memoryGauge.Percent = int(memoryPercent)
+	if memoryMetrics.Total > 0 {
+		memoryPercent := (float64(memoryMetrics.Used) / float64(memoryMetrics.Total)) * 100
+		memoryGauge.Percent = int(memoryPercent)
+	}
 
 	updateMemoryHistory(memoryMetrics)
+	updateMemoryPressureUI(memoryMetrics)
 
 	// New SoC history charts (for history_soc layout)
 	// Bandwidth first: the ANE history chart derives its bandwidth-mode
@@ -1912,6 +1933,63 @@ func updateMemoryGaugeTitle(memoryMetrics MemoryMetrics) {
 		memoryGauge.Title = fmt.Sprintf(i18n.T("Metrics_MemGaugeCompact"), float64(memoryMetrics.Used)/1024/1024/1024, float64(memoryMetrics.Total)/1024/1024/1024, lastCPUMetrics.DRAMBWCombined)
 	} else {
 		memoryGauge.Title = fmt.Sprintf(i18n.T("Metrics_MemGauge"), float64(memoryMetrics.Used)/1024/1024/1024, float64(memoryMetrics.Total)/1024/1024/1024, float64(memoryMetrics.SwapUsed)/1024/1024/1024, float64(memoryMetrics.SwapTotal)/1024/1024/1024, lastCPUMetrics.DRAMBWCombined)
+	}
+}
+
+func updateMemoryPressureUI(memoryMetrics MemoryMetrics) {
+	for i := 0; i < len(memoryPressureHistory)-1; i++ {
+		memoryPressureHistory[i] = memoryPressureHistory[i+1]
+	}
+	memoryPressureHistory[len(memoryPressureHistory)-1] = memoryMetrics.PressureApprox
+
+	colorName := memoryPressureColorName(memoryMetrics.PressureLevel)
+	barColor := ui.ColorGreen
+	switch colorName {
+	case "yellow":
+		barColor = ui.ColorYellow
+	case "red":
+		barColor = ui.ColorRed
+	case "white":
+		barColor = ui.ColorWhite
+	}
+
+	// Keep the pressure gauge widget themed/ready, but do not mirror used/swap/BW
+	// already shown by memoryGauge and memBWHistoryChart.
+	if memoryPressureGauge != nil {
+		memoryPressureGauge.Percent = memoryPressureGaugePercent(memoryMetrics.PressureLevel)
+		memoryPressureGauge.BarColor = barColor
+		memoryPressureGauge.Title = fmt.Sprintf(i18n.T("Metrics_MemPressureGauge"), memoryMetrics.PressureState, memoryMetrics.PressureApprox)
+	}
+
+	if memoryPressurePanel != nil {
+		compGB := float64(memoryMetrics.Compressed) / 1024 / 1024 / 1024
+		memoryPressurePanel.Title = i18n.T("TUI_MemoryPressure")
+		memoryPressurePanel.Text = fmt.Sprintf(
+			i18n.T("Metrics_MemPressurePanel"),
+			memoryMetrics.PressureState,
+			memoryMetrics.PressureLevel,
+			memoryMetrics.PressureApprox,
+			compGB,
+		)
+		memoryPressurePanel.BorderStyle = ui.NewStyle(barColor)
+		memoryPressurePanel.TitleStyle = ui.NewStyle(barColor, CurrentBgColor, ui.ModifierBold)
+	}
+
+	if memoryPressureHistoryChart != nil {
+		termWidth, _ := GetCachedTerminalDimensions()
+		visibleWidth := termWidth - 4
+		if currentConfig.DefaultLayout == LayoutMemory {
+			visibleWidth = (termWidth / 2) - 4
+		}
+		if visibleWidth <= 0 || visibleWidth > len(memoryPressureHistory) {
+			visibleWidth = len(memoryPressureHistory)
+		}
+		visible := memoryPressureHistory[len(memoryPressureHistory)-visibleWidth:]
+		memoryPressureHistoryChart.Data = [][]float64{visible}
+		memoryPressureHistoryChart.MaxVal = 100
+		memoryPressureHistoryChart.LineColors = []ui.Color{barColor}
+		memoryPressureHistoryChart.DataLabels = []string{fmt.Sprintf("%.0f", memoryMetrics.PressureApprox)}
+		memoryPressureHistoryChart.Title = fmt.Sprintf(i18n.T("Metrics_MemPressureHistoryDetail"), memoryMetrics.PressureState, memoryMetrics.PressureApprox)
 	}
 }
 

@@ -148,9 +148,20 @@ func handleResizeEvent(e ui.Event) {
 }
 
 func handleModeKeys(key string, done chan struct{}) {
+	if handleQuitOrRefreshKeys(key, done) {
+		return
+	}
+	if handleThemeLayoutKeys(key) {
+		return
+	}
+	handleUtilityModeKeys(key)
+}
+
+func handleQuitOrRefreshKeys(key string, done chan struct{}) bool {
 	switch key {
 	case "q", "<C-c>":
 		shutdownAndExit(true)
+		return true
 	case "r":
 		w, h := ui.TerminalDimensions()
 		UpdateCachedTerminalDimensions(w, h)
@@ -158,6 +169,14 @@ func handleModeKeys(key string, done chan struct{}) {
 		updateLayout(w, h)
 		drawScreen(w, h)
 		renderMutex.Unlock()
+		return true
+	default:
+		return false
+	}
+}
+
+func handleThemeLayoutKeys(key string) bool {
+	switch key {
 	case "p":
 		togglePartyMode()
 	case "c":
@@ -168,6 +187,18 @@ func handleModeKeys(key string, done chan struct{}) {
 		handleLayoutCycle(1)
 	case "L":
 		handleLayoutCycle(-1)
+	case "o":
+		handleLayoutSwitchTo(LayoutPorts)
+	case "m":
+		handleLayoutSwitchTo(LayoutMemory)
+	default:
+		return false
+	}
+	return true
+}
+
+func handleUtilityModeKeys(key string) {
+	switch key {
 	case "h", "?":
 		toggleHelpMenu()
 	case "i":
@@ -180,8 +211,6 @@ func handleModeKeys(key string, done chan struct{}) {
 		toggleFreeze()
 	case "F":
 		toggleFanLayout()
-	case "o":
-		handleLayoutSwitchTo(LayoutPorts)
 	}
 }
 
@@ -257,7 +286,7 @@ func handleKeyboardEvent(e ui.Event, done chan struct{}) {
 	renderMutex.Unlock()
 
 	switch key {
-	case "q", "<C-c>", "r", "p", "c", "C", "l", "L", "h", "?", "i", "b", "B", "f", "F", "o":
+	case "q", "<C-c>", "r", "p", "c", "C", "l", "L", "h", "?", "i", "b", "B", "f", "F", "o", "m":
 		handleModeKeys(key, done)
 	case "-", "_", "+", "=":
 		if !handleFanControlKeys(key) {

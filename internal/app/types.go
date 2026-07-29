@@ -80,11 +80,16 @@ type ProcessMetrics struct {
 }
 
 type MemoryMetrics struct {
-	Total     uint64 `json:"total"`
-	Used      uint64 `json:"used"`
-	Available uint64 `json:"available"`
-	SwapTotal uint64 `json:"swap_total"`
-	SwapUsed  uint64 `json:"swap_used"`
+	Total      uint64 `json:"total"`
+	Used       uint64 `json:"used"`
+	Available  uint64 `json:"available"`
+	SwapTotal  uint64 `json:"swap_total"`
+	SwapUsed   uint64 `json:"swap_used"`
+	Compressed uint64 `json:"compressed,omitempty"`
+	// PressureLevel is kern.memorystatus_vm_pressure_level: 1 Normal, 2 Warning, 4 Critical.
+	PressureLevel  int     `json:"pressure_level"`
+	PressureState  string  `json:"pressure_state"`
+	PressureApprox float64 `json:"pressure_approx"`
 }
 
 type EventThrottler struct {

@@ -52,11 +52,15 @@ var (
 	// StepChart widgets for History layout
 	gpuHistoryChart, powerHistoryChart, memoryHistoryChart, cpuHistoryChart *w.StepChart
 	memBWHistoryChart                                                       *w.StepChart
+	memoryPressureHistoryChart                                              *w.StepChart
 	aneHistoryChart, bandwidthHistoryChart                                  *w.StepChart
 	socPowerHistoryChart                                                    *w.StepChart // Multi-line power for history_soc (CPU/GPU/ANE/DRAM)
 	ssdReadHistoryChart                                                     *w.StepChart // Combined SSD read bandwidth history (GB/s)
 	memoryUsedHistory                                                       = make([]float64, 100)
 	swapUsedHistory                                                         = make([]float64, 100)
+	memoryPressureHistory                                                   = make([]float64, 100)
+	memoryPressureGauge                                                     *w.Gauge
+	memoryPressurePanel                                                     *w.Paragraph
 	cpuUsageHistory                                                         = make([]float64, 100)
 	powerUsageHistory                                                       = make([]float64, 100)
 	memBWReadHistory                                                        = make([]float64, 100)
@@ -258,6 +262,20 @@ var (
 			Help: "Memory usage in GB",
 		},
 		[]string{"type"},
+	)
+
+	memoryPressureLevelGauge = prometheus.NewGauge(
+		prometheus.GaugeOpts{
+			Name: "mactop_memory_pressure_level",
+			Help: "Kernel memory pressure level (1=Normal, 2=Warning, 4=Critical)",
+		},
+	)
+
+	memoryPressureApproxGauge = prometheus.NewGauge(
+		prometheus.GaugeOpts{
+			Name: "mactop_memory_pressure_approx",
+			Help: "Approximate memory pressure score 0-100 derived from kernel level plus usage/swap/compression",
+		},
 	)
 
 	networkSpeed = prometheus.NewGaugeVec(

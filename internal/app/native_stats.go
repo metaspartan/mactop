@@ -830,11 +830,14 @@ import (
 )
 
 type NativeMemoryMetrics struct {
-	Total     uint64
-	Used      uint64
-	Available uint64
-	SwapTotal uint64
-	SwapUsed  uint64
+	Total      uint64
+	Used       uint64
+	Available  uint64
+	SwapTotal  uint64
+	SwapUsed   uint64
+	Compressed uint64
+	// PressureLevel is kern.memorystatus_vm_pressure_level (1/2/4).
+	PressureLevel int
 }
 
 var (
@@ -913,6 +916,7 @@ func GetNativeMemoryMetrics() (NativeMemoryMetrics, error) {
 
 	used := activityMonitorMemoryUsed(anonymous, purgeable, wired, compressed, totalMemory)
 	available := totalMemory - used
+	pressureLevel := getNativeMemoryPressureLevel()
 
 	// Swap
 	var xsw C.struct_xsw_usage
@@ -922,21 +926,36 @@ func GetNativeMemoryMetrics() (NativeMemoryMetrics, error) {
 	if C.sysctlbyname(nameSwap, unsafe.Pointer(&xsw), &size, nil, 0) != 0 {
 		// Swap might be disabled or failed, just return 0s
 		return NativeMemoryMetrics{
-			Total:     totalMemory,
-			Used:      used,
-			Available: available,
-			SwapTotal: 0,
-			SwapUsed:  0,
+			Total:         totalMemory,
+			Used:          used,
+			Available:     available,
+			SwapTotal:     0,
+			SwapUsed:      0,
+			Compressed:    compressed,
+			PressureLevel: pressureLevel,
 		}, nil
 	}
 
 	return NativeMemoryMetrics{
-		Total:     totalMemory,
-		Used:      used,
-		Available: available,
-		SwapTotal: uint64(xsw.xsu_total),
-		SwapUsed:  uint64(xsw.xsu_used),
+		Total:         totalMemory,
+		Used:          used,
+		Available:     available,
+		SwapTotal:     uint64(xsw.xsu_total),
+		SwapUsed:      uint64(xsw.xsu_used),
+		Compressed:    compressed,
+		PressureLevel: pressureLevel,
 	}, nil
+}
+
+func getNativeMemoryPressureLevel() int {
+	var level C.int
+	size := C.size_t(C.sizeof_int)
+	name := C.CString("kern.memorystatus_vm_pressure_level")
+	defer C.free(unsafe.Pointer(name))
+	if C.sysctlbyname(name, unsafe.Pointer(&level), &size, nil, 0) != 0 {
+		return 0
+	}
+	return int(level)
 }
 
 // NativeDiskUsage represents filesystem usage

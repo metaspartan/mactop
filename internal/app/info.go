@@ -53,6 +53,10 @@ func buildInfoLines(themeColor string) []string {
 	totalMem := float64(memMetrics.Total) / 1024 / 1024 / 1024
 	swapUsed := float64(memMetrics.SwapUsed) / 1024 / 1024 / 1024
 	swapTotal := float64(memMetrics.SwapTotal) / 1024 / 1024 / 1024
+	pressureState := memMetrics.PressureState
+	if pressureState == "" {
+		pressureState = MemoryPressureStateUnknown
+	}
 
 	thermalStr, _ := getThermalStateString()
 	if lastCPUMetrics.CPUTemp > 0 {
@@ -116,6 +120,7 @@ func buildInfoLines(themeColor string) []string {
 		}()),
 		formatLine(i18n.T("Info_Memory"), fmt.Sprintf("%.2f GB / %.2f GB", usedMem, totalMem)),
 		formatLine(i18n.T("Info_Swap"), fmt.Sprintf("%.2f GB / %.2f GB", swapUsed, swapTotal)),
+		formatLine(i18n.T("Info_MemoryPressure"), fmt.Sprintf(i18n.T("Info_MemoryPressureValue"), pressureState, memMetrics.PressureLevel, memMetrics.PressureApprox)),
 		"",
 		formatLine(i18n.T("Info_CPUUsage"), fmt.Sprintf("%.2f%%", float64(cpuGauge.Percent))),
 		formatLine(i18n.T("Info_GPUUsage"), fmt.Sprintf("%d%%", int(lastGPUMetrics.ActivePercent))),
