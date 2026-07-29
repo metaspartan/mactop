@@ -2,6 +2,7 @@ package app
 
 import (
 	"math"
+	"strings"
 	"testing"
 	"time"
 
@@ -376,6 +377,31 @@ func TestHistoryLineColor(t *testing.T) {
 	}
 }
 
+// TestActivityMonitorMemoryUsed covers the macOS memory-used formula: anonymous
+// app memory + wired + compressed, with underflow guards. The headline case is
+// large anonymous memory (MLX weights) that macOS has aged into the inactive
+// queue — the old free+inactive formula collapsed toward 0 there.
+func TestActivityMonitorMemoryUsed(t *testing.T) {
+	const gb = 1 << 30
+	cases := []struct {
+		name                                           string
+		anonymous, purgeable, wired, compressed, total uint64
+		want                                           uint64
+	}{
+		{"typical", 40 * gb, 1 * gb, 8 * gb, 2 * gb, 64 * gb, 49 * gb},
+		// 60GB anonymous (model weights) even if macOS queues it as inactive:
+		// must count as used, not vanish.
+		{"mlx-heavy", 60 * gb, 0, 6 * gb, 4 * gb, 96 * gb, 70 * gb},
+		{"purgeable-exceeds-anon", 1 * gb, 3 * gb, 2 * gb, 0, 16 * gb, 2 * gb},
+		{"clamp-to-total", 200 * gb, 0, 100 * gb, 50 * gb, 128 * gb, 128 * gb},
+	}
+	for _, c := range cases {
+		if got := activityMonitorMemoryUsed(c.anonymous, c.purgeable, c.wired, c.compressed, c.total); got != c.want {
+			t.Errorf("%s: got %d GB, want %d GB", c.name, got/gb, c.want/gb)
+		}
+	}
+}
+
 func TestANERefHysteresis(t *testing.T) {
 	resetANETestState(t)
 
@@ -431,5 +457,262 @@ func TestANEResidencyTier(t *testing.T) {
 	}
 	if aneBWModeLatched.Load() || aneBWLabelMode(both) {
 		t.Fatal("working watts must keep the wattage label even with residency")
+	}
+}
+
+// TestANEExclaveBinary covers the exclave ANE path (M5 / M5 Max): the
+// power-domain signal is binary, must collapse to 0/100, must render an ON/idle
+// label, and must NOT latch the bandwidth mode (which would make the gauge show
+// the binary value as a misleading percentage).
+func TestANEExclaveBinary(t *testing.T) {
+	resetANETestState(t)
+
+	// Powered: any non-zero duty cycle collapses to 100 and reads "ON".
+	on := CPUMetrics{ANEExclave: true, ANEPowered: true, ANEActive: 73}
+	if got := aneUtilizationPercent(on); got != 100 {
+		t.Fatalf("exclave powered: got %v, want 100", got)
+	}
+	if got := aneOnOffLabel(aneUtilizationPercent(on)); got != "ON" {
+		t.Fatalf("exclave powered label: got %q, want ON", got)
+	}
+	// Crucially, the exclave path must not latch the GB/s label — otherwise the
+	// gauge falls through to a %-form template and prints the binary value as %.
+	if aneBWModeLatched.Load() || aneBWLabelMode(on) {
+		t.Fatal("exclave path must not latch bandwidth mode")
+	}
+
+	// Idle: reads 0 and "idle".
+	resetANETestState(t)
+	off := CPUMetrics{ANEExclave: true, ANEPowered: true, ANEActive: 0}
+	if got := aneUtilizationPercent(off); got != 0 {
+		t.Fatalf("exclave idle: got %v, want 0", got)
+	}
+	if got := aneOnOffLabel(aneUtilizationPercent(off)); got != "idle" {
+		t.Fatalf("exclave idle label: got %q, want idle", got)
+	}
+}
+
+// TestANEPowerStateGaugeTitle covers the IORegistry power-state fallback title
+// (non-exclave Ultra dies on macOS 27 where PMP channels are empty): the C side
+// sets aneActive (the duty cycle) but leaves anePower at 0, so the gauge title
+// must read "ANE powered" / "ANE idle" with NO wattage suffix — a "(0.00W)"
+// would contradict the powered/idle label (regression guarded here).
+func TestANEPowerStateGaugeTitle(t *testing.T) {
+	resetANETestState(t)
+
+	// Non-compact layout (default): power-state fallback uses anePoweredLabel
+	// and must not embed the dead watts value.
+	powered := CPUMetrics{ANEPowered: true, ANEActive: 100, ANEW: 0}
+	util := aneUtilizationPercent(powered)
+	if util != 100 {
+		t.Fatalf("power-state powered util: got %v, want 100", util)
+	}
+	title := aneGaugeTitle(powered, util, powered.ANEBW, aneBWLabelMode(powered))
+	if title != "ANE powered" {
+		t.Fatalf("power-state powered title: got %q, want %q", title, "ANE powered")
+	}
+	if strings.Contains(title, "W") || strings.Contains(title, "0.00") {
+		t.Fatalf("power-state title must not embed wattage: got %q", title)
+	}
+
+	resetANETestState(t)
+	idle := CPUMetrics{ANEPowered: true, ANEActive: 0, ANEW: 0}
+	title = aneGaugeTitle(idle, aneUtilizationPercent(idle), idle.ANEBW, aneBWLabelMode(idle))
+	if title != "ANE idle" {
+		t.Fatalf("power-state idle title: got %q, want %q", title, "ANE idle")
+	}
+
+	// Compact layouts must take the same power-state path (Gitzilla regression:
+	// previously isCompactLayout ran first and embedded dead 0.0W watts).
+	origLayout := currentConfig.DefaultLayout
+	t.Cleanup(func() { currentConfig.DefaultLayout = origLayout })
+	currentConfig.DefaultLayout = LayoutTiny
+	resetANETestState(t)
+	title = aneGaugeTitle(powered, aneUtilizationPercent(powered), powered.ANEBW, aneBWLabelMode(powered))
+	if title != "ANE powered" {
+		t.Fatalf("compact power-state title: got %q, want %q", title, "ANE powered")
+	}
+	if strings.Contains(title, "W") || strings.Contains(title, "0.0") {
+		t.Fatalf("compact power-state title must not embed wattage: got %q", title)
+	}
+}
+
+// TestANEGaugeInnerLabel guards the gauge's inner bar label (Cursor review of
+// #77 "ANEPowered gauge still shows percent"): power-state tiers must render a
+// word so the bar doesn't print "NN%" while the title reads ON/idle or
+// powered/idle. Other tiers return "" (the Gauge's default percent label).
+func TestANEGaugeInnerLabel(t *testing.T) {
+	resetANETestState(t)
+
+	// Exclave: binary ON/idle word.
+	if got := aneGaugeInnerLabel(CPUMetrics{ANEExclave: true}, 100, false); got != "ON" {
+		t.Fatalf("exclave on: got %q, want ON", got)
+	}
+	if got := aneGaugeInnerLabel(CPUMetrics{ANEExclave: true}, 0, false); got != "idle" {
+		t.Fatalf("exclave idle: got %q, want idle", got)
+	}
+	// ANEPowered (non-exclave) without bandwidth mode: powered/idle word, never
+	// a percentage — even when the duty cycle is a partial value like 73.
+	if got := aneGaugeInnerLabel(CPUMetrics{ANEPowered: true}, 73, false); got != "powered" {
+		t.Fatalf("powered partial duty: got %q, want powered", got)
+	}
+	if got := aneGaugeInnerLabel(CPUMetrics{ANEPowered: true}, 0, false); got != "idle" {
+		t.Fatalf("powered idle: got %q, want idle", got)
+	}
+	// ANEPowered but bandwidth mode active: not a power-state label (defers to %).
+	if got := aneGaugeInnerLabel(CPUMetrics{ANEPowered: true}, 50, true); got != "" {
+		t.Fatalf("powered+bwMode: got %q, want empty", got)
+	}
+	// Ordinary tiers (residency / bandwidth / watts): default percent label.
+	if got := aneGaugeInnerLabel(CPUMetrics{ANEActive: 80}, 80, true); got != "" {
+		t.Fatalf("residency tier: got %q, want empty", got)
+	}
+}
+
+// TestANEPowerStateChartTitle guards the second half of the 0.00W regression
+// (Cursor Bugbot "ANE chart ignores power-state labels"): on the history_soc
+// (peak) and detail layouts, renderANEHistoryChart must NOT route a power-state
+// ANEPowered sample through the wattage-bearing Metrics_ANEHistory* templates,
+// because ANEW is provably 0 on this fallback path. Both layouts must surface
+// the powered/idle word with no wattage or percentage.
+func TestANEPowerStateChartTitle(t *testing.T) {
+	powered := CPUMetrics{ANEPowered: true, ANEActive: 100, ANEW: 0}
+	util := aneUtilizationPercent(powered)
+
+	for _, tc := range []struct {
+		name         string
+		isPeakLayout bool
+	}{
+		{"history_soc (peak)", true},
+		{"detail", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			title := aneChartTitle(powered, util, util, powered.ANEW, powered.ANEBW, aneBWLabelMode(powered), tc.isPeakLayout)
+			if title != "ANE: powered" {
+				t.Fatalf("chart title: got %q, want %q", title, "ANE: powered")
+			}
+			if strings.Contains(title, "0.00") || strings.Contains(title, "W") {
+				t.Fatalf("power-state chart title must not embed wattage: got %q", title)
+			}
+		})
+	}
+
+	// Idle duty cycle on the power-state path.
+	idle := CPUMetrics{ANEPowered: true, ANEActive: 0, ANEW: 0}
+	title := aneChartTitle(idle, aneUtilizationPercent(idle), 0, idle.ANEW, idle.ANEBW, aneBWLabelMode(idle), true)
+	if title != "ANE: idle" {
+		t.Fatalf("idle chart title: got %q, want %q", title, "ANE: idle")
+	}
+
+	// Sanity: a non-power-state sample must still use the wattage template so the
+	// fix doesn't regress normal residency/watts operation.
+	normal := CPUMetrics{ANEActive: 55, ANEW: 3.5}
+	normalTitle := aneChartTitle(normal, aneUtilizationPercent(normal), 60, normal.ANEW, normal.ANEBW, false, true)
+	if !strings.HasSuffix(normalTitle, "W)") {
+		t.Fatalf("normal peak title should embed wattage: got %q", normalTitle)
+	}
+}
+
+// TestANEDualClusterChartGatesOnPowerStateTier guards the Cursor Bugbot fix:
+// the per-die dual-cluster trace is plotted only when the gauge is also in a
+// power-state tier (ANEPowered/ANEExclave). ANEClusterActive is always the
+// IORegistry power-state duty cycle, so on a multi-die chip with a working PMP
+// residency channel the dual path must NOT be taken — otherwise the chart
+// plots power-state duty while the gauge shows residency %.
+func TestANEDualClusterChartGatesOnPowerStateTier(t *testing.T) {
+	// Multi-die metrics with a working PMP residency channel: ANEPowered is
+	// false, so the dual-cluster power-state path must be skipped.
+	twoClustersPMP := CPUMetrics{
+		ANEActive:        62.5, // live PMP residency drives the gauge
+		ANEClusterActive: []float64{80, 0},
+		ANEClusterCount:  2,
+	}
+	if twoClustersPMP.ANEPowered || twoClustersPMP.ANEExclave {
+		t.Fatal("fixture must represent the non-power-state PMP case")
+	}
+	if shouldRenderDualANEClusters(twoClustersPMP) {
+		t.Fatal("PMP multi-die (no power-state tier) must NOT take the dual power-state path")
+	}
+
+	// The same multi-die metrics in the power-state fallback tier qualify.
+	powerState := twoClustersPMP
+	powerState.ANEPowered = true
+	if !shouldRenderDualANEClusters(powerState) {
+		t.Fatal("power-state multi-die must qualify for dual clusters")
+	}
+
+	// Single die never qualifies regardless of tier.
+	single := CPUMetrics{ANEPowered: true, ANEClusterActive: []float64{100}, ANEClusterCount: 1}
+	if shouldRenderDualANEClusters(single) {
+		t.Fatal("single-die must not qualify for dual clusters")
+	}
+}
+
+// TestANECompactGaugePowerStateTitle guards Issue F: on a compact layout
+// (tiny/micro/nano/pico), the ANEPowered power-state fallback must still take
+// priority over the compact branch in aneGaugeTitle, otherwise the compact
+// wattage template renders "0.0W" (ANEW is provably 0 on this path).
+func TestANECompactGaugePowerStateTitle(t *testing.T) {
+	resetANETestState(t)
+	origConfig := currentConfig
+	t.Cleanup(func() { currentConfig = origConfig })
+	currentConfig = AppConfig{DefaultLayout: LayoutMicro}
+
+	powered := CPUMetrics{ANEPowered: true, ANEActive: 100, ANEW: 0}
+	title := aneGaugeTitle(powered, aneUtilizationPercent(powered), powered.ANEBW, aneBWLabelMode(powered))
+	if title != "ANE powered" {
+		t.Fatalf("compact power-state title: got %q, want %q", title, "ANE powered")
+	}
+	if strings.Contains(title, "0.00") || strings.Contains(title, "0.0W") {
+		t.Fatalf("compact power-state title must not embed wattage: got %q", title)
+	}
+
+	// Sanity: a normal (non-power-state) sample on the compact layout must still
+	// use the compact wattage template, so the fix doesn't regress compact mode.
+	normal := CPUMetrics{ANEActive: 40, ANEW: 1.5}
+	normalTitle := aneGaugeTitle(normal, aneUtilizationPercent(normal), normal.ANEBW, aneBWLabelMode(normal))
+	if !strings.HasSuffix(normalTitle, "W") {
+		t.Fatalf("compact normal title should embed wattage: got %q", normalTitle)
+	}
+}
+
+// TestANEExclaveDualClusterLabels guards Issue G: on a multi-die exclave chip
+// (M5-class), the dual-cluster chart labels and info-panel status must use the
+// ON/idle wording (aneOnOffLabel), matching the main gauge and single-series
+// chart — not the powered/idle or percentage wording.
+func TestANEExclaveDualClusterLabels(t *testing.T) {
+	m := CPUMetrics{ANEExclave: true, ANEClusterActive: []float64{100, 0}, ANEClusterCount: 2}
+	mode := aneClusterLabelModeFor(m)
+	if mode != aneClusterLabelExclave {
+		t.Fatalf("exclave mode: got %v, want %v", mode, aneClusterLabelExclave)
+	}
+
+	// Info-panel combined status: ON/idle, never "powered" or "active".
+	status := formatDualANEClusterStatus(m.ANEClusterActive[0], m.ANEClusterActive[1], mode)
+	if status != "ANE0 ON, ANE1 idle" {
+		t.Fatalf("exclave status: got %q, want %q", status, "ANE0 ON, ANE1 idle")
+	}
+
+	// Chart title + per-line labels: ON/idle wording, no % (duty is binary).
+	title, label0, label1 := formatDualANEClusterChartText(m.ANEClusterActive[0], m.ANEClusterActive[1], mode, 2)
+	if !strings.Contains(title, "ANE0 ON, ANE1 idle") {
+		t.Fatalf("exclave chart title: got %q", title)
+	}
+	if label0 != "ANE0 ON" || label1 != "ANE1 idle" {
+		t.Fatalf("exclave chart labels: got %q / %q, want %q / %q", label0, label1, "ANE0 ON", "ANE1 idle")
+	}
+	if strings.Contains(label0, "%") || strings.Contains(label0, "powered") {
+		t.Fatalf("exclave label must not use %% or powered: got %q", label0)
+	}
+
+	// ANEPowered multi-die keeps the powered/idle wording (regression guard for
+	// the mode-routing, not a new behavior).
+	powered := CPUMetrics{ANEPowered: true, ANEClusterActive: []float64{100, 0}, ANEClusterCount: 2}
+	pmode := aneClusterLabelModeFor(powered)
+	if pmode != aneClusterLabelPowered {
+		t.Fatalf("powered mode: got %v, want %v", pmode, aneClusterLabelPowered)
+	}
+	if got := formatDualANEClusterStatus(100, 0, pmode); got != "ANE0 powered, ANE1 idle" {
+		t.Fatalf("powered status: got %q, want %q", got, "ANE0 powered, ANE1 idle")
 	}
 }

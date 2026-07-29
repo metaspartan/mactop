@@ -37,6 +37,26 @@ type HeadlessProcess struct {
 	RSS     int64   `json:"rss_kb" yaml:"rss_kb" xml:"RSSKB" toon:"rss_kb"`
 }
 
+// HeadlessPort represents a listening TCP/UDP port in headless output
+type HeadlessPort struct {
+	Port        int    `json:"port" yaml:"port" xml:"Port" toon:"port"`
+	Protocol    string `json:"protocol" yaml:"protocol" xml:"Protocol" toon:"protocol"`
+	Bind        string `json:"bind" yaml:"bind" xml:"Bind" toon:"bind"`
+	PID         int    `json:"pid" yaml:"pid" xml:"PID" toon:"pid"`
+	User        string `json:"user" yaml:"user" xml:"User" toon:"user"`
+	Command     string `json:"command" yaml:"command" xml:"Command" toon:"command"`
+	Established int    `json:"established" yaml:"established" xml:"Established" toon:"established"`
+	External    bool   `json:"external" yaml:"external" xml:"External" toon:"external"`
+}
+
+// HeadlessPortsSummary is a compact ports overview for headless/Prometheus consumers
+type HeadlessPortsSummary struct {
+	Total    int `json:"total" yaml:"total" xml:"Total" toon:"total"`
+	External int `json:"external" yaml:"external" xml:"External" toon:"external"`
+	TCP      int `json:"tcp" yaml:"tcp" xml:"TCP" toon:"tcp"`
+	UDP      int `json:"udp" yaml:"udp" xml:"UDP" toon:"udp"`
+}
+
 // HeadlessNetworkLinks holds link speed info for all network interfaces
 type HeadlessNetworkLinks struct {
 	Ethernet []HeadlessEthernetLink `json:"ethernet,omitempty" yaml:"ethernet,omitempty" xml:"Ethernet" toon:"ethernet"`
@@ -95,33 +115,35 @@ type HeadlessFan struct {
 }
 
 type HeadlessOutput struct {
-	Timestamp             string               `json:"timestamp" yaml:"timestamp" xml:"Timestamp" toon:"timestamp"`
-	SocMetrics            SocMetrics           `json:"soc_metrics" yaml:"soc_metrics" xml:"SocMetrics" toon:"soc_metrics"`
-	Memory                MemoryMetrics        `json:"memory" yaml:"memory" xml:"Memory" toon:"memory"`
-	NetDisk               NetDiskMetrics       `json:"net_disk" yaml:"net_disk" xml:"NetDisk" toon:"net_disk"`
-	CPUUsage              float64              `json:"cpu_usage" yaml:"cpu_usage" xml:"CPUUsage" toon:"cpu_usage"`
-	ECPUUsage             []float64            `json:"ecpu_usage,omitempty" yaml:"ecpu_usage,omitempty" xml:"ECPUUsage" toon:"ecpu_usage"`
-	PCPUUsage             []float64            `json:"pcpu_usage" yaml:"pcpu_usage" xml:"PCPUUsage" toon:"pcpu_usage"`
-	SCPUUsage             []float64            `json:"scpu_usage,omitempty" yaml:"scpu_usage,omitempty" xml:"SCPUUsage" toon:"scpu_usage"`
-	GPUUsage              float64              `json:"gpu_usage" yaml:"gpu_usage" xml:"GPUUsage" toon:"gpu_usage"`
-	GPUMetrics            HeadlessGPUMetrics   `json:"gpu_metrics" yaml:"gpu_metrics" xml:"GPUMetrics" toon:"gpu_metrics"`
-	TFLOPsFP32            float64              `json:"tflops_fp32" yaml:"tflops_fp32" xml:"TFLOPsFP32" toon:"tflops_fp32"`
-	TFLOPsFP16            float64              `json:"tflops_fp16" yaml:"tflops_fp16" xml:"TFLOPsFP16" toon:"tflops_fp16"`
-	DisplayFPS            uint32               `json:"display_fps,omitempty" yaml:"display_fps,omitempty" xml:"DisplayFPS,omitempty" toon:"display_fps"`
-	FrameIntervalMs       float64              `json:"frame_interval_ms,omitempty" yaml:"frame_interval_ms,omitempty" xml:"FrameIntervalMs,omitempty" toon:"frame_interval_ms"`
-	CoreUsages            []float64            `json:"core_usages" yaml:"core_usages" xml:"CoreUsages" toon:"core_usages"`
-	SystemInfo            SystemInfo           `json:"system_info" yaml:"system_info" xml:"SystemInfo" toon:"system_info"`
-	ThermalState          string               `json:"thermal_state" yaml:"thermal_state" xml:"ThermalState" toon:"thermal_state"`
-	Processes             []HeadlessProcess    `json:"processes,omitempty" yaml:"processes,omitempty" xml:"Processes" toon:"processes"`
-	NetworkLinks          HeadlessNetworkLinks `json:"network_links" yaml:"network_links" xml:"NetworkLinks" toon:"network_links"`
-	Volumes               []HeadlessVolume     `json:"volumes,omitempty" yaml:"volumes,omitempty" xml:"Volumes" toon:"volumes"`
-	ThunderboltInfo       *ThunderboltOutput   `json:"thunderbolt_info" yaml:"thunderbolt_info" xml:"ThunderboltInfo" toon:"thunderbolt_info"`
-	TBNetTotalBytesInSec  float64              `json:"tb_net_total_bytes_in_per_sec" yaml:"tb_net_total_bytes_in_per_sec" xml:"TBNetTotalBytesInSec" toon:"tb_net_total_bytes_in_per_sec"`
-	TBNetTotalBytesOutSec float64              `json:"tb_net_total_bytes_out_per_sec" yaml:"tb_net_total_bytes_out_per_sec" xml:"TBNetTotalBytesOutSec" toon:"tb_net_total_bytes_out_per_sec"`
-	RDMAStatus            RDMAStatus           `json:"rdma_status" yaml:"rdma_status" xml:"RDMAStatus" toon:"rdma_status"`
-	Fans                  []HeadlessFan        `json:"fans,omitempty" yaml:"fans,omitempty" xml:"Fans" toon:"fans"`
-	Temperatures          []HeadlessTempGroup  `json:"temperatures,omitempty" yaml:"temperatures,omitempty" xml:"Temperatures" toon:"temperatures"`
-	Battery               *BatteryInfo         `json:"battery,omitempty" yaml:"battery,omitempty" xml:"Battery,omitempty" toon:"battery"`
+	Timestamp             string                `json:"timestamp" yaml:"timestamp" xml:"Timestamp" toon:"timestamp"`
+	SocMetrics            SocMetrics            `json:"soc_metrics" yaml:"soc_metrics" xml:"SocMetrics" toon:"soc_metrics"`
+	Memory                MemoryMetrics         `json:"memory" yaml:"memory" xml:"Memory" toon:"memory"`
+	NetDisk               NetDiskMetrics        `json:"net_disk" yaml:"net_disk" xml:"NetDisk" toon:"net_disk"`
+	CPUUsage              float64               `json:"cpu_usage" yaml:"cpu_usage" xml:"CPUUsage" toon:"cpu_usage"`
+	ECPUUsage             []float64             `json:"ecpu_usage,omitempty" yaml:"ecpu_usage,omitempty" xml:"ECPUUsage" toon:"ecpu_usage"`
+	PCPUUsage             []float64             `json:"pcpu_usage" yaml:"pcpu_usage" xml:"PCPUUsage" toon:"pcpu_usage"`
+	SCPUUsage             []float64             `json:"scpu_usage,omitempty" yaml:"scpu_usage,omitempty" xml:"SCPUUsage" toon:"scpu_usage"`
+	GPUUsage              float64               `json:"gpu_usage" yaml:"gpu_usage" xml:"GPUUsage" toon:"gpu_usage"`
+	GPUMetrics            HeadlessGPUMetrics    `json:"gpu_metrics" yaml:"gpu_metrics" xml:"GPUMetrics" toon:"gpu_metrics"`
+	TFLOPsFP32            float64               `json:"tflops_fp32" yaml:"tflops_fp32" xml:"TFLOPsFP32" toon:"tflops_fp32"`
+	TFLOPsFP16            float64               `json:"tflops_fp16" yaml:"tflops_fp16" xml:"TFLOPsFP16" toon:"tflops_fp16"`
+	DisplayFPS            uint32                `json:"display_fps,omitempty" yaml:"display_fps,omitempty" xml:"DisplayFPS,omitempty" toon:"display_fps"`
+	FrameIntervalMs       float64               `json:"frame_interval_ms,omitempty" yaml:"frame_interval_ms,omitempty" xml:"FrameIntervalMs,omitempty" toon:"frame_interval_ms"`
+	CoreUsages            []float64             `json:"core_usages" yaml:"core_usages" xml:"CoreUsages" toon:"core_usages"`
+	SystemInfo            SystemInfo            `json:"system_info" yaml:"system_info" xml:"SystemInfo" toon:"system_info"`
+	ThermalState          string                `json:"thermal_state" yaml:"thermal_state" xml:"ThermalState" toon:"thermal_state"`
+	Processes             []HeadlessProcess     `json:"processes,omitempty" yaml:"processes,omitempty" xml:"Processes" toon:"processes"`
+	Ports                 []HeadlessPort        `json:"ports,omitempty" yaml:"ports,omitempty" xml:"Ports" toon:"ports"`
+	PortsSummary          *HeadlessPortsSummary `json:"ports_summary,omitempty" yaml:"ports_summary,omitempty" xml:"PortsSummary,omitempty" toon:"ports_summary"`
+	NetworkLinks          HeadlessNetworkLinks  `json:"network_links" yaml:"network_links" xml:"NetworkLinks" toon:"network_links"`
+	Volumes               []HeadlessVolume      `json:"volumes,omitempty" yaml:"volumes,omitempty" xml:"Volumes" toon:"volumes"`
+	ThunderboltInfo       *ThunderboltOutput    `json:"thunderbolt_info" yaml:"thunderbolt_info" xml:"ThunderboltInfo" toon:"thunderbolt_info"`
+	TBNetTotalBytesInSec  float64               `json:"tb_net_total_bytes_in_per_sec" yaml:"tb_net_total_bytes_in_per_sec" xml:"TBNetTotalBytesInSec" toon:"tb_net_total_bytes_in_per_sec"`
+	TBNetTotalBytesOutSec float64               `json:"tb_net_total_bytes_out_per_sec" yaml:"tb_net_total_bytes_out_per_sec" xml:"TBNetTotalBytesOutSec" toon:"tb_net_total_bytes_out_per_sec"`
+	RDMAStatus            RDMAStatus            `json:"rdma_status" yaml:"rdma_status" xml:"RDMAStatus" toon:"rdma_status"`
+	Fans                  []HeadlessFan         `json:"fans,omitempty" yaml:"fans,omitempty" xml:"Fans" toon:"fans"`
+	Temperatures          []HeadlessTempGroup   `json:"temperatures,omitempty" yaml:"temperatures,omitempty" xml:"Temperatures" toon:"temperatures"`
+	Battery               *BatteryInfo          `json:"battery,omitempty" yaml:"battery,omitempty" xml:"Battery,omitempty" toon:"battery"`
 }
 
 func runHeadless(count int) {
@@ -131,14 +153,13 @@ func runHeadless(count int) {
 	}
 	defer cleanupSocMetrics()
 
-	// Start display FPS counter only when Screen Recording permission is
-	// already granted: creating a CGDisplayStream without it triggers the
-	// system permission prompt, which must never happen in headless runs
-	// (cron/SSH/scripts). Without permission display_fps is simply omitted.
-	if HasScreenRecordingAccess() {
-		StartDisplayFPSCounter()
-		defer StopDisplayFPSCounter()
-	}
+	// Headless mode never engages screen capture. Display FPS comes from a
+	// CGDisplayStream, which requires Screen Recording — creating it prompts
+	// when the grant is missing and, when already granted (e.g. from prior
+	// overlay use), lights up the "<app> is recording your screen" indicator.
+	// Neither is acceptable for a cron/SSH/script tool, so the FPS counter is
+	// started only by the overlay. display_fps/frame_interval_ms are omitted
+	// from headless output (omitempty).
 
 	startHeadlessPrometheus()
 
@@ -247,7 +268,7 @@ func printCSVHeader() {
 
 	// Add JSON blob headers for complex nested data
 	headers = append(headers, "Battery_Present", "Battery_Percent", "Battery_Charging", "Battery_State")
-	headers = append(headers, "Thunderbolt_Info_JSON", "Processes_JSON", "Network_Links_JSON", "Volumes_JSON")
+	headers = append(headers, "Thunderbolt_Info_JSON", "Processes_JSON", "Ports_JSON", "Ports_Total", "Ports_External", "Ports_TCP", "Ports_UDP", "Network_Links_JSON", "Volumes_JSON")
 
 	// Print CSV header line
 	fmt.Println(strings.Join(headers, ","))
@@ -399,9 +420,17 @@ func processHeadlessSample(format string, tbInfo *ThunderboltOutput, sysInfo Sys
 
 		tbJSON, _ := json.Marshal(output.ThunderboltInfo)
 		procsJSON, _ := json.Marshal(output.Processes)
+		portsJSON, _ := json.Marshal(output.Ports)
 		linksJSON, _ := json.Marshal(output.NetworkLinks)
 		volsJSON, _ := json.Marshal(output.Volumes)
-		record = append(record, string(tbJSON), string(procsJSON), string(linksJSON), string(volsJSON))
+		portsTotal, portsExternal, portsTCP, portsUDP := "0", "0", "0", "0"
+		if output.PortsSummary != nil {
+			portsTotal = fmt.Sprintf("%d", output.PortsSummary.Total)
+			portsExternal = fmt.Sprintf("%d", output.PortsSummary.External)
+			portsTCP = fmt.Sprintf("%d", output.PortsSummary.TCP)
+			portsUDP = fmt.Sprintf("%d", output.PortsSummary.UDP)
+		}
+		record = append(record, string(tbJSON), string(procsJSON), string(portsJSON), portsTotal, portsExternal, portsTCP, portsUDP, string(linksJSON), string(volsJSON))
 
 		writer.Write(record)
 		writer.Flush()
@@ -515,6 +544,41 @@ func collectHeadlessData(tbInfo *ThunderboltOutput, sysInfo SystemInfo) Headless
 		}
 	}
 
+	var headlessPorts []HeadlessPort
+	var portsSummaryOut *HeadlessPortsSummary
+	if ports, err := collectListeningPorts(); err == nil {
+		publishPrometheusPorts(ports)
+		total, external, tcp, udp := portsSummary(ports)
+		portsSummaryOut = &HeadlessPortsSummary{
+			Total:    total,
+			External: external,
+			TCP:      tcp,
+			UDP:      udp,
+		}
+		sort.SliceStable(ports, func(i, j int) bool {
+			if ports[i].Port != ports[j].Port {
+				return ports[i].Port < ports[j].Port
+			}
+			if ports[i].Protocol != ports[j].Protocol {
+				return ports[i].Protocol < ports[j].Protocol
+			}
+			return ports[i].PID < ports[j].PID
+		})
+		limit := min(len(ports), 100)
+		for _, p := range ports[:limit] {
+			headlessPorts = append(headlessPorts, HeadlessPort{
+				Port:        p.Port,
+				Protocol:    p.Protocol,
+				Bind:        p.Bind,
+				PID:         p.PID,
+				User:        p.User,
+				Command:     p.Command,
+				Established: p.Established,
+				External:    p.External,
+			})
+		}
+	}
+
 	// Collect network link speed info
 	networkLinks := getHeadlessNetworkLinks()
 
@@ -562,6 +626,8 @@ func collectHeadlessData(tbInfo *ThunderboltOutput, sysInfo SystemInfo) Headless
 		CoreUsages:            percentages,
 		SystemInfo:            sysInfo,
 		Processes:             headlessProcesses,
+		Ports:                 headlessPorts,
+		PortsSummary:          portsSummaryOut,
 		NetworkLinks:          networkLinks,
 		Volumes:               headlessVolumes,
 		ThunderboltInfo:       tbInfo,

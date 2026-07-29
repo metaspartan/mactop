@@ -7,6 +7,86 @@ import (
 	"github.com/metaspartan/mactop/v2/internal/i18n"
 )
 
+func drainCPUMetricsUpdate() {
+	select {
+	case cpuMetrics := <-cpuMetricsChan:
+		renderMutex.Lock()
+		lastCPUMetrics = cpuMetrics
+		updateCPUUI(cpuMetrics)
+		updateTotalPowerChart(cpuMetrics.PackageW)
+		renderMutex.Unlock()
+	default:
+	}
+}
+
+func drainGPUMetricsUpdate() {
+	select {
+	case gpuMetrics := <-gpuMetricsChan:
+		renderMutex.Lock()
+		lastGPUMetrics = gpuMetrics
+		updateGPUUI(gpuMetrics)
+		renderMutex.Unlock()
+	default:
+	}
+}
+
+func drainTBNetMetricsUpdate() {
+	select {
+	case tbNetStats := <-tbNetStatsChan:
+		renderMutex.Lock()
+		updateTBNetUI(tbNetStats)
+		renderMutex.Unlock()
+	default:
+	}
+}
+
+func drainNetDiskMetricsUpdate() {
+	select {
+	case netdiskMetrics := <-netdiskMetricsChan:
+		renderMutex.Lock()
+		lastNetDiskMetrics = netdiskMetrics
+		updateNetDiskUI(netdiskMetrics)
+		renderMutex.Unlock()
+	default:
+	}
+}
+
+func drainProcessMetricsUpdate() {
+	select {
+	case processes := <-processMetricsChan:
+		renderMutex.Lock()
+		if !isFrozen && !killPending {
+			lastProcesses = processes
+			if searchText != "" {
+				refreshFilteredProcesses()
+			}
+			if !isPortsLayoutActive() {
+				updateProcessList()
+			}
+		}
+		renderMutex.Unlock()
+	default:
+	}
+}
+
+func drainPortMetricsUpdate() {
+	select {
+	case ports := <-portMetricsChan:
+		renderMutex.Lock()
+		if !isFrozen && !killPending {
+			lastPorts = ports
+			if searchText != "" || portsExternalOnly {
+				refreshFilteredPorts()
+			}
+			if isPortsLayoutActive() {
+				updatePortsList()
+			}
+		}
+		renderMutex.Unlock()
+	default:
+	}
+}
+
 func startBackgroundUpdates(done chan struct{}) {
 	go func() {
 		for {
@@ -14,57 +94,16 @@ func startBackgroundUpdates(done chan struct{}) {
 			case <-done:
 				return
 			case <-ticker.C:
-				select {
-				case cpuMetrics := <-cpuMetricsChan:
-					renderMutex.Lock()
-					lastCPUMetrics = cpuMetrics
-					updateCPUUI(cpuMetrics)
-					updateTotalPowerChart(cpuMetrics.PackageW)
-					renderMutex.Unlock()
-				default:
-				}
-				select {
-				case gpuMetrics := <-gpuMetricsChan:
-					renderMutex.Lock()
-					lastGPUMetrics = gpuMetrics
-					updateGPUUI(gpuMetrics)
-					renderMutex.Unlock()
-				default:
-				}
-				select {
-				case tbNetStats := <-tbNetStatsChan:
-					renderMutex.Lock()
-					updateTBNetUI(tbNetStats)
-					renderMutex.Unlock()
-				default:
-				}
-				select {
-				case netdiskMetrics := <-netdiskMetricsChan:
-					renderMutex.Lock()
-					lastNetDiskMetrics = netdiskMetrics
-					updateNetDiskUI(netdiskMetrics)
-					renderMutex.Unlock()
-				default:
-				}
-				select {
-				case processes := <-processMetricsChan:
-					renderMutex.Lock()
-					if !isFrozen && !killPending {
-						lastProcesses = processes
-						if searchText != "" {
-							refreshFilteredProcesses()
-						}
-						updateProcessList()
-					}
-					renderMutex.Unlock()
-				default:
-				}
-				// Update info UI once per cycle instead of multiple times
+				drainCPUMetricsUpdate()
+				drainGPUMetricsUpdate()
+				drainTBNetMetricsUpdate()
+				drainNetDiskMetricsUpdate()
+				drainProcessMetricsUpdate()
+				drainPortMetricsUpdate()
 				renderMutex.Lock()
 				updateInfoUI()
 				renderMutex.Unlock()
 				renderUI()
-
 			}
 		}
 	}()
@@ -109,9 +148,20 @@ func handleResizeEvent(e ui.Event) {
 }
 
 func handleModeKeys(key string, done chan struct{}) {
+	if handleQuitOrRefreshKeys(key, done) {
+		return
+	}
+	if handleThemeLayoutKeys(key) {
+		return
+	}
+	handleUtilityModeKeys(key)
+}
+
+func handleQuitOrRefreshKeys(key string, done chan struct{}) bool {
 	switch key {
 	case "q", "<C-c>":
 		shutdownAndExit(true)
+		return true
 	case "r":
 		w, h := ui.TerminalDimensions()
 		UpdateCachedTerminalDimensions(w, h)
@@ -119,6 +169,14 @@ func handleModeKeys(key string, done chan struct{}) {
 		updateLayout(w, h)
 		drawScreen(w, h)
 		renderMutex.Unlock()
+		return true
+	default:
+		return false
+	}
+}
+
+func handleThemeLayoutKeys(key string) bool {
+	switch key {
 	case "p":
 		togglePartyMode()
 	case "c":
@@ -129,6 +187,18 @@ func handleModeKeys(key string, done chan struct{}) {
 		handleLayoutCycle(1)
 	case "L":
 		handleLayoutCycle(-1)
+	case "o":
+		handleLayoutSwitchTo(LayoutPorts)
+	case "m":
+		handleLayoutSwitchTo(LayoutMemory)
+	default:
+		return false
+	}
+	return true
+}
+
+func handleUtilityModeKeys(key string) {
+	switch key {
 	case "h", "?":
 		toggleHelpMenu()
 	case "i":
@@ -216,7 +286,7 @@ func handleKeyboardEvent(e ui.Event, done chan struct{}) {
 	renderMutex.Unlock()
 
 	switch key {
-	case "q", "<C-c>", "r", "p", "c", "C", "l", "L", "h", "?", "i", "b", "B", "f", "F":
+	case "q", "<C-c>", "r", "p", "c", "C", "l", "L", "h", "?", "i", "b", "B", "f", "F", "o", "m":
 		handleModeKeys(key, done)
 	case "-", "_", "+", "=":
 		if !handleFanControlKeys(key) {

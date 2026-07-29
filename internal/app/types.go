@@ -24,6 +24,10 @@ type CPUMetrics struct {
 	CoreMetrics                                                      map[string]int
 	ANEW, CPUW, GPUW, DRAMW, GPUSRAMW, PackageW, SystemW             float64
 	ANEActive                                                        float64
+	ANEPowered                                                       bool // ANEActive is binary power-domain state (M5 Max non-root), not a true %
+	ANEExclave                                                       bool // exclave ANE (M5/M5 Max): show binary ON/idle, never a %
+	ANEClusterCount                                                  int
+	ANEClusterActive                                                 []float64
 	ANEReadBW                                                        float64
 	ANEWriteBW                                                       float64
 	CoreUsages                                                       []float64
@@ -76,11 +80,16 @@ type ProcessMetrics struct {
 }
 
 type MemoryMetrics struct {
-	Total     uint64 `json:"total"`
-	Used      uint64 `json:"used"`
-	Available uint64 `json:"available"`
-	SwapTotal uint64 `json:"swap_total"`
-	SwapUsed  uint64 `json:"swap_used"`
+	Total      uint64 `json:"total"`
+	Used       uint64 `json:"used"`
+	Available  uint64 `json:"available"`
+	SwapTotal  uint64 `json:"swap_total"`
+	SwapUsed   uint64 `json:"swap_used"`
+	Compressed uint64 `json:"compressed,omitempty"`
+	// PressureLevel is kern.memorystatus_vm_pressure_level: 1 Normal, 2 Warning, 4 Critical.
+	PressureLevel  int     `json:"pressure_level"`
+	PressureState  string  `json:"pressure_state"`
+	PressureApprox float64 `json:"pressure_approx"`
 }
 
 type EventThrottler struct {

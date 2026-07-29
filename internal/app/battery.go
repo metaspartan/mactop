@@ -3,17 +3,48 @@ package app
 /*
 #cgo LDFLAGS: -framework CoreFoundation -framework IOKit
 #include <CoreFoundation/CoreFoundation.h>
+#include <IOKit/IOKitLib.h>
 #include <IOKit/ps/IOPowerSources.h>
 #include <IOKit/ps/IOPSKeys.h>
 #include <stdlib.h>
 #include <string.h>
 
+// Reads Amperage (mA, signed) and Voltage (mV) from the AppleSmartBattery IOKit
+// registry entry, which is more reliably populated than the IOPowerSources dict.
+// Returns the product in milliwatts (positive = charging, negative = discharging),
+// or 0 if the service or properties are unavailable.
+static int mactop_battery_power_mw(void) {
+    io_service_t svc = IOServiceGetMatchingService(kIOMainPortDefault,
+                           IOServiceNameMatching("AppleSmartBattery"));
+    if (!svc) return 0;
+
+    int result = 0;
+    CFNumberRef ampRef  = IORegistryEntryCreateCFProperty(svc, CFSTR("Amperage"),
+                                                          kCFAllocatorDefault, 0);
+    CFNumberRef voltRef = IORegistryEntryCreateCFProperty(svc, CFSTR("Voltage"),
+                                                          kCFAllocatorDefault, 0);
+    if (ampRef && voltRef) {
+        int64_t amp_ma = 0;
+        int32_t volt_mv = 0;
+        CFNumberGetValue(ampRef,  kCFNumberSInt64Type, &amp_ma);
+        CFNumberGetValue(voltRef, kCFNumberSInt32Type, &volt_mv);
+        // mA * mV = µW; divide by 1000 to get mW
+        result = (int)((amp_ma * (int64_t)volt_mv) / 1000LL);
+    }
+    if (ampRef)  CFRelease(ampRef);
+    if (voltRef) CFRelease(voltRef);
+    IOObjectRelease(svc);
+    return result;
+}
+
 // Returns 1 if a battery power source is present, fills out values via pointers.
 // percent = -1 when not available. charging = 1 if charging, 0 otherwise.
+// power_mw is set to instantaneous power in milliwatts (positive = charging, negative = discharging).
 // state buffer should be at least 32 bytes.
-static int mactop_get_battery(int *percent, int *charging, char *state, int state_len) {
+static int mactop_get_battery(int *percent, int *charging, char *state, int state_len, int *power_mw) {
     *percent = -1;
     *charging = 0;
+    *power_mw = 0;
     if (state && state_len > 0) state[0] = '\0';
 
     CFTypeRef info = IOPSCopyPowerSourcesInfo();
@@ -58,6 +89,10 @@ static int mactop_get_battery(int *percent, int *charging, char *state, int stat
 
     CFRelease(list);
     CFRelease(info);
+
+    if (found)
+        *power_mw = mactop_battery_power_mw();
+
     return found;
 }
 */
@@ -80,11 +115,12 @@ import (
 // real 0%. Consumers should treat a nil/omitted Percent as "charge unknown",
 // not as "no battery" (use Present for that).
 type BatteryInfo struct {
-	Present   bool   `json:"present" yaml:"present" xml:"Present" toon:"present"`
-	Percent   *int   `json:"percent,omitempty" yaml:"percent,omitempty" xml:"Percent,omitempty" toon:"percent"`
-	Charging  bool   `json:"charging" yaml:"charging" xml:"Charging" toon:"charging"`
-	OnACPower bool   `json:"on_ac_power" yaml:"on_ac_power" xml:"OnACPower" toon:"on_ac_power"`
-	State     string `json:"state" yaml:"state" xml:"State" toon:"state"`
+	Present    bool    `json:"present" yaml:"present" xml:"Present" toon:"present"`
+	Percent    *int    `json:"percent,omitempty" yaml:"percent,omitempty" xml:"Percent,omitempty" toon:"percent"`
+	Charging   bool    `json:"charging" yaml:"charging" xml:"Charging" toon:"charging"`
+	OnACPower  bool    `json:"on_ac_power" yaml:"on_ac_power" xml:"OnACPower" toon:"on_ac_power"`
+	State      string  `json:"state" yaml:"state" xml:"State" toon:"state"`
+	PowerWatts float64 `json:"power_watts" yaml:"power_watts" xml:"PowerWatts" toon:"power_watts"`
 }
 
 var (
@@ -96,17 +132,19 @@ var (
 func GetBatteryInfo() BatteryInfo {
 	var percent C.int
 	var charging C.int
+	var powerMW C.int
 	var stateBuf [32]C.char
-	res := C.mactop_get_battery(&percent, &charging, &stateBuf[0], C.int(len(stateBuf)))
+	res := C.mactop_get_battery(&percent, &charging, &stateBuf[0], C.int(len(stateBuf)), &powerMW)
 	if res == 0 {
 		return BatteryInfo{}
 	}
 	state := C.GoString(&stateBuf[0])
 	info := BatteryInfo{
-		Present:   true,
-		Charging:  charging == 1,
-		OnACPower: strings.EqualFold(state, "AC Power"),
-		State:     state,
+		Present:    true,
+		Charging:   charging == 1,
+		OnACPower:  strings.EqualFold(state, "AC Power"),
+		State:      state,
+		PowerWatts: float64(powerMW) / 1000.0,
 	}
 	// The C layer leaves percent at -1 when IOKit capacity keys are missing.
 	// Only attach a charge value when it's a real 0–100 reading; otherwise
@@ -147,13 +185,21 @@ func batteryStateLabel(bat BatteryInfo) string {
 	}
 }
 
-// formatBatteryLine returns "Battery: 87% (charging)" or empty string if no battery.
+// formatBatteryLine returns "Battery: 87% (charging, 45.2 W)" or empty string if no battery.
 func formatBatteryLine() string {
 	bat := GetBatteryInfo()
 	if !bat.Displayable() {
 		return ""
 	}
-	return fmt.Sprintf("%s: %d%% (%s)", i18n.T("Info_Battery"), *bat.Percent, batteryStateLabel(bat))
+	stateLabel := batteryStateLabel(bat)
+	if bat.PowerWatts != 0 {
+		absW := bat.PowerWatts
+		if absW < 0 {
+			absW = -absW
+		}
+		stateLabel = fmt.Sprintf("%s, %.1f W", stateLabel, absW)
+	}
+	return fmt.Sprintf("%s: %d%% (%s)", i18n.T("Info_Battery"), *bat.Percent, stateLabel)
 }
 
 // avoid "imported and not used" if a future build prunes battery usage

@@ -24,6 +24,8 @@ func startPrometheusServer(port string) {
 	registry.MustRegister(gpuTemp)
 	registry.MustRegister(thermalState)
 	registry.MustRegister(memoryUsage)
+	registry.MustRegister(memoryPressureLevelGauge)
+	registry.MustRegister(memoryPressureApproxGauge)
 	registry.MustRegister(networkSpeed)
 	registry.MustRegister(diskIOSpeed)
 	registry.MustRegister(diskIOPS)
@@ -37,6 +39,9 @@ func startPrometheusServer(port string) {
 	registry.MustRegister(systemInfoGauge)
 	registry.MustRegister(fanRPM)
 	registry.MustRegister(tempSensorGauge)
+	registry.MustRegister(listeningPortsTotal)
+	registry.MustRegister(listeningPortsExternal)
+	registry.MustRegister(listeningPortsByProto)
 
 	initializePrometheusSeries(getSOCInfo())
 
@@ -67,9 +72,11 @@ func initializePrometheusSeries(sysInfo SystemInfo) {
 	for _, component := range []string{"cpu", "gpu", "ane", "dram", "gpu_sram", "system", "total"} {
 		powerUsage.With(prometheus.Labels{"component": component}).Set(0)
 	}
-	for _, memoryType := range []string{"used", "total", "swap_used", "swap_total"} {
+	for _, memoryType := range []string{"used", "total", "swap_used", "swap_total", "compressed"} {
 		memoryUsage.With(prometheus.Labels{"type": memoryType}).Set(0)
 	}
+	memoryPressureLevelGauge.Set(0)
+	memoryPressureApproxGauge.Set(0)
 	for _, direction := range []string{"upload", "download"} {
 		networkSpeed.With(prometheus.Labels{"direction": direction}).Set(0)
 	}
@@ -101,33 +108,37 @@ func normalizeSocMetricsPower(m SocMetrics) SocMetrics {
 
 func cpuMetricsFromSoc(m SocMetrics, coreUsages []float64, avgUsage float64, throttled bool) CPUMetrics {
 	return CPUMetrics{
-		CPUW:            m.CPUPower,
-		GPUW:            m.GPUPower,
-		ANEW:            m.ANEPower,
-		ANEActive:       m.ANEActive,
-		ANEReadBW:       m.ANEReadBW,
-		ANEWriteBW:      m.ANEWriteBW,
-		DRAMW:           m.DRAMPower,
-		GPUSRAMW:        m.GPUSRAMPower,
-		SystemW:         m.SystemPower,
-		PackageW:        m.TotalPower,
-		Throttled:       throttled,
-		CPUTemp:         float64(m.CPUTemp),
-		GPUTemp:         float64(m.GPUTemp),
-		EClusterActive:  int(m.EClusterActive),
-		PClusterActive:  int(m.PClusterActive),
-		EClusterFreqMHz: int(m.EClusterFreqMHz),
-		PClusterFreqMHz: int(m.PClusterFreqMHz),
-		SClusterActive:  int(m.SClusterActive),
-		SClusterFreqMHz: int(m.SClusterFreqMHz),
-		DRAMReadBW:      m.DRAMReadBW,
-		DRAMWriteBW:     m.DRAMWriteBW,
-		DRAMBWCombined:  m.DRAMBWCombined,
-		ANEBW:           m.ANEBWCombined,
-		Fans:            m.Fans,
-		TempSensors:     m.TempSensors,
-		CoreUsages:      coreUsages,
-		AvgUsage:        avgUsage,
+		CPUW:             m.CPUPower,
+		GPUW:             m.GPUPower,
+		ANEW:             m.ANEPower,
+		ANEActive:        m.ANEActive,
+		ANEPowered:       m.ANEPowered,
+		ANEExclave:       m.ANEExclave,
+		ANEClusterCount:  m.ANEClusterCount,
+		ANEClusterActive: m.ANEClusterActive,
+		ANEReadBW:        m.ANEReadBW,
+		ANEWriteBW:       m.ANEWriteBW,
+		DRAMW:            m.DRAMPower,
+		GPUSRAMW:         m.GPUSRAMPower,
+		SystemW:          m.SystemPower,
+		PackageW:         m.TotalPower,
+		Throttled:        throttled,
+		CPUTemp:          float64(m.CPUTemp),
+		GPUTemp:          float64(m.GPUTemp),
+		EClusterActive:   int(m.EClusterActive),
+		PClusterActive:   int(m.PClusterActive),
+		EClusterFreqMHz:  int(m.EClusterFreqMHz),
+		PClusterFreqMHz:  int(m.PClusterFreqMHz),
+		SClusterActive:   int(m.SClusterActive),
+		SClusterFreqMHz:  int(m.SClusterFreqMHz),
+		DRAMReadBW:       m.DRAMReadBW,
+		DRAMWriteBW:      m.DRAMWriteBW,
+		DRAMBWCombined:   m.DRAMBWCombined,
+		ANEBW:            m.ANEBWCombined,
+		Fans:             m.Fans,
+		TempSensors:      m.TempSensors,
+		CoreUsages:       coreUsages,
+		AvgUsage:         avgUsage,
 	}
 }
 
@@ -147,6 +158,32 @@ const aneBWRefFloorGBs = 4.0
 // "ANE RD/WR" byte counters show traffic, it falls back to a bandwidth-based
 // activity estimate so ANE usage doesn't silently read 0 on newer OSes.
 func aneUtilizationPercent(m CPUMetrics) float64 {
+	// 0a. Exclave ANE (M5 / M5 Max): CurrentPowerState is pinned high by
+	// background macOS ML services, so the duty cycle is only meaningful as a
+	// binary powered/idle state. Collapse to 0/100 and — crucially — do NOT
+	// latch bandwidth/residency modes here: those make the gauge fall through to
+	// a %-form label and render this binary value as a misleading percentage.
+	if m.ANEExclave {
+		if m.ANEActive > 0 {
+			return 100
+		}
+		return 0
+	}
+	// 0b. IORegistry power-domain duty cycle (non-exclave Ultra dies on macOS 27
+	// when PMP channels are empty for non-root): binary powered/idle per window.
+	// Do NOT latch bandwidth mode here (like the exclave tier above): this signal
+	// has no bandwidth component, and aneBWLabelMode already exempts ANEPowered so
+	// the gauge shows "powered/idle (W)" rather than a misleading "@ 0.00 GB/s".
+	if m.ANEPowered {
+		pct := m.ANEActive
+		if pct > 100 {
+			pct = 100
+		}
+		if pct < 0 {
+			pct = 0
+		}
+		return pct
+	}
 	// 1. PMP state-residency utilization (macOS 27+/M5): true time-above-
 	//    idle-floor measurement parsed from the ANE-AF-BW / ANE-DCS-BW
 	//    channels — the most accurate signal where it exists. Latch the
@@ -177,35 +214,43 @@ func aneUtilizationPercent(m CPUMetrics) float64 {
 		return pct
 	}
 	// 3. Bandwidth activity estimate (M1-M4 on macOS 27: AMC byte counters).
-	if m.ANEBW > 0 {
-		// ANE traffic with zero watts proves the energy counter is dead (an
-		// idle ANE produces neither). Latch bandwidth mode for the session so
-		// the UI label stays in GB/s form even when traffic later drops to 0,
-		// instead of reverting to a misleading "@ 0.00 W".
-		aneBWModeLatched.Store(true)
-		// Monotonic session max via CAS (callers run on several goroutines).
-		// 3% ratchet hysteresis: a single burst-aligned sample window
-		// marginally above the sustained plateau would otherwise become the
-		// permanent 100% reference, pinning genuine saturation at a
-		// misleading 96-98%. Bursts within 3% read as 100% via the clamp
-		// below; real step-ups beyond 3% still re-scale the reference.
-		for {
-			cur := math.Float64frombits(maxANEBWSeenBits.Load())
-			if m.ANEBW <= cur*1.03 {
-				break
-			}
-			if maxANEBWSeenBits.CompareAndSwap(math.Float64bits(cur), math.Float64bits(m.ANEBW)) {
-				break
-			}
-		}
-		ref := max(math.Float64frombits(maxANEBWSeenBits.Load()), aneBWRefFloorGBs)
-		pct := m.ANEBW / ref * 100
-		if pct > 100 {
-			pct = 100
-		}
-		return pct
+	return aneBandwidthUtilization(m)
+}
+
+// aneBandwidthUtilization is the tier-3 ANE estimate: the AMC/PMP byte-counter
+// activity signal used on M1-M4 / macOS 27, where the energy counter is dead.
+// It latches bandwidth-form labeling and scales the current traffic against an
+// adaptive session-max reference. Returns 0 when no traffic is present.
+func aneBandwidthUtilization(m CPUMetrics) float64 {
+	if m.ANEBW <= 0 {
+		return 0
 	}
-	return 0
+	// ANE traffic with zero watts proves the energy counter is dead (an idle
+	// ANE produces neither). Latch bandwidth mode for the session so the UI
+	// label stays in GB/s form even when traffic later drops to 0, instead of
+	// reverting to a misleading "@ 0.00 W".
+	aneBWModeLatched.Store(true)
+	// Monotonic session max via CAS (callers run on several goroutines). 3%
+	// ratchet hysteresis: a single burst-aligned sample window marginally above
+	// the sustained plateau would otherwise become the permanent 100%
+	// reference, pinning genuine saturation at a misleading 96-98%. Bursts
+	// within 3% read as 100% via the clamp below; real step-ups beyond 3% still
+	// re-scale the reference.
+	for {
+		cur := math.Float64frombits(maxANEBWSeenBits.Load())
+		if m.ANEBW <= cur*1.03 {
+			break
+		}
+		if maxANEBWSeenBits.CompareAndSwap(math.Float64bits(cur), math.Float64bits(m.ANEBW)) {
+			break
+		}
+	}
+	ref := max(math.Float64frombits(maxANEBWSeenBits.Load()), aneBWRefFloorGBs)
+	pct := m.ANEBW / ref * 100
+	if pct > 100 {
+		pct = 100
+	}
+	return pct
 }
 
 // aneBWLabelMode reports whether ANE displays should use the bandwidth-form
@@ -214,6 +259,15 @@ func aneUtilizationPercent(m CPUMetrics) float64 {
 // earlier this session. On OSes with a working energy counter (macOS 26) the
 // latch never trips, so labels behave exactly as before.
 func aneBWLabelMode(m CPUMetrics) bool {
+	// The binary IORegistry power-state tiers have no non-root bandwidth signal
+	// and render as a powered/idle word, so they never use the bandwidth-form
+	// label: exclave ANE (M5 / M5 Max) and the non-exclave power-state fallback
+	// (Ultra dies on macOS 27 where PMP is empty). For the latter, m.ANEActive is
+	// the 0/100 duty cycle, which would otherwise trip the (m.ANEActive > 0) term
+	// below and force a misleading "@ 0.00 GB/s" label every powered sample.
+	if m.ANEExclave || m.ANEPowered {
+		return false
+	}
 	return m.ANEW <= 0 && (m.ANEActive > 0 || m.ANEBW > 0 || aneBWModeLatched.Load())
 }
 
@@ -333,6 +387,9 @@ func publishPrometheusMetrics(snapshot prometheusMetricsSnapshot) {
 	memoryUsage.With(prometheus.Labels{"type": "total"}).Set(float64(snapshot.Memory.Total) / 1024 / 1024 / 1024)
 	memoryUsage.With(prometheus.Labels{"type": "swap_used"}).Set(float64(snapshot.Memory.SwapUsed) / 1024 / 1024 / 1024)
 	memoryUsage.With(prometheus.Labels{"type": "swap_total"}).Set(float64(snapshot.Memory.SwapTotal) / 1024 / 1024 / 1024)
+	memoryUsage.With(prometheus.Labels{"type": "compressed"}).Set(float64(snapshot.Memory.Compressed) / 1024 / 1024 / 1024)
+	memoryPressureLevelGauge.Set(float64(snapshot.Memory.PressureLevel))
+	memoryPressureApproxGauge.Set(snapshot.Memory.PressureApprox)
 
 	for i, usage := range cpuMetrics.CoreUsages {
 		cpuCoreUsage.With(prometheus.Labels{"core": fmt.Sprintf("%d", i), "type": coreTypeForIndex(i, snapshot.SystemInfo)}).Set(usage)
@@ -626,7 +683,14 @@ func updatePrometheusSensors(fans []FanInfo, sensors []TempSensor) {
 	}
 }
 
-func collectProcessMetrics(done chan struct{}, processMetricsChan chan []ProcessMetrics, triggerChan chan struct{}) {
+func shouldCollectPorts() bool {
+	// Full FD/socket enumeration is O(processes × FDs). Only pay for it when
+	// the ports layout is active or Prometheus is exporting port gauges.
+	// Headless mode collects ports separately in collectHeadlessData.
+	return isPortsLayoutActive() || prometheusPort != ""
+}
+
+func collectProcessMetrics(done chan struct{}, processMetricsChan chan []ProcessMetrics, portMetricsChan chan []PortMetrics, triggerChan chan struct{}) {
 	for {
 		select {
 		case <-done:
@@ -641,8 +705,40 @@ func collectProcessMetrics(done chan struct{}, processMetricsChan chan []Process
 			} else {
 				stderrLogger.Printf("Error getting process list: %v\n", err)
 			}
+
+			if !shouldCollectPorts() {
+				continue
+			}
+			if ports, err := collectListeningPorts(); err == nil {
+				publishPrometheusPorts(ports)
+				select {
+				case portMetricsChan <- ports:
+				default:
+					select {
+					case <-portMetricsChan:
+					default:
+					}
+					select {
+					case portMetricsChan <- ports:
+					default:
+					}
+				}
+			} else {
+				stderrLogger.Printf("Error collecting listening ports: %v\n", err)
+			}
 		}
 	}
+}
+
+func publishPrometheusPorts(ports []PortMetrics) {
+	if prometheusPort == "" {
+		return
+	}
+	total, external, tcp, udp := portsSummary(ports)
+	listeningPortsTotal.Set(float64(total))
+	listeningPortsExternal.Set(float64(external))
+	listeningPortsByProto.With(prometheus.Labels{"protocol": "tcp"}).Set(float64(tcp))
+	listeningPortsByProto.With(prometheus.Labels{"protocol": "udp"}).Set(float64(udp))
 }
 
 func getMemoryMetrics() MemoryMetrics {
@@ -651,11 +747,16 @@ func getMemoryMetrics() MemoryMetrics {
 		stderrLogger.Printf("Error getting native memory metrics: %v\n", err)
 		return MemoryMetrics{}
 	}
+	level := native.PressureLevel
 	return MemoryMetrics{
-		Total:     native.Total,
-		Used:      native.Used,
-		Available: native.Available,
-		SwapTotal: native.SwapTotal,
-		SwapUsed:  native.SwapUsed,
+		Total:          native.Total,
+		Used:           native.Used,
+		Available:      native.Available,
+		SwapTotal:      native.SwapTotal,
+		SwapUsed:       native.SwapUsed,
+		Compressed:     native.Compressed,
+		PressureLevel:  level,
+		PressureState:  memoryPressureState(level),
+		PressureApprox: memoryPressureApprox(level, native.Used, native.Total, native.SwapUsed, native.Compressed),
 	}
 }

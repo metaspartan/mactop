@@ -117,11 +117,14 @@ func setupUI() {
 	gpuValues = make([]float64, numPoints)
 	memoryUsedHistory = make([]float64, numPoints)
 	swapUsedHistory = make([]float64, numPoints)
+	memoryPressureHistory = make([]float64, numPoints)
 	cpuUsageHistory = make([]float64, numPoints)
 	powerUsageHistory = make([]float64, numPoints)
 	memBWReadHistory = make([]float64, numPoints)
 	memBWWriteHistory = make([]float64, numPoints)
 	aneUsageHistory = make([]float64, numPoints)
+	aneCluster0History = make([]float64, numPoints)
+	aneCluster1History = make([]float64, numPoints)
 	dramReadHistory = make([]float64, numPoints)
 	dramWriteHistory = make([]float64, numPoints)
 	aneReadBwHistory = make([]float64, numPoints)
@@ -190,6 +193,23 @@ func setupUI() {
 	memoryHistoryChart.ShowAxes = false
 	memoryHistoryChart.ShowRightAxis = true
 	memoryHistoryChart.LineColors = []ui.Color{ui.ColorBlue, ui.ColorMagenta}
+
+	memoryPressureHistoryChart = w.NewStepChart()
+	memoryPressureHistoryChart.Title = i18n.T("TUI_MemoryPressureHistory")
+	memoryPressureHistoryChart.ShowAxes = false
+	memoryPressureHistoryChart.ShowRightAxis = true
+	memoryPressureHistoryChart.LineColors = []ui.Color{ui.ColorGreen}
+
+	memoryPressureGauge = w.NewGauge()
+	memoryPressureGauge.Title = i18n.T("TUI_MemoryPressure")
+	memoryPressureGauge.Percent = 0
+	memoryPressureGauge.BarColor = ui.ColorGreen
+	memoryPressureGauge.LabelStyle = ui.NewStyle(SecondaryTextColor)
+
+	memoryPressurePanel = w.NewParagraph()
+	memoryPressurePanel.Title = i18n.T("TUI_MemoryPressure")
+	memoryPressurePanel.Text = i18n.T("TUI_Loading")
+	memoryPressurePanel.Border = true
 
 	cpuHistoryChart = w.NewStepChart()
 	cpuHistoryChart.Title = i18n.T("TUI_CPUUsageHistory")
@@ -856,7 +876,7 @@ func Run() {
 	}()
 
 	go collectMetrics(done, cpuMetricsChan, gpuMetricsChan, tbNetStatsChan, triggerProcessCollectionChan)
-	go collectProcessMetrics(done, processMetricsChan, triggerProcessCollectionChan)
+	go collectProcessMetrics(done, processMetricsChan, portMetricsChan, triggerProcessCollectionChan)
 	go collectNetDiskMetrics(done, netdiskMetricsChan)
 
 	uiEvents := ui.PollEvents()
@@ -964,10 +984,13 @@ func updateCPUUI(cpuMetrics CPUMetrics) {
 
 	memoryMetrics := getMemoryMetrics()
 	updateMemoryGaugeTitle(memoryMetrics)
-	memoryPercent := (float64(memoryMetrics.Used) / float64(memoryMetrics.Total)) * 100
-	memoryGauge.Percent = int(memoryPercent)
+	if memoryMetrics.Total > 0 {
+		memoryPercent := (float64(memoryMetrics.Used) / float64(memoryMetrics.Total)) * 100
+		memoryGauge.Percent = int(memoryPercent)
+	}
 
 	updateMemoryHistory(memoryMetrics)
+	updateMemoryPressureUI(memoryMetrics)
 
 	// New SoC history charts (for history_soc layout)
 	// Bandwidth first: the ANE history chart derives its bandwidth-mode
@@ -1085,6 +1108,220 @@ func updateMemoryHistory(memoryMetrics MemoryMetrics) {
 	updateMemBandwidthHistory()
 }
 
+// anePoweredLabel renders the binary ANE power-domain signal (M5 Max / macOS 27
+// non-root, where no PMP utilization channel exists) as a powered/idle word
+// instead of a misleading percentage. The value is the power-domain duty cycle
+// over the sample window; >0 means the ANE was powered for at least part of it.
+func anePoweredLabel(dutyPct float64) string {
+	if dutyPct > 0 {
+		return "powered"
+	}
+	return "idle"
+}
+
+// aneOnOffLabel renders the exclave ANE (M5 / M5 Max) power-domain state as a
+// terse ON/idle word for the main gauge, where CurrentPowerState is binary and a
+// percentage would be meaningless (pinned high by background macOS ML services).
+func aneOnOffLabel(dutyPct float64) string {
+	if dutyPct > 0 {
+		return "ON"
+	}
+	return "idle"
+}
+
+// aneGaugeTitle produces the title for the ANE gauge, mirroring the utilization
+// source selection in aneUtilizationPercent so the title matches the gauge's
+// percent value. Extracted from updateCPUGaugeTitles so the label logic (in
+// particular the power-state fallback never showing a wattage, since the C side
+// leaves ANEW at 0 there) is unit-testable without a live UI widget.
+func aneGaugeTitle(m CPUMetrics, aneUtil, bw float64, bwMode bool) string {
+	if m.ANEExclave {
+		return fmt.Sprintf("ANE: %s", aneOnOffLabel(aneUtil))
+	}
+	if m.ANEPowered && !bwMode {
+		// IORegistry power-state fallback (non-exclave Ultra dies on macOS 27):
+		// the C side populates aneActive (the duty cycle) but never anePower, so
+		// ANEW is provably 0 here — a wattage template (compact or not) would
+		// render "0.0W" and contradict the powered/idle label. This must run
+		// before the compact branch, since compact layouts would otherwise embed
+		// the dead watts via Metrics_ANEGaugeCompact.
+		return fmt.Sprintf("ANE %s", anePoweredLabel(aneUtil))
+	}
+	if isCompactLayout() {
+		if bwMode {
+			return fmt.Sprintf(i18n.T("Metrics_ANEGaugeBWCompact"), bw)
+		}
+		return fmt.Sprintf(i18n.T("Metrics_ANEGaugeCompact"), m.ANEW)
+	}
+	if bwMode {
+		return fmt.Sprintf(i18n.T("Metrics_ANEGaugeBW"), aneUtil, bw)
+	}
+	return fmt.Sprintf(i18n.T("Metrics_ANEGauge"), aneUtil, m.ANEW)
+}
+
+// aneGaugeInnerLabel returns the ANE gauge's inner bar label. Power-state tiers
+// (exclave / IORegistry power-domain fallback) render a word so the bar doesn't
+// print "NN%" while the title reads ON/idle or powered/idle; all other tiers
+// return "" so the Gauge falls back to its default percent label. Mirrors the
+// power-state branches of aneGaugeTitle so the bar label and title agree.
+func aneGaugeInnerLabel(m CPUMetrics, aneUtil float64, bwMode bool) string {
+	switch {
+	case m.ANEExclave:
+		return aneOnOffLabel(aneUtil)
+	case m.ANEPowered && !bwMode:
+		return anePoweredLabel(aneUtil)
+	default:
+		return ""
+	}
+}
+
+// aneChartTitle produces the title for the ANE history chart, mirroring the
+// power-state tier handling of renderANEHistoryChart's early-return branch. It
+// exists so the chart-title contract (ANEPowered never showing a wattage, since
+// ANEW is provably 0 on that fallback path) is unit-testable without a live UI
+// widget.
+func aneChartTitle(m CPUMetrics, anePct, peak, aneWatts, aneBW float64, bwMode bool, isPeakLayout bool) string {
+	if m.ANEExclave {
+		return fmt.Sprintf("ANE: %s", aneOnOffLabel(anePct))
+	}
+	if m.ANEPowered && !bwMode {
+		// Power-state fallback: anePower is never set, so ANEW is 0 and any
+		// wattage-bearing template would render "... 0.00W". Use the
+		// powered/idle word, matching aneGaugeTitle.
+		return fmt.Sprintf("ANE: %s", anePoweredLabel(anePct))
+	}
+	if isPeakLayout {
+		if bwMode {
+			return fmt.Sprintf(i18n.T("Metrics_ANEHistoryPeakBW"), anePct, peak, aneBW)
+		}
+		return fmt.Sprintf(i18n.T("Metrics_ANEHistoryPeak"), anePct, peak, aneWatts)
+	}
+	if bwMode {
+		return fmt.Sprintf(i18n.T("Metrics_ANEHistoryDetailBW"), anePct, aneBW)
+	}
+	return fmt.Sprintf(i18n.T("Metrics_ANEHistoryDetail"), anePct, aneWatts)
+}
+
+func aneClusterIsActive(pct float64) bool {
+	return pct > 0
+}
+
+// aneClusterLabelMode identifies which word set the dual-cluster helpers should
+// use, so the per-cluster status agrees with the gauge and single-series chart
+// (aneGaugeTitle / aneChartTitle) instead of hard-coding one wording for every
+// power-state tier.
+type aneClusterLabelMode int
+
+const (
+	aneClusterLabelPercent aneClusterLabelMode = iota // "ANE0 NN%" (residency/bandwidth)
+	aneClusterLabelPowered                            // "ANE0 powered/idle" (IORegistry fallback)
+	aneClusterLabelExclave                            // "ANE0 ON/idle" (M5 / M5 Max)
+)
+
+// aneClusterLabelModeFor derives the label mode from metrics, mirroring the
+// tier checks in aneGaugeTitle / shouldRenderDualANEClusters: exclave takes
+// priority (binary ON/idle), then the ANEPowered fallback (powered/idle),
+// otherwise percentages.
+func aneClusterLabelModeFor(m CPUMetrics) aneClusterLabelMode {
+	if m.ANEExclave {
+		return aneClusterLabelExclave
+	}
+	if m.ANEPowered {
+		return aneClusterLabelPowered
+	}
+	return aneClusterLabelPercent
+}
+
+func formatDualANEClusterStatus(c0, c1 float64, mode aneClusterLabelMode) string {
+	active0 := aneClusterIsActive(c0)
+	active1 := aneClusterIsActive(c1)
+	// The three label modes differ only in the word for an active die.
+	word := "active"
+	switch mode {
+	case aneClusterLabelExclave:
+		word = "ON"
+	case aneClusterLabelPowered:
+		word = "powered"
+	}
+	switch {
+	case active0 && active1:
+		return fmt.Sprintf("ANE0 & ANE1 %s", word)
+	case active0 && !active1:
+		return fmt.Sprintf("ANE0 %s, ANE1 idle", word)
+	case !active0 && active1:
+		return fmt.Sprintf("ANE0 idle, ANE1 %s", word)
+	default:
+		return "idle"
+	}
+}
+
+// formatDualANEClusterChartText builds a consistent title + per-line labels for
+// the history_soc dual-cluster ANE chart. Title summarizes the combined state;
+// line labels match each cluster's individual ON/idle, powered/idle, or %
+// reading depending on the tier the gauge is in.
+func formatDualANEClusterChartText(c0, c1 float64, mode aneClusterLabelMode, nClusters int) (title string, label0, label1 string) {
+	switch mode {
+	case aneClusterLabelExclave:
+		label0 = fmt.Sprintf("ANE0 %s", aneOnOffLabel(c0))
+		label1 = fmt.Sprintf("ANE1 %s", aneOnOffLabel(c1))
+	case aneClusterLabelPowered:
+		label0 = fmt.Sprintf("ANE0 %s", anePoweredLabel(c0))
+		label1 = fmt.Sprintf("ANE1 %s", anePoweredLabel(c1))
+	default:
+		label0 = fmt.Sprintf("ANE0 %.0f%%", c0)
+		label1 = fmt.Sprintf("ANE1 %.0f%%", c1)
+	}
+	title = fmt.Sprintf("ANE (%d clusters) · %s", nClusters, formatDualANEClusterStatus(c0, c1, mode))
+	return title, label0, label1
+}
+
+// shouldRenderDualANEClusters reports whether the history_soc layout should plot
+// the per-die dual-cluster trace. ANEClusterActive is always the IORegistry
+// power-state duty cycle (populated on every sample regardless of the channel
+// that drove aneUtilizationPercent), so the dual trace only matches the gauge
+// when the gauge is itself in a power-state tier (ANEPowered/ANEExclave). On a
+// multi-die chip with a working PMP residency / AMC bandwidth channel, the gauge
+// reads residency/bandwidth % while this trace would read power-state duty —
+// diverging — so it returns false and the caller falls back to the
+// gauge-consistent single-series path.
+func shouldRenderDualANEClusters(m CPUMetrics) bool {
+	if len(m.ANEClusterActive) <= 1 {
+		return false
+	}
+	return m.ANEPowered || m.ANEExclave
+}
+
+func clampANEPercent(pct float64) float64 {
+	if pct < 0 {
+		return 0
+	}
+	if pct > 100 {
+		return 100
+	}
+	return pct
+}
+
+// staggerANEClusterChartSeries applies a small display-only vertical offset when
+// two ANE cluster traces are identical (common when both read "powered" at 100%).
+// Real metrics/titles are unchanged; only the StepChart draw positions shift.
+func staggerANEClusterChartSeries(c0, c1 []float64, scaleMax float64) (displayC0, displayC1 []float64) {
+	const eps = 1.0
+	const halfStagger = 4.0
+
+	displayC0 = make([]float64, len(c0))
+	displayC1 = make([]float64, len(c1))
+	for i := range c0 {
+		displayC0[i] = c0[i]
+		displayC1[i] = c1[i]
+		if math.Abs(c0[i]-c1[i]) >= eps {
+			continue
+		}
+		displayC0[i] = math.Max(0, c0[i]-halfStagger)
+		displayC1[i] = math.Min(scaleMax, c1[i]+halfStagger)
+	}
+	return displayC0, displayC1
+}
+
 func updateANEHistory(cpuMetrics CPUMetrics) {
 	// Same utilization source as the ANE gauge: PMP residency (macOS 27/M5)
 	// -> Energy Model power estimate (macOS 26) -> bandwidth activity
@@ -1093,11 +1330,29 @@ func updateANEHistory(cpuMetrics CPUMetrics) {
 	anePct := aneUtilizationPercent(cpuMetrics)
 	aneWatts := cpuMetrics.ANEW
 
+	clusterCount := len(cpuMetrics.ANEClusterActive)
+	cluster0 := 0.0
+	cluster1 := 0.0
+	if clusterCount > 0 {
+		cluster0 = clampANEPercent(cpuMetrics.ANEClusterActive[0])
+	}
+	if clusterCount > 1 {
+		cluster1 = clampANEPercent(cpuMetrics.ANEClusterActive[1])
+	}
+
 	for i := 0; i < len(aneUsageHistory)-1; i++ {
 		aneUsageHistory[i] = aneUsageHistory[i+1]
 		anePeakHistory[i] = anePeakHistory[i+1]
+		if len(aneCluster0History) > 0 {
+			aneCluster0History[i] = aneCluster0History[i+1]
+			aneCluster1History[i] = aneCluster1History[i+1]
+		}
 	}
 	aneUsageHistory[len(aneUsageHistory)-1] = anePct
+	if len(aneCluster0History) > 0 {
+		aneCluster0History[len(aneCluster0History)-1] = cluster0
+		aneCluster1History[len(aneCluster1History)-1] = cluster1
+	}
 
 	// Decaying peak for ANE
 	peakDecay := 0.98
@@ -1108,7 +1363,7 @@ func updateANEHistory(cpuMetrics CPUMetrics) {
 		anePeakHistory[len(anePeakHistory)-1] = anePct
 	}
 
-	renderANEHistoryChart(anePct, aneWatts, cpuMetrics.ANEBW, aneBWLabelMode(cpuMetrics))
+	renderANEHistoryChart(cpuMetrics, anePct, aneWatts, cpuMetrics.ANEBW, aneBWLabelMode(cpuMetrics), cluster0, cluster1)
 }
 
 // aneVisibleSeries returns the plotted ANE utilization window. In bandwidth
@@ -1164,7 +1419,71 @@ func seriesMax(series []float64) float64 {
 	return peak
 }
 
-func renderANEHistoryChart(anePct, aneWatts, aneBW float64, bwMode bool) {
+// renderDualANEClusterChart draws the per-die ANE0/ANE1 traces for history_soc.
+// It only applies on the power-state tiers (shouldRenderDualANEClusters): on a
+// multi-die chip with a live PMP/AMC channel the gauge shows residency/bandwidth
+// %, so plotting the IORegistry power-state duty here would diverge — return
+// false to fall through to the gauge-consistent single-series path.
+func renderDualANEClusterChart(cpuMetrics CPUMetrics, visibleWidth int, maxVal, cluster0, cluster1 float64) bool {
+	if currentConfig.DefaultLayout != LayoutHistorySoC || !shouldRenderDualANEClusters(cpuMetrics) || len(aneCluster0History) == 0 {
+		return false
+	}
+	visibleC0 := aneCluster0History[len(aneCluster0History)-visibleWidth:]
+	visibleC1 := aneCluster1History[len(aneCluster1History)-visibleWidth:]
+	for _, series := range [][]float64{visibleC0, visibleC1} {
+		for _, v := range series {
+			if v > maxVal {
+				maxVal = v
+			}
+		}
+	}
+	scaleMax := 100.0
+	if maxVal <= 25.0 {
+		scaleMax = 25.0
+	} else if maxVal <= 50.0 {
+		scaleMax = 50.0
+	}
+	displayC0, displayC1 := staggerANEClusterChartSeries(visibleC0, visibleC1, scaleMax)
+	aneColor := historyLineColor(func(t *CustomThemeConfig) string { return t.ANE }, ui.ColorRed)
+	aneHistoryChart.Data = [][]float64{displayC0, displayC1}
+	aneHistoryChart.LineColors = []ui.Color{aneColor, aneColor}
+	nClusters := cpuMetrics.ANEClusterCount
+	if nClusters < 2 {
+		nClusters = len(cpuMetrics.ANEClusterActive)
+	}
+	title, label0, label1 := formatDualANEClusterChartText(cluster0, cluster1, aneClusterLabelModeFor(cpuMetrics), nClusters)
+	aneHistoryChart.Title = title
+	aneHistoryChart.DataLabels = []string{label0, label1}
+	aneHistoryChart.MaxVal = scaleMax
+	return true
+}
+
+// renderPowerStateANEChart draws the single power-domain trace for the
+// ANEExclave / ANEPowered tiers, where a utilization % or wattage would be
+// misleading (exclave is binary ON/idle; the ANEPowered fallback leaves ANEW at
+// 0). The trace is the 0/100 power series with an ON/idle or powered/idle label.
+// Returns false when not a power-state tier, leaving the %-form path to the
+// caller. Assumes aneHistoryChart.Data is already set to the visible series.
+func renderPowerStateANEChart(cpuMetrics CPUMetrics, anePct, aneWatts, aneBW float64, bwMode bool, scaleMax float64) bool {
+	if !cpuMetrics.ANEExclave && !(cpuMetrics.ANEPowered && !bwMode) {
+		return false
+	}
+	state := anePoweredLabel(anePct)
+	if cpuMetrics.ANEExclave {
+		state = aneOnOffLabel(anePct)
+	}
+	aneColor := ui.ColorRed
+	if currentConfig.DefaultLayout != LayoutHistorySoC {
+		aneColor = ui.ColorMagenta
+	}
+	aneHistoryChart.LineColors = []ui.Color{historyLineColor(func(t *CustomThemeConfig) string { return t.ANE }, aneColor)}
+	aneHistoryChart.DataLabels = []string{state}
+	aneHistoryChart.Title = aneChartTitle(cpuMetrics, anePct, 0, aneWatts, aneBW, bwMode, currentConfig.DefaultLayout == LayoutHistorySoC)
+	aneHistoryChart.MaxVal = scaleMax
+	return true
+}
+
+func renderANEHistoryChart(cpuMetrics CPUMetrics, anePct, aneWatts, aneBW float64, bwMode bool, cluster0, cluster1 float64) {
 	if aneHistoryChart == nil {
 		return
 	}
@@ -1192,7 +1511,16 @@ func renderANEHistoryChart(anePct, aneWatts, aneBW float64, bwMode bool) {
 		scaleMax = 50.0
 	}
 
+	// Per-die dual-cluster trace (only on the power-state tiers — see the helper)
+	// and the power-state single trace are gauge-consistent early returns.
+	if renderDualANEClusterChart(cpuMetrics, visibleWidth, maxVal, cluster0, cluster1) {
+		return
+	}
+
 	aneHistoryChart.Data = [][]float64{visibleRaw}
+	if renderPowerStateANEChart(cpuMetrics, anePct, aneWatts, aneBW, bwMode, scaleMax) {
+		return
+	}
 	aneHistoryChart.DataLabels = []string{fmt.Sprintf("%.1f%%", anePct)}
 	if currentConfig.DefaultLayout == LayoutHistorySoC {
 		// Peak: in bandwidth mode use the max of the visible window — ANE
@@ -1207,20 +1535,10 @@ func renderANEHistoryChart(anePct, aneWatts, aneBW float64, bwMode bool) {
 			currentPeak = visiblePeak[len(visiblePeak)-1]
 		}
 		aneHistoryChart.LineColors = []ui.Color{historyLineColor(func(t *CustomThemeConfig) string { return t.ANE }, ui.ColorRed)} // ANE red in SoC
-		if bwMode {
-			// macOS 27+: the ANE energy counter is dead, so a wattage reading
-			// would always be a meaningless 0.00W — show bandwidth instead.
-			aneHistoryChart.Title = fmt.Sprintf(i18n.T("Metrics_ANEHistoryPeakBW"), anePct, currentPeak, aneBW)
-		} else {
-			aneHistoryChart.Title = fmt.Sprintf(i18n.T("Metrics_ANEHistoryPeak"), anePct, currentPeak, aneWatts)
-		}
+		aneHistoryChart.Title = aneChartTitle(cpuMetrics, anePct, currentPeak, aneWatts, aneBW, bwMode, true)
 	} else {
 		aneHistoryChart.LineColors = []ui.Color{historyLineColor(func(t *CustomThemeConfig) string { return t.ANE }, ui.ColorMagenta)}
-		if bwMode {
-			aneHistoryChart.Title = fmt.Sprintf(i18n.T("Metrics_ANEHistoryDetailBW"), anePct, aneBW)
-		} else {
-			aneHistoryChart.Title = fmt.Sprintf(i18n.T("Metrics_ANEHistoryDetail"), anePct, aneWatts)
-		}
+		aneHistoryChart.Title = aneChartTitle(cpuMetrics, anePct, 0, aneWatts, aneBW, bwMode, false)
 	}
 	aneHistoryChart.MaxVal = scaleMax
 }
@@ -1554,19 +1872,12 @@ func updateCPUGaugeTitles(totalUsage float64, cpuMetrics CPUMetrics) {
 	// session-latched (see aneBWLabelMode) so the label doesn't flip back to
 	// "@ 0.00 W" when the ANE goes idle on an OS whose watts are never nonzero.
 	bwMode := aneBWLabelMode(cpuMetrics)
-	if isCompactLayout() {
-		if bwMode {
-			aneGauge.Title = fmt.Sprintf(i18n.T("Metrics_ANEGaugeBWCompact"), cpuMetrics.ANEBW)
-		} else {
-			aneGauge.Title = fmt.Sprintf(i18n.T("Metrics_ANEGaugeCompact"), cpuMetrics.ANEW)
-		}
-	} else {
-		if bwMode {
-			aneGauge.Title = fmt.Sprintf(i18n.T("Metrics_ANEGaugeBW"), aneUtil, cpuMetrics.ANEBW)
-		} else {
-			aneGauge.Title = fmt.Sprintf(i18n.T("Metrics_ANEGauge"), aneUtil, cpuMetrics.ANEW)
-		}
-	}
+	// The Gauge prints its inner bar label as "NN%" unless Label is set. Power-
+	// state tiers (exclave ON/idle and the ANEPowered IORegistry fallback) carry
+	// a word instead so the inner label agrees with the powered/idle title rather
+	// than contradicting it with a percentage.
+	aneGauge.Label = aneGaugeInnerLabel(cpuMetrics, aneUtil, bwMode)
+	aneGauge.Title = aneGaugeTitle(cpuMetrics, aneUtil, cpuMetrics.ANEBW, bwMode)
 	aneGauge.Percent = int(aneUtil)
 }
 
@@ -1622,6 +1933,63 @@ func updateMemoryGaugeTitle(memoryMetrics MemoryMetrics) {
 		memoryGauge.Title = fmt.Sprintf(i18n.T("Metrics_MemGaugeCompact"), float64(memoryMetrics.Used)/1024/1024/1024, float64(memoryMetrics.Total)/1024/1024/1024, lastCPUMetrics.DRAMBWCombined)
 	} else {
 		memoryGauge.Title = fmt.Sprintf(i18n.T("Metrics_MemGauge"), float64(memoryMetrics.Used)/1024/1024/1024, float64(memoryMetrics.Total)/1024/1024/1024, float64(memoryMetrics.SwapUsed)/1024/1024/1024, float64(memoryMetrics.SwapTotal)/1024/1024/1024, lastCPUMetrics.DRAMBWCombined)
+	}
+}
+
+func updateMemoryPressureUI(memoryMetrics MemoryMetrics) {
+	for i := 0; i < len(memoryPressureHistory)-1; i++ {
+		memoryPressureHistory[i] = memoryPressureHistory[i+1]
+	}
+	memoryPressureHistory[len(memoryPressureHistory)-1] = memoryMetrics.PressureApprox
+
+	colorName := memoryPressureColorName(memoryMetrics.PressureLevel)
+	barColor := ui.ColorGreen
+	switch colorName {
+	case "yellow":
+		barColor = ui.ColorYellow
+	case "red":
+		barColor = ui.ColorRed
+	case "white":
+		barColor = ui.ColorWhite
+	}
+
+	// Keep the pressure gauge widget themed/ready, but do not mirror used/swap/BW
+	// already shown by memoryGauge and memBWHistoryChart.
+	if memoryPressureGauge != nil {
+		memoryPressureGauge.Percent = memoryPressureGaugePercent(memoryMetrics.PressureLevel)
+		memoryPressureGauge.BarColor = barColor
+		memoryPressureGauge.Title = fmt.Sprintf(i18n.T("Metrics_MemPressureGauge"), memoryMetrics.PressureState, memoryMetrics.PressureApprox)
+	}
+
+	if memoryPressurePanel != nil {
+		compGB := float64(memoryMetrics.Compressed) / 1024 / 1024 / 1024
+		memoryPressurePanel.Title = i18n.T("TUI_MemoryPressure")
+		memoryPressurePanel.Text = fmt.Sprintf(
+			i18n.T("Metrics_MemPressurePanel"),
+			memoryMetrics.PressureState,
+			memoryMetrics.PressureLevel,
+			memoryMetrics.PressureApprox,
+			compGB,
+		)
+		memoryPressurePanel.BorderStyle = ui.NewStyle(barColor)
+		memoryPressurePanel.TitleStyle = ui.NewStyle(barColor, CurrentBgColor, ui.ModifierBold)
+	}
+
+	if memoryPressureHistoryChart != nil {
+		termWidth, _ := GetCachedTerminalDimensions()
+		visibleWidth := termWidth - 4
+		if currentConfig.DefaultLayout == LayoutMemory {
+			visibleWidth = (termWidth / 2) - 4
+		}
+		if visibleWidth <= 0 || visibleWidth > len(memoryPressureHistory) {
+			visibleWidth = len(memoryPressureHistory)
+		}
+		visible := memoryPressureHistory[len(memoryPressureHistory)-visibleWidth:]
+		memoryPressureHistoryChart.Data = [][]float64{visible}
+		memoryPressureHistoryChart.MaxVal = 100
+		memoryPressureHistoryChart.LineColors = []ui.Color{barColor}
+		memoryPressureHistoryChart.DataLabels = []string{fmt.Sprintf("%.0f", memoryMetrics.PressureApprox)}
+		memoryPressureHistoryChart.Title = fmt.Sprintf(i18n.T("Metrics_MemPressureHistoryDetail"), memoryMetrics.PressureState, memoryMetrics.PressureApprox)
 	}
 }
 

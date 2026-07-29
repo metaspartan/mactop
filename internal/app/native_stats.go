@@ -830,11 +830,14 @@ import (
 )
 
 type NativeMemoryMetrics struct {
-	Total     uint64
-	Used      uint64
-	Available uint64
-	SwapTotal uint64
-	SwapUsed  uint64
+	Total      uint64
+	Used       uint64
+	Available  uint64
+	SwapTotal  uint64
+	SwapUsed   uint64
+	Compressed uint64
+	// PressureLevel is kern.memorystatus_vm_pressure_level (1/2/4).
+	PressureLevel int
 }
 
 var (
@@ -865,6 +868,24 @@ func initNativeStats() error {
 	return nil
 }
 
+// activityMonitorMemoryUsed computes "Memory Used" the way Activity Monitor
+// does: App Memory (non-purgeable anonymous) + Wired + Compressed, in bytes.
+// Counting anonymous memory (internal_page_count, which spans both the active
+// and inactive queues) rather than total-(free+inactive) is what keeps the
+// reading correct and stable when a workload parks gigabytes of dirty
+// anonymous pages in the inactive queue. Guards against underflow.
+func activityMonitorMemoryUsed(anonymous, purgeable, wired, compressed, total uint64) uint64 {
+	appMemory := uint64(0)
+	if anonymous > purgeable {
+		appMemory = anonymous - purgeable
+	}
+	used := appMemory + wired + compressed
+	if used > total {
+		used = total
+	}
+	return used
+}
+
 func GetNativeMemoryMetrics() (NativeMemoryMetrics, error) {
 	if totalMemory == 0 {
 		if err := initNativeStats(); err != nil {
@@ -877,14 +898,25 @@ func GetNativeMemoryMetrics() (NativeMemoryMetrics, error) {
 		return NativeMemoryMetrics{}, fmt.Errorf("failed to get vm statistics: %d", ret)
 	}
 
-	free := uint64(vmStat.free_count) * pageSize
-	// active := uint64(vmStat.active_count) * pageSize
-	inactive := uint64(vmStat.inactive_count) * pageSize
-	// wired := uint64(vmStat.wire_count) * pageSize
-	// compressed := uint64(vmStat.compressor_page_count) * pageSize
+	// Activity Monitor "Memory Used" = App Memory + Wired + Compressed, where
+	// App Memory is non-purgeable anonymous memory (internal_page_count).
+	//
+	// The previous formula, available = free + inactive_count, was wrong:
+	// macOS keeps a large share of anonymous app memory (e.g. MLX/LLM model
+	// weights) in the INACTIVE queue, yet those pages are dirty and not freely
+	// reclaimable. Treating all of inactive as available made used collapse
+	// toward 0 whenever a workload parked gigabytes there (gauge reading 0%
+	// at ~79% real usage), and flicker as pages migrated between the active
+	// and inactive queues. internal_page_count spans both queues, so counting
+	// it as used is both correct (matches Activity Monitor) and stable.
+	wired := uint64(vmStat.wire_count) * pageSize
+	compressed := uint64(vmStat.compressor_page_count) * pageSize
+	anonymous := uint64(vmStat.internal_page_count) * pageSize
+	purgeable := uint64(vmStat.purgeable_count) * pageSize
 
-	available := free + inactive
-	used := totalMemory - available
+	used := activityMonitorMemoryUsed(anonymous, purgeable, wired, compressed, totalMemory)
+	available := totalMemory - used
+	pressureLevel := getNativeMemoryPressureLevel()
 
 	// Swap
 	var xsw C.struct_xsw_usage
@@ -894,21 +926,36 @@ func GetNativeMemoryMetrics() (NativeMemoryMetrics, error) {
 	if C.sysctlbyname(nameSwap, unsafe.Pointer(&xsw), &size, nil, 0) != 0 {
 		// Swap might be disabled or failed, just return 0s
 		return NativeMemoryMetrics{
-			Total:     totalMemory,
-			Used:      used,
-			Available: available,
-			SwapTotal: 0,
-			SwapUsed:  0,
+			Total:         totalMemory,
+			Used:          used,
+			Available:     available,
+			SwapTotal:     0,
+			SwapUsed:      0,
+			Compressed:    compressed,
+			PressureLevel: pressureLevel,
 		}, nil
 	}
 
 	return NativeMemoryMetrics{
-		Total:     totalMemory,
-		Used:      used,
-		Available: available,
-		SwapTotal: uint64(xsw.xsu_total),
-		SwapUsed:  uint64(xsw.xsu_used),
+		Total:         totalMemory,
+		Used:          used,
+		Available:     available,
+		SwapTotal:     uint64(xsw.xsu_total),
+		SwapUsed:      uint64(xsw.xsu_used),
+		Compressed:    compressed,
+		PressureLevel: pressureLevel,
 	}, nil
+}
+
+func getNativeMemoryPressureLevel() int {
+	var level C.int
+	size := C.size_t(C.sizeof_int)
+	name := C.CString("kern.memorystatus_vm_pressure_level")
+	defer C.free(unsafe.Pointer(name))
+	if C.sysctlbyname(name, unsafe.Pointer(&level), &size, nil, 0) != 0 {
+		return 0
+	}
+	return int(level)
 }
 
 // NativeDiskUsage represents filesystem usage

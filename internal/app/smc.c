@@ -115,15 +115,51 @@ double SMCGetFloatValue(io_connect_t conn, const char *key) {
     return 0.0;
   }
 
-  if (SMCIsType(val.keyInfo.dataType, "flt ") &&
-      val.keyInfo.dataSize >= sizeof(float)) {
+  unsigned int type = val.keyInfo.dataType;
+  unsigned int size = val.keyInfo.dataSize;
+  const unsigned char *b = (const unsigned char *)val.bytes;
+
+  // IEEE 754 float — AppleSMC stores it native (little-endian) on this platform.
+  if (SMCIsType(type, "flt ") && size >= sizeof(float)) {
     float f;
-    memcpy(&f, val.bytes, 4);
+    memcpy(&f, b, sizeof(float));
     return (double)f;
   }
-  if (SMCIsType(val.keyInfo.dataType, "ui8 ") &&
-      val.keyInfo.dataSize >= 1) {
-    return (double)(unsigned char)val.bytes[0];
+  // Unsigned big-endian integers.
+  if (SMCIsType(type, "ui8 ") && size >= 1)
+    return (double)b[0];
+  if (SMCIsType(type, "ui16") && size >= 2)
+    return (double)(((unsigned int)b[0] << 8) | b[1]);
+  if (SMCIsType(type, "ui32") && size >= 4)
+    return (double)(((unsigned int)b[0] << 24) | ((unsigned int)b[1] << 16) |
+                    ((unsigned int)b[2] << 8) | b[3]);
+  // Signed big-endian integers.
+  if (SMCIsType(type, "si8 ") && size >= 1)
+    return (double)(signed char)b[0];
+  if (SMCIsType(type, "si16") && size >= 2)
+    return (double)(short)(((unsigned int)b[0] << 8) | b[1]);
+
+  // Fixed-point: "fpXY" (unsigned) / "spXY" (signed), where the last type char
+  // is the number of fractional bits (hex) and the value is a big-endian 16-bit
+  // raw scaled by 2^-frac. This is how many Macs encode fan RPM ("fpe2", /4) and
+  // some temperatures ("sp78", /256); without it those keys decode to 0 — the
+  // cause of fans reading 0 RPM on Macs that don't expose F*Ac as "flt ".
+  unsigned char c0 = (type >> 24) & 0xff;
+  unsigned char c1 = (type >> 16) & 0xff;
+  unsigned char c3 = type & 0xff;
+  if (c1 == 'p' && (c0 == 'f' || c0 == 's') && size >= 2) {
+    int frac = -1;
+    if (c3 >= '0' && c3 <= '9')
+      frac = c3 - '0';
+    else if (c3 >= 'a' && c3 <= 'f')
+      frac = c3 - 'a' + 10;
+    else if (c3 >= 'A' && c3 <= 'F')
+      frac = c3 - 'A' + 10;
+    if (frac >= 0 && frac <= 16) {
+      unsigned int raw = ((unsigned int)b[0] << 8) | b[1];
+      double v = (c0 == 's') ? (double)(short)raw : (double)raw;
+      return v / (double)(1u << frac);
+    }
   }
 
   return 0.0;

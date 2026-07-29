@@ -277,6 +277,7 @@ func applyCustomWidgetColors(theme *CustomThemeConfig, fgColor ui.Color) {
 	styleStepChart(powerHistoryChart, powerColor)
 	styleStepChart(memoryHistoryChart, resolveCustomColor(theme.Memory, fgColor))
 	styleStepChart(memBWHistoryChart, resolveCustomColor(theme.Memory, fgColor))
+	styleStepChart(memoryPressureHistoryChart, resolveCustomColor(theme.Memory, fgColor))
 	styleStepChart(cpuHistoryChart, resolveCustomColor(theme.CPU, fgColor))
 	styleStepChart(aneHistoryChart, resolveCustomColor(theme.ANE, fgColor))
 	bwColor := resolveCustomColor(theme.Bandwidth, fgColor)
@@ -296,6 +297,8 @@ func applyCustomWidgetColors(theme *CustomThemeConfig, fgColor ui.Color) {
 	styleParagraph(infoParagraph, fgColor) // info box uses foreground directly
 	styleParagraph(helpText, fgColor)
 	styleParagraph(modelText, resolveCustomColor(theme.SystemInfo, fgColor))
+	styleParagraph(memoryPressurePanel, resolveCustomColor(theme.Memory, fgColor))
+	styleGauge(memoryPressureGauge, resolveCustomColor(theme.Memory, fgColor), SecondaryTextColor)
 
 	// Process list (needs special selected-style contrast logic)
 	if processList != nil {
@@ -347,7 +350,7 @@ func applyThemeToSparklines(color ui.Color) {
 }
 
 func applyThemeToStepCharts(color ui.Color) {
-	for _, sc := range []*w.StepChart{gpuHistoryChart, powerHistoryChart, memoryHistoryChart, memBWHistoryChart, cpuHistoryChart, aneHistoryChart, bandwidthHistoryChart, socPowerHistoryChart, ssdReadHistoryChart} {
+	for _, sc := range []*w.StepChart{gpuHistoryChart, powerHistoryChart, memoryHistoryChart, memBWHistoryChart, memoryPressureHistoryChart, cpuHistoryChart, aneHistoryChart, bandwidthHistoryChart, socPowerHistoryChart, ssdReadHistoryChart} {
 		styleStepChart(sc, color)
 	}
 }
@@ -374,6 +377,8 @@ func applyThemeToWidgets(color ui.Color, lightMode bool) {
 	styleParagraph(helpText, color)
 	styleParagraph(tbInfoParagraph, color)
 	styleParagraph(infoParagraph, color)
+	styleParagraph(memoryPressurePanel, color)
+	styleGauge(memoryPressureGauge, color, SecondaryTextColor)
 
 	// CPU Cores widget
 	if cpuCoreWidget != nil {
@@ -716,7 +721,7 @@ func applyBackgroundToBlocks(bgColor ui.Color) {
 }
 
 func applyBackgroundToGauges(bgColor ui.Color) {
-	gauges := []*w.Gauge{cpuGauge, gpuGauge, memoryGauge, aneGauge}
+	gauges := []*w.Gauge{cpuGauge, gpuGauge, memoryGauge, aneGauge, memoryPressureGauge}
 	for _, g := range gauges {
 		if g != nil {
 			g.BackgroundColor = bgColor
@@ -728,7 +733,7 @@ func applyBackgroundToGauges(bgColor ui.Color) {
 }
 
 func applyBackgroundToParagraphs(bgColor ui.Color) {
-	paragraphs := []*w.Paragraph{PowerChart, NetworkInfo, modelText, helpText, tbInfoParagraph, infoParagraph}
+	paragraphs := []*w.Paragraph{PowerChart, NetworkInfo, modelText, helpText, tbInfoParagraph, infoParagraph, memoryPressurePanel}
 	for _, p := range paragraphs {
 		if p != nil {
 			p.BackgroundColor = bgColor
@@ -760,7 +765,7 @@ func applyBackgroundToSparklines(bgColor ui.Color) {
 }
 
 func applyBackgroundToStepCharts(bgColor ui.Color) {
-	stepCharts := []*w.StepChart{gpuHistoryChart, powerHistoryChart, memoryHistoryChart, memBWHistoryChart, cpuHistoryChart, aneHistoryChart, bandwidthHistoryChart, socPowerHistoryChart, ssdReadHistoryChart}
+	stepCharts := []*w.StepChart{gpuHistoryChart, powerHistoryChart, memoryHistoryChart, memBWHistoryChart, memoryPressureHistoryChart, cpuHistoryChart, aneHistoryChart, bandwidthHistoryChart, socPowerHistoryChart, ssdReadHistoryChart}
 	for _, sc := range stepCharts {
 		if sc != nil {
 			sc.BackgroundColor = bgColor

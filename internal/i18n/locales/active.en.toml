@@ -32,6 +32,8 @@ TUI_ECPUUsage = "E-CPU Usage"
 TUI_PCPUUsage = "P-CPU Usage"
 TUI_GPUUsage = "GPU Usage"
 TUI_MemoryUsage = "Memory Usage"
+TUI_MemoryPressure = "Memory Pressure"
+TUI_MemoryPressureHistory = "Memory Pressure History"
 TUI_ANEUsage = "ANE Usage"
 TUI_PowerUsage = "Power Usage"
 TUI_NetworkDisk = "Network & Disk"
@@ -65,6 +67,8 @@ Info_GPU = "GPU"
 Info_TFLOPs = "TFLOPs"
 Info_Memory = "Memory"
 Info_Swap = "Swap"
+Info_MemoryPressure = "Mem Pressure"
+Info_MemoryPressureValue = "%s (level %d, approx %.0f)"
 Info_CPUUsage = "CPU Usage"
 Info_GPUUsage = "GPU Usage"
 Info_ANEUsage = "ANE Usage"
@@ -113,6 +117,9 @@ Metrics_PowerChartText = "CPU: %.2f W | GPU: %.2f W\nANE: %s | DRAM: %.2f W\nSys
 Metrics_NetworkDiskTitle = "Network & Disk"
 Metrics_MemGaugeCompact = "Mem %.0f/%.0fG BW %.1f GB/s"
 Metrics_MemGauge = "Mem: %.2f GB / %.2f GB (Swap: %.2f/%.2f GB) BW: %.1f GB/s"
+Metrics_MemPressureGauge = "Pressure: %s (%.0f)"
+Metrics_MemPressurePanel = "State: %s\nLevel: %d\nApprox: %.0f\nCompressed: %.1f GB"
+Metrics_MemPressureHistoryDetail = "Pressure: %s (%.0f)"
 
 Process_PID = "PID"
 Process_USER = "USER"
@@ -124,11 +131,24 @@ Process_MEM = "MEM"
 Process_TIME = "TIME"
 Process_CMD = "CMD"
 
+Port_PORT = "PORT"
+Port_PROTO = "PROTO"
+Port_BIND = "BIND"
+Port_PID = "PID"
+Port_USER = "USER"
+Port_ESTAB = "ESTAB"
+Port_CMD = "CMD"
+
 TUI_ProcessListFull = "Process List (↑/↓ scroll, / search, f freeze, F9 kill)"
 TUI_ProcessListFrozen = " Process List [FROZEN] (f to resume) "
 TUI_ProcessListSearch = " Search: %s_ (Esc to clear) "
 TUI_ProcessListKill = " Process List - KILL CONFIRMATION PENDING (PID %d) "
 TUI_ProcessListPID = " Process List [PID %d] (↑/↓ scroll, / search, f freeze, F9 kill) "
+TUI_PortsListFull = "Ports (↑/↓ scroll, / search, e external, f freeze, F9 kill)"
+TUI_PortsListFrozen = " Ports [FROZEN] (f to resume) "
+TUI_PortsListSearch = " Ports Search: %s_ (Esc to clear) "
+TUI_PortsListKill = " Ports - KILL CONFIRMATION PENDING (PID %d) "
+TUI_PortsListExternal = " Ports [EXTERNAL ONLY] (e show all, / search, F9 kill) "
 TUI_Cores = "%d Cores"
 TUI_ECores = "%d E-Cores"
 TUI_PCores = "%d P-Cores"
@@ -164,14 +184,17 @@ Update Interval: %dms
 - c / Shift + C: Cycle UI color themes forward / backward
 - b / Shift + B: Cycle UI background colors forward / backward
 - p: Toggle party mode (color cycling)
-- l / Shift + L: Cycle through the 20 available layouts forward / backward
+- l / Shift + L: Cycle through the 22 available layouts forward / backward
 - a: Jump to the ANE/BW history layout (press again to go back)
+- o: Jump to the ports layout (listening TCP/UDP ports; press again to go back)
+- m: Jump to the memory pressure layout (press again to go back)
 - i: Toggle information layout
 - Shift + F: Toggle fan control & thermals layout
 - F9: Kill selected process (y/n confirm)
-- f: Freeze the process list
-- /: Search process list
-- g/G: Jump to top/bottom of process list
+- f: Freeze the process/ports list
+- /: Search process/ports list
+- e: On ports layout, toggle external-only filter
+- g/G: Jump to top/bottom of process/ports list
 - + or -: Adjust update interval (faster/slower)
 - h or ?: Toggle this help menu
 - j/k or ↓/↑: Scroll help text

@@ -29,9 +29,11 @@ const (
 	LayoutHistorySoC      = "history_soc"  // StepChart history: CPU, GPU, ANE, DRAM Bandwidth
 	LayoutFan             = "fan"          // Fan control and temperature sensors
 	LayoutGPUMemory       = "gpu_memory"   // GPU + Memory focused with memory bandwidth chart
+	LayoutPorts           = "ports"        // Listening TCP/UDP ports per process
+	LayoutMemory          = "memory"       // Memory pressure, swap, DRAM bandwidth focused
 )
 
-var layoutOrder = []string{LayoutDefault, LayoutAlternative, LayoutAlternativeFull, LayoutVertical, LayoutCompact, LayoutDashboard, LayoutGaugesOnly, LayoutGPUFocus, LayoutCPUFocus, LayoutGPUMemory, LayoutNetworkIO, LayoutSmall, LayoutTiny, LayoutMicro, LayoutNano, LayoutPico, LayoutHistory, LayoutHistoryFull, LayoutHistorySoC, LayoutFan}
+var layoutOrder = []string{LayoutDefault, LayoutAlternative, LayoutAlternativeFull, LayoutVertical, LayoutCompact, LayoutDashboard, LayoutGaugesOnly, LayoutGPUFocus, LayoutCPUFocus, LayoutGPUMemory, LayoutMemory, LayoutNetworkIO, LayoutSmall, LayoutTiny, LayoutMicro, LayoutNano, LayoutPico, LayoutHistory, LayoutHistoryFull, LayoutHistorySoC, LayoutFan, LayoutPorts}
 
 func setupGrid() {
 	totalLayouts = len(layoutOrder)
@@ -110,212 +112,288 @@ func applyLayout(layoutName string) {
 }
 
 func setLayoutGrid(layoutName string) {
+	if setCompactLikeLayout(layoutName) {
+		return
+	}
+	if setter, ok := namedLayoutSetters[layoutName]; ok {
+		setter()
+		return
+	}
+	setDefaultLayoutGrid()
+}
+
+func setCompactLikeLayout(layoutName string) bool {
 	switch layoutName {
-	case LayoutAlternative:
-		grid.Set(
-			ui.NewRow(1.0/2,
-				ui.NewCol(1.0/2, cpuCoreWidget),
-				ui.NewCol(1.0/2,
-					ui.NewRow(1.0/2, gpuGauge),
-					ui.NewCol(1.0, ui.NewRow(1.0, memoryGauge)),
-				),
-			),
-			ui.NewRow(1.0/4,
-				ui.NewCol(1.0/6, modelText),
-				ui.NewCol(1.0/3, NetworkInfo),
-				ui.NewCol(1.0/4, PowerChart),
-				ui.NewCol(1.0/4, sparklineGroup),
-			),
-			ui.NewRow(1.0/4,
-				ui.NewCol(1.0, processList),
-			),
-		)
-	case LayoutAlternativeFull:
-		grid.Set(
-			ui.NewRow(1.0/4,
-				ui.NewCol(1.0, cpuCoreWidget),
-			),
-			ui.NewRow(1.0/4,
-				ui.NewCol(1.0/2, gpuGauge),
-				ui.NewCol(1.0/2, memoryGauge),
-			),
-			ui.NewRow(1.0/4,
-				ui.NewCol(1.0/6, modelText),
-				ui.NewCol(1.0/3, NetworkInfo),
-				ui.NewCol(1.0/4, PowerChart),
-				ui.NewCol(1.0/4, sparklineGroup),
-			),
-			ui.NewRow(1.0/4,
-				ui.NewCol(1.0, processList),
-			),
-		)
-	case LayoutVertical:
-		grid.Set(
-			ui.NewRow(1.0,
-				ui.NewCol(0.4,
-					ui.NewRow(1.0/8, cpuGauge),
-					ui.NewRow(1.0/8, gpuGauge),
-					ui.NewRow(1.0/8, aneGauge),
-					ui.NewRow(1.5/8, memoryGauge),
-					ui.NewRow(1.5/8, NetworkInfo),
-					ui.NewRow(2.0/8, modelText),
-				),
-				ui.NewCol(0.6,
-					ui.NewRow(3.0/4, processList),
-					ui.NewRow(1.0/4,
-						ui.NewCol(1.0/2, PowerChart),
-						ui.NewCol(1.0/2, sparklineGroup),
-					),
-				),
-			),
-		)
-	case LayoutCompact:
-		grid.Set(
-			ui.NewRow(2.0/8,
-				ui.NewCol(1.0/4, cpuGauge),
-				ui.NewCol(1.0/4, gpuGauge),
-				ui.NewCol(1.0/4, memoryGauge),
-				ui.NewCol(1.0/4, aneGauge),
-			),
-			ui.NewRow(2.0/8,
-				ui.NewCol(1.0/3, modelText),
-				ui.NewCol(1.0/3, NetworkInfo),
-				ui.NewCol(1.0/3, PowerChart),
-			),
-			ui.NewRow(2.0/4,
-				ui.NewCol(1.0, processList),
-			),
-		)
-	case LayoutDashboard:
-		grid.Set(
-			ui.NewRow(1.0/4,
-				ui.NewCol(1.0/4, cpuGauge),
-				ui.NewCol(1.0/4, gpuGauge),
-				ui.NewCol(1.0/4, memoryGauge),
-				ui.NewCol(1.0/4, aneGauge),
-			),
-			ui.NewRow(1.0/4,
-				ui.NewCol(1.0/2, sparklineGroup),
-				ui.NewCol(1.0/2, gpuSparklineGroup),
-			),
-			ui.NewRow(2.0/4,
-				ui.NewCol(1.0, processList),
-			),
-		)
-	case LayoutGaugesOnly:
-		grid.Set(
-			ui.NewRow(1.0/3,
-				ui.NewCol(1.0/2, cpuGauge),
-				ui.NewCol(1.0/2, memoryGauge),
-			),
-			ui.NewRow(1.0/3,
-				ui.NewCol(1.0/2, gpuGauge),
-				ui.NewCol(1.0/2, aneGauge),
-			),
-			ui.NewRow(1.0/3,
-				ui.NewCol(1.0/2, gpuSparklineGroup),
-				ui.NewCol(1.0/2, sparklineGroup),
-			),
-		)
-	case LayoutGPUFocus:
-		grid.Set(
-			ui.NewRow(1.0/4,
-				ui.NewCol(1.0/2, gpuGauge),
-				ui.NewCol(1.0/2, gpuSparklineGroup),
-			),
-			ui.NewRow(1.0/4,
-				ui.NewCol(1.0/4, cpuGauge),
-				ui.NewCol(1.0/4, memoryGauge),
-				ui.NewCol(1.0/4, NetworkInfo),
-				ui.NewCol(1.0/4, modelText),
-			),
-			ui.NewRow(2.0/4,
-				ui.NewCol(1.0, processList),
-			),
-		)
-	case LayoutCPUFocus:
-		grid.Set(
-			ui.NewRow(1.0/3,
-				ui.NewCol(1.0/3, cpuGauge),
-				ui.NewCol(2.0/3, cpuCoreWidget),
-			),
-			ui.NewRow(1.0/6,
-				ui.NewCol(1.0/4, gpuGauge),
-				ui.NewCol(1.0/4, memoryGauge),
-				ui.NewCol(1.0/4, sparklineGroup),
-				ui.NewCol(1.0/4, PowerChart),
-			),
-			ui.NewRow(3.0/6,
-				ui.NewCol(1.0, processList),
-			),
-		)
-	case LayoutNetworkIO:
-		grid.Set(
-			ui.NewRow(1.0/4,
-				ui.NewCol(1.0/3, gpuSparklineGroup),
-				ui.NewCol(1.0/3, sparklineGroup),
-				ui.NewCol(1.0/3, NetworkInfo),
-			),
-			ui.NewRow(2.0/4,
-				ui.NewCol(1.0/2,
-					ui.NewRow(1.0/2, gpuGauge),
-					ui.NewRow(1.0/2, memoryGauge),
-				),
-				ui.NewCol(1.0/2,
-					ui.NewRow(1.0/2, tbInfoParagraph),
-					ui.NewRow(1.0/2, tbNetSparklineGroup),
-				),
-			),
-			ui.NewRow(1.0/4,
-				ui.NewCol(1.0, processList),
-			),
-		)
-	case LayoutSmall:
-		grid.Set(
-			ui.NewRow(1.0,
-				ui.NewCol(1.0,
-					ui.NewRow(1.0/4, cpuGauge),
-					ui.NewRow(1.0/4, gpuGauge),
-					ui.NewRow(1.0/4, memoryGauge),
-					ui.NewRow(1.0/4, aneGauge),
-				),
-			),
-		)
 	case LayoutTiny, LayoutMicro, LayoutNano, LayoutPico:
 		setCompactLayoutGrid(layoutName)
+		return true
 	case LayoutInfo, LayoutFan:
 		setInfoFanLayoutGrid(layoutName)
+		return true
 	case LayoutHistory, LayoutHistoryFull, LayoutGPUMemory:
 		setHistoryLikeLayoutGrid(layoutName)
-	case LayoutHistorySoC:
-		setHistorySoCLayoutGrid()
-	default: // LayoutDefault
-		grid.Set(
-			ui.NewRow(1.0/4,
-				ui.NewCol(1.0/2, cpuGauge),
-				ui.NewCol(1.0/2, gpuGauge),
-			),
-			ui.NewRow(2.0/4,
-				ui.NewCol(1.0/2,
-					ui.NewRow(1.0/2, aneGauge),
-					ui.NewRow(1.0/2,
-						ui.NewCol(1.0/2, PowerChart),
-						ui.NewCol(1.0/2, sparklineGroup),
-					),
-				),
-				ui.NewCol(1.0/2,
-					ui.NewRow(1.0/2, memoryGauge),
-					ui.NewRow(1.0/2,
-						ui.NewCol(1.0/3, modelText),
-						ui.NewCol(2.0/3, NetworkInfo),
-					),
-				),
-			),
-			ui.NewRow(1.0/4,
-				ui.NewCol(1.0, processList),
-			),
-		)
+		return true
+	default:
+		return false
 	}
+}
+
+var namedLayoutSetters = map[string]func(){
+	LayoutPorts:           setPortsLayoutGrid,
+	LayoutMemory:          setMemoryLayoutGrid,
+	LayoutHistorySoC:      setHistorySoCLayoutGrid,
+	LayoutAlternative:     setAlternativeLayoutGrid,
+	LayoutAlternativeFull: setAlternativeFullLayoutGrid,
+	LayoutVertical:        setVerticalLayoutGrid,
+	LayoutCompact:         setCompactMainLayoutGrid,
+	LayoutDashboard:       setDashboardLayoutGrid,
+	LayoutGaugesOnly:      setGaugesOnlyLayoutGrid,
+	LayoutGPUFocus:        setGPUFocusLayoutGrid,
+	LayoutCPUFocus:        setCPUFocusLayoutGrid,
+	LayoutNetworkIO:       setNetworkIOLayoutGrid,
+	LayoutSmall:           setSmallLayoutGrid,
+}
+
+func setMemoryLayoutGrid() {
+	// Each panel owns a distinct signal:
+	// memoryGauge / memoryHistoryChart = used+swap
+	// memoryPressurePanel / memoryPressureHistoryChart = kernel pressure
+	// memBWHistoryChart = DRAM bandwidth
+	// processList = process table
+	grid.Set(
+		ui.NewRow(1.0/5,
+			ui.NewCol(1.0/2, memoryGauge),
+			ui.NewCol(1.0/2, memoryPressurePanel),
+		),
+		ui.NewRow(1.0/5,
+			ui.NewCol(1.0/2, memoryHistoryChart),
+			ui.NewCol(1.0/2, memoryPressureHistoryChart),
+		),
+		ui.NewRow(1.0/5,
+			ui.NewCol(1.0, memBWHistoryChart),
+		),
+		ui.NewRow(2.0/5,
+			ui.NewCol(1.0, processList),
+		),
+	)
+}
+
+func setAlternativeLayoutGrid() {
+	grid.Set(
+		ui.NewRow(1.0/2,
+			ui.NewCol(1.0/2, cpuCoreWidget),
+			ui.NewCol(1.0/2,
+				ui.NewRow(1.0/2, gpuGauge),
+				ui.NewCol(1.0, ui.NewRow(1.0, memoryGauge)),
+			),
+		),
+		ui.NewRow(1.0/4,
+			ui.NewCol(1.0/6, modelText),
+			ui.NewCol(1.0/3, NetworkInfo),
+			ui.NewCol(1.0/4, PowerChart),
+			ui.NewCol(1.0/4, sparklineGroup),
+		),
+		ui.NewRow(1.0/4,
+			ui.NewCol(1.0, processList),
+		),
+	)
+}
+
+func setAlternativeFullLayoutGrid() {
+	grid.Set(
+		ui.NewRow(1.0/4,
+			ui.NewCol(1.0, cpuCoreWidget),
+		),
+		ui.NewRow(1.0/4,
+			ui.NewCol(1.0/2, gpuGauge),
+			ui.NewCol(1.0/2, memoryGauge),
+		),
+		ui.NewRow(1.0/4,
+			ui.NewCol(1.0/6, modelText),
+			ui.NewCol(1.0/3, NetworkInfo),
+			ui.NewCol(1.0/4, PowerChart),
+			ui.NewCol(1.0/4, sparklineGroup),
+		),
+		ui.NewRow(1.0/4,
+			ui.NewCol(1.0, processList),
+		),
+	)
+}
+
+func setVerticalLayoutGrid() {
+	grid.Set(
+		ui.NewRow(1.0,
+			ui.NewCol(0.4,
+				ui.NewRow(1.0/8, cpuGauge),
+				ui.NewRow(1.0/8, gpuGauge),
+				ui.NewRow(1.0/8, aneGauge),
+				ui.NewRow(1.5/8, memoryGauge),
+				ui.NewRow(1.5/8, NetworkInfo),
+				ui.NewRow(2.0/8, modelText),
+			),
+			ui.NewCol(0.6,
+				ui.NewRow(3.0/4, processList),
+				ui.NewRow(1.0/4,
+					ui.NewCol(1.0/2, PowerChart),
+					ui.NewCol(1.0/2, sparklineGroup),
+				),
+			),
+		),
+	)
+}
+
+func setCompactMainLayoutGrid() {
+	grid.Set(
+		ui.NewRow(2.0/8,
+			ui.NewCol(1.0/4, cpuGauge),
+			ui.NewCol(1.0/4, gpuGauge),
+			ui.NewCol(1.0/4, memoryGauge),
+			ui.NewCol(1.0/4, aneGauge),
+		),
+		ui.NewRow(2.0/8,
+			ui.NewCol(1.0/3, modelText),
+			ui.NewCol(1.0/3, NetworkInfo),
+			ui.NewCol(1.0/3, PowerChart),
+		),
+		ui.NewRow(2.0/4,
+			ui.NewCol(1.0, processList),
+		),
+	)
+}
+
+func setDashboardLayoutGrid() {
+	grid.Set(
+		ui.NewRow(1.0/4,
+			ui.NewCol(1.0/4, cpuGauge),
+			ui.NewCol(1.0/4, gpuGauge),
+			ui.NewCol(1.0/4, memoryGauge),
+			ui.NewCol(1.0/4, aneGauge),
+		),
+		ui.NewRow(1.0/4,
+			ui.NewCol(1.0/2, sparklineGroup),
+			ui.NewCol(1.0/2, gpuSparklineGroup),
+		),
+		ui.NewRow(2.0/4,
+			ui.NewCol(1.0, processList),
+		),
+	)
+}
+
+func setGaugesOnlyLayoutGrid() {
+	grid.Set(
+		ui.NewRow(1.0/3,
+			ui.NewCol(1.0/2, cpuGauge),
+			ui.NewCol(1.0/2, memoryGauge),
+		),
+		ui.NewRow(1.0/3,
+			ui.NewCol(1.0/2, gpuGauge),
+			ui.NewCol(1.0/2, aneGauge),
+		),
+		ui.NewRow(1.0/3,
+			ui.NewCol(1.0/2, gpuSparklineGroup),
+			ui.NewCol(1.0/2, sparklineGroup),
+		),
+	)
+}
+
+func setGPUFocusLayoutGrid() {
+	grid.Set(
+		ui.NewRow(1.0/4,
+			ui.NewCol(1.0/2, gpuGauge),
+			ui.NewCol(1.0/2, gpuSparklineGroup),
+		),
+		ui.NewRow(1.0/4,
+			ui.NewCol(1.0/4, cpuGauge),
+			ui.NewCol(1.0/4, memoryGauge),
+			ui.NewCol(1.0/4, NetworkInfo),
+			ui.NewCol(1.0/4, modelText),
+		),
+		ui.NewRow(2.0/4,
+			ui.NewCol(1.0, processList),
+		),
+	)
+}
+
+func setCPUFocusLayoutGrid() {
+	grid.Set(
+		ui.NewRow(1.0/3,
+			ui.NewCol(1.0/3, cpuGauge),
+			ui.NewCol(2.0/3, cpuCoreWidget),
+		),
+		ui.NewRow(1.0/6,
+			ui.NewCol(1.0/4, gpuGauge),
+			ui.NewCol(1.0/4, memoryGauge),
+			ui.NewCol(1.0/4, sparklineGroup),
+			ui.NewCol(1.0/4, PowerChart),
+		),
+		ui.NewRow(3.0/6,
+			ui.NewCol(1.0, processList),
+		),
+	)
+}
+
+func setNetworkIOLayoutGrid() {
+	grid.Set(
+		ui.NewRow(1.0/4,
+			ui.NewCol(1.0/3, gpuSparklineGroup),
+			ui.NewCol(1.0/3, sparklineGroup),
+			ui.NewCol(1.0/3, NetworkInfo),
+		),
+		ui.NewRow(2.0/4,
+			ui.NewCol(1.0/2,
+				ui.NewRow(1.0/2, gpuGauge),
+				ui.NewRow(1.0/2, memoryGauge),
+			),
+			ui.NewCol(1.0/2,
+				ui.NewRow(1.0/2, tbInfoParagraph),
+				ui.NewRow(1.0/2, tbNetSparklineGroup),
+			),
+		),
+		ui.NewRow(1.0/4,
+			ui.NewCol(1.0, processList),
+		),
+	)
+}
+
+func setSmallLayoutGrid() {
+	grid.Set(
+		ui.NewRow(1.0,
+			ui.NewCol(1.0,
+				ui.NewRow(1.0/4, cpuGauge),
+				ui.NewRow(1.0/4, gpuGauge),
+				ui.NewRow(1.0/4, memoryGauge),
+				ui.NewRow(1.0/4, aneGauge),
+			),
+		),
+	)
+}
+
+func setDefaultLayoutGrid() {
+	grid.Set(
+		ui.NewRow(1.0/4,
+			ui.NewCol(1.0/2, cpuGauge),
+			ui.NewCol(1.0/2, gpuGauge),
+		),
+		ui.NewRow(2.0/4,
+			ui.NewCol(1.0/2,
+				ui.NewRow(1.0/2, aneGauge),
+				ui.NewRow(1.0/2,
+					ui.NewCol(1.0/2, PowerChart),
+					ui.NewCol(1.0/2, sparklineGroup),
+				),
+			),
+			ui.NewCol(1.0/2,
+				ui.NewRow(1.0/2, memoryGauge),
+				ui.NewRow(1.0/2,
+					ui.NewCol(1.0/3, modelText),
+					ui.NewCol(2.0/3, NetworkInfo),
+				),
+			),
+		),
+		ui.NewRow(1.0/4,
+			ui.NewCol(1.0, processList),
+		),
+	)
 }
 
 func setCompactLayoutGrid(layoutName string) {
@@ -476,6 +554,19 @@ func setHistoryFullLayoutGrid() {
 			ui.NewCol(1.0/2, memoryHistoryChart),
 		),
 		ui.NewRow(1.0/3,
+			ui.NewCol(1.0, processList),
+		),
+	)
+}
+
+func setPortsLayoutGrid() {
+	grid.Set(
+		ui.NewRow(1.0/5,
+			ui.NewCol(1.0/3, NetworkInfo),
+			ui.NewCol(1.0/3, modelText),
+			ui.NewCol(1.0/3, PowerChart),
+		),
+		ui.NewRow(4.0/5,
 			ui.NewCol(1.0, processList),
 		),
 	)

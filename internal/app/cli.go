@@ -145,9 +145,14 @@ func runTestApp() {
 			m.CPUPower, m.GPUPower, m.GPUFreqMHz, m.GPUActive)
 		fmt.Printf(i18n.T("CLI_TestANE")+"\n",
 			m.ANEPower, m.DRAMPower, m.GPUSRAMPower, m.TotalPower, thermalStr)
-		// Also show direct ANE utilization % (residency above the idle floor on
-		// the PMP ANE-AF-BW / ANE-DCS-BW state channels) when available
-		if m.ANEActive > 0 {
+		// Show direct ANE utilization % (residency above the idle floor on the
+		// PMP ANE-AF-BW / ANE-DCS-BW state channels) when available. On M5 Max /
+		// macOS 27 those channels are absent for non-root, so ANEActive is the
+		// binary power-domain signal instead — report it as powered/idle.
+		if m.ANEPowered {
+			fmt.Printf("  ANE: %s (system-wide power state; per-process util needs root)\n",
+				anePoweredLabel(m.ANEActive))
+		} else if m.ANEActive > 0 {
 			fmt.Printf("  ANE use: %.1f%%\n", m.ANEActive)
 		}
 		if m.ANEBWCombined > 0.01 {

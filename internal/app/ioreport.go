@@ -85,6 +85,10 @@ typedef struct {
     int64_t aneReadBytes;
     int64_t aneWriteBytes;
     int64_t actualDurationNs;
+    int aneClusterCount;
+    double aneClusterActive[4];
+    int aneIsPowerState;
+    int aneIsExclave;
     int fanCount;
     fan_info_t fans[8];
     int tempSensorCount;
@@ -138,33 +142,42 @@ type TempSensor struct {
 }
 
 type SocMetrics struct {
-	CPUPower        float64      `json:"cpu_power"`
-	GPUPower        float64      `json:"gpu_power"`
-	ANEPower        float64      `json:"ane_power"`
-	DRAMPower       float64      `json:"dram_power"`
-	GPUSRAMPower    float64      `json:"gpu_sram_power"`
-	SystemPower     float64      `json:"system_power"`
-	TotalPower      float64      `json:"total_power"`
-	GPUFreqMHz      int32        `json:"gpu_freq_mhz"`
-	GPUActive       float64      `json:"gpu_active"`
-	EClusterActive  float64      `json:"e_cluster_active"`
-	PClusterActive  float64      `json:"p_cluster_active"`
-	SClusterActive  float64      `json:"s_cluster_active,omitempty"`
-	EClusterFreqMHz int32        `json:"e_cluster_freq_mhz"`
-	PClusterFreqMHz int32        `json:"p_cluster_freq_mhz"`
-	SClusterFreqMHz int32        `json:"s_cluster_freq_mhz,omitempty"`
-	SocTemp         float32      `json:"soc_temp"`
-	CPUTemp         float32      `json:"cpu_temp"`
-	GPUTemp         float32      `json:"gpu_temp"`
-	DRAMReadBW      float64      `json:"dram_read_bw_gbs"`
-	DRAMWriteBW     float64      `json:"dram_write_bw_gbs"`
-	DRAMBWCombined  float64      `json:"dram_bw_combined_gbs"`
-	ANEReadBW       float64      `json:"ane_read_bw_gbs"`
-	ANEWriteBW      float64      `json:"ane_write_bw_gbs"`
-	ANEBWCombined   float64      `json:"ane_bw_combined_gbs"`
-	ANEActive       float64      `json:"ane_active"`
-	Fans            []FanInfo    `json:"-"`
-	TempSensors     []TempSensor `json:"-"`
+	CPUPower        float64 `json:"cpu_power"`
+	GPUPower        float64 `json:"gpu_power"`
+	ANEPower        float64 `json:"ane_power"`
+	DRAMPower       float64 `json:"dram_power"`
+	GPUSRAMPower    float64 `json:"gpu_sram_power"`
+	SystemPower     float64 `json:"system_power"`
+	TotalPower      float64 `json:"total_power"`
+	GPUFreqMHz      int32   `json:"gpu_freq_mhz"`
+	GPUActive       float64 `json:"gpu_active"`
+	EClusterActive  float64 `json:"e_cluster_active"`
+	PClusterActive  float64 `json:"p_cluster_active"`
+	SClusterActive  float64 `json:"s_cluster_active,omitempty"`
+	EClusterFreqMHz int32   `json:"e_cluster_freq_mhz"`
+	PClusterFreqMHz int32   `json:"p_cluster_freq_mhz"`
+	SClusterFreqMHz int32   `json:"s_cluster_freq_mhz,omitempty"`
+	SocTemp         float32 `json:"soc_temp"`
+	CPUTemp         float32 `json:"cpu_temp"`
+	GPUTemp         float32 `json:"gpu_temp"`
+	DRAMReadBW      float64 `json:"dram_read_bw_gbs"`
+	DRAMWriteBW     float64 `json:"dram_write_bw_gbs"`
+	DRAMBWCombined  float64 `json:"dram_bw_combined_gbs"`
+	ANEReadBW       float64 `json:"ane_read_bw_gbs"`
+	ANEWriteBW      float64 `json:"ane_write_bw_gbs"`
+	ANEBWCombined   float64 `json:"ane_bw_combined_gbs"`
+	ANEActive       float64 `json:"ane_active"`
+	// ANEPowered is true when ANEActive is the binary ANE power-domain signal
+	// (M5 Max / macOS 27 non-root fallback) rather than a true utilization %.
+	ANEPowered bool `json:"ane_powered,omitempty"`
+	// ANEExclave is true on exclave-based ANE drivers (M5 / M5 Max), where the
+	// power-state signal is binary powered/idle only — never a utilization %.
+	ANEExclave bool `json:"ane_exclave,omitempty"`
+	// Per-cluster ANE power-domain duty (0-100%) from each H11ANEIn node.
+	ANEClusterCount  int          `json:"ane_cluster_count,omitempty"`
+	ANEClusterActive []float64    `json:"ane_cluster_active,omitempty"`
+	Fans             []FanInfo    `json:"-"`
+	TempSensors      []TempSensor `json:"-"`
 }
 
 func initSocMetrics() error {
@@ -182,6 +195,19 @@ func initSocMetrics() error {
 // DumpIOReportDebug runs the standalone diagnostic dump (works even if initIOReport fails).
 func DumpIOReportDebug() {
 	C.dumpIOReportDebug()
+}
+
+// aneClusterActiveSlice converts the C per-die ANE activity array into a Go
+// slice, skipping negative (absent) entries. Capped at 4 dies.
+func aneClusterActiveSlice(pm C.PowerMetrics) (int, []float64) {
+	count := int(pm.aneClusterCount)
+	active := make([]float64, 0, count)
+	for i := 0; i < count && i < 4; i++ {
+		if pm.aneClusterActive[i] >= 0 {
+			active = append(active, float64(pm.aneClusterActive[i]))
+		}
+	}
+	return count, active
 }
 
 func sampleSocMetrics(durationMs int) SocMetrics {
@@ -257,34 +283,40 @@ func sampleSocMetrics(durationMs int) SocMetrics {
 		}
 	}
 
+	aneClusterCount, aneClusterActive := aneClusterActiveSlice(pm)
+
 	return SocMetrics{
-		CPUPower:        float64(pm.cpuPower),
-		GPUPower:        float64(pm.gpuPower),
-		ANEPower:        float64(pm.anePower),
-		DRAMPower:       float64(pm.dramPower),
-		GPUSRAMPower:    float64(pm.gpuSramPower),
-		SystemPower:     float64(pm.systemPower),
-		TotalPower:      float64(pm.cpuPower) + float64(pm.gpuPower) + float64(pm.anePower) + float64(pm.dramPower) + float64(pm.gpuSramPower),
-		GPUFreqMHz:      int32(pm.gpuFreqMHz),
-		GPUActive:       float64(pm.gpuActive),
-		EClusterActive:  float64(pm.eClusterActive),
-		PClusterActive:  float64(pm.pClusterActive),
-		SClusterActive:  float64(pm.sClusterActive),
-		EClusterFreqMHz: int32(pm.eClusterFreqMHz),
-		PClusterFreqMHz: int32(pm.pClusterFreqMHz),
-		SClusterFreqMHz: int32(pm.sClusterFreqMHz),
-		SocTemp:         float32(pm.socTemp),
-		CPUTemp:         float32(pm.cpuTemp),
-		GPUTemp:         float32(pm.gpuTemp),
-		DRAMReadBW:      dramReadBW,
-		DRAMWriteBW:     dramWriteBW,
-		DRAMBWCombined:  dramBWCombined,
-		ANEReadBW:       aneReadBW,
-		ANEWriteBW:      aneWriteBW,
-		ANEBWCombined:   aneBWCombined,
-		ANEActive:       float64(pm.aneActive),
-		Fans:            fans,
-		TempSensors:     tempSensors,
+		CPUPower:         float64(pm.cpuPower),
+		GPUPower:         float64(pm.gpuPower),
+		ANEPower:         float64(pm.anePower),
+		DRAMPower:        float64(pm.dramPower),
+		GPUSRAMPower:     float64(pm.gpuSramPower),
+		SystemPower:      float64(pm.systemPower),
+		TotalPower:       float64(pm.cpuPower) + float64(pm.gpuPower) + float64(pm.anePower) + float64(pm.dramPower) + float64(pm.gpuSramPower),
+		GPUFreqMHz:       int32(pm.gpuFreqMHz),
+		GPUActive:        float64(pm.gpuActive),
+		EClusterActive:   float64(pm.eClusterActive),
+		PClusterActive:   float64(pm.pClusterActive),
+		SClusterActive:   float64(pm.sClusterActive),
+		EClusterFreqMHz:  int32(pm.eClusterFreqMHz),
+		PClusterFreqMHz:  int32(pm.pClusterFreqMHz),
+		SClusterFreqMHz:  int32(pm.sClusterFreqMHz),
+		SocTemp:          float32(pm.socTemp),
+		CPUTemp:          float32(pm.cpuTemp),
+		GPUTemp:          float32(pm.gpuTemp),
+		DRAMReadBW:       dramReadBW,
+		DRAMWriteBW:      dramWriteBW,
+		DRAMBWCombined:   dramBWCombined,
+		ANEReadBW:        aneReadBW,
+		ANEWriteBW:       aneWriteBW,
+		ANEBWCombined:    aneBWCombined,
+		ANEActive:        float64(pm.aneActive),
+		ANEPowered:       pm.aneIsPowerState != 0,
+		ANEExclave:       pm.aneIsExclave != 0,
+		ANEClusterCount:  aneClusterCount,
+		ANEClusterActive: aneClusterActive,
+		Fans:             fans,
+		TempSensors:      tempSensors,
 	}
 }
 

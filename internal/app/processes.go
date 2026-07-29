@@ -526,6 +526,11 @@ func buildProcessRows(processes []ProcessMetrics, maxWidths map[string]int) []st
 }
 
 func updateProcessList() {
+	if isPortsLayoutActive() {
+		updatePortsList()
+		return
+	}
+
 	processes := lastProcesses
 	if searchText != "" {
 		if filteredProcesses == nil {
@@ -567,6 +572,7 @@ func handleSearchInput(e ui.Event) {
 		searchMode = false
 		searchText = ""
 		filteredProcesses = nil
+		filteredPorts = nil
 		updateProcessList()
 	case "<Enter>":
 		searchMode = false
@@ -578,23 +584,39 @@ func handleSearchInput(e ui.Event) {
 			runes := []rune(searchText)
 			searchText = string(runes[:len(runes)-1])
 		}
-		updateFilteredProcesses()
+		if isPortsLayoutActive() {
+			updateFilteredPorts()
+		} else {
+			updateFilteredProcesses()
+		}
 		updateProcessList()
 	case "<Space>":
 		searchText += " "
-		updateFilteredProcesses()
+		if isPortsLayoutActive() {
+			updateFilteredPorts()
+		} else {
+			updateFilteredProcesses()
+		}
 		updateProcessList()
 	default:
 		// Only append printable characters (simple check)
 		if len(e.ID) == 1 {
 			searchText += e.ID
-			updateFilteredProcesses()
+			if isPortsLayoutActive() {
+				updateFilteredPorts()
+			} else {
+				updateFilteredProcesses()
+			}
 			updateProcessList()
 		}
 	}
 }
 
 func refreshFilteredProcesses() {
+	if isPortsLayoutActive() {
+		refreshFilteredPorts()
+		return
+	}
 	if searchText == "" {
 		filteredProcesses = nil
 		return
@@ -609,6 +631,10 @@ func refreshFilteredProcesses() {
 }
 
 func updateFilteredProcesses() {
+	if isPortsLayoutActive() {
+		updateFilteredPorts()
+		return
+	}
 	refreshFilteredProcesses()
 	if len(filteredProcesses) > 0 {
 		processList.SelectedRow = 1
@@ -720,6 +746,14 @@ func executeKill() {
 				updateFilteredProcesses()
 			}
 		}
+		if isPortsLayoutActive() {
+			if ports, err := collectListeningPorts(); err == nil {
+				lastPorts = ports
+				if searchMode || searchText != "" || portsExternalOnly {
+					updateFilteredPorts()
+				}
+			}
+		}
 	} else {
 		stderrLogger.Printf("Failed to kill PID %d: %v\n", killPID, err)
 	}
@@ -745,6 +779,10 @@ func handleNavigation(e ui.Event) {
 		handleSortToggle()
 	case "<F9>":
 		attemptKillProcess()
+	case "e":
+		if isPortsLayoutActive() {
+			togglePortsExternalFilter()
+		}
 	}
 }
 

@@ -214,29 +214,9 @@ uint32_t getDisplayFrameIntervalUs(void) {
 
 // ---------- Diagnostic dump ----------
 
-// CGPreflightScreenCaptureAccess was added in macOS 10.15
+// CGPreflightScreenCaptureAccess was added in macOS 10.15 (used by the
+// diagnostic dump below to report the grant without triggering a prompt).
 typedef bool (*CGPreflightScreenCaptureAccess_fn)(void);
-
-// hasScreenRecordingAccess reports whether Screen Recording permission is
-// already granted, WITHOUT triggering the system permission prompt
-// (CGPreflightScreenCaptureAccess only checks; it never asks). Used to decide
-// whether non-interactive modes may start the CGDisplayStream FPS counter —
-// creating the stream without permission pops the prompt, which is hostile in
-// --headless runs (cron/SSH/scripts). Returns 1 when access is granted, 0 when
-// not granted or the API is unavailable.
-int hasScreenRecordingAccess(void) {
-  void *cg = dlopen(
-      "/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics",
-      RTLD_LAZY);
-  if (cg == NULL)
-    return 0;
-  CGPreflightScreenCaptureAccess_fn preflightFn =
-      (CGPreflightScreenCaptureAccess_fn)dlsym(cg,
-                                               "CGPreflightScreenCaptureAccess");
-  if (preflightFn == NULL)
-    return 0;
-  return preflightFn() ? 1 : 0;
-}
 
 // dumpDisplayFPSDiagnostics prints comprehensive display and CGDisplayStream
 // diagnostic info to stdout so remote users can paste the output for debugging.
