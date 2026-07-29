@@ -683,6 +683,13 @@ func updatePrometheusSensors(fans []FanInfo, sensors []TempSensor) {
 	}
 }
 
+func shouldCollectPorts() bool {
+	// Full FD/socket enumeration is O(processes × FDs). Only pay for it when
+	// the ports layout is active or Prometheus is exporting port gauges.
+	// Headless mode collects ports separately in collectHeadlessData.
+	return isPortsLayoutActive() || prometheusPort != ""
+}
+
 func collectProcessMetrics(done chan struct{}, processMetricsChan chan []ProcessMetrics, portMetricsChan chan []PortMetrics, triggerChan chan struct{}) {
 	for {
 		select {
@@ -699,6 +706,9 @@ func collectProcessMetrics(done chan struct{}, processMetricsChan chan []Process
 				stderrLogger.Printf("Error getting process list: %v\n", err)
 			}
 
+			if !shouldCollectPorts() {
+				continue
+			}
 			if ports, err := collectListeningPorts(); err == nil {
 				publishPrometheusPorts(ports)
 				select {

@@ -521,6 +521,20 @@ func TestANEPowerStateGaugeTitle(t *testing.T) {
 	if title != "ANE idle" {
 		t.Fatalf("power-state idle title: got %q, want %q", title, "ANE idle")
 	}
+
+	// Compact layouts must take the same power-state path (Gitzilla regression:
+	// previously isCompactLayout ran first and embedded dead 0.0W watts).
+	origLayout := currentConfig.DefaultLayout
+	t.Cleanup(func() { currentConfig.DefaultLayout = origLayout })
+	currentConfig.DefaultLayout = LayoutTiny
+	resetANETestState(t)
+	title = aneGaugeTitle(powered, aneUtilizationPercent(powered), powered.ANEBW, aneBWLabelMode(powered))
+	if title != "ANE powered" {
+		t.Fatalf("compact power-state title: got %q, want %q", title, "ANE powered")
+	}
+	if strings.Contains(title, "W") || strings.Contains(title, "0.0") {
+		t.Fatalf("compact power-state title must not embed wattage: got %q", title)
+	}
 }
 
 // TestANEGaugeInnerLabel guards the gauge's inner bar label (Cursor review of

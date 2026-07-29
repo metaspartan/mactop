@@ -135,6 +135,32 @@ func TestLayoutPortsInOrder(t *testing.T) {
 	}
 }
 
+func TestShouldCollectPorts(t *testing.T) {
+	origLayout := currentConfig.DefaultLayout
+	origProm := prometheusPort
+	t.Cleanup(func() {
+		currentConfig.DefaultLayout = origLayout
+		prometheusPort = origProm
+	})
+
+	currentConfig.DefaultLayout = LayoutDefault
+	prometheusPort = ""
+	if shouldCollectPorts() {
+		t.Fatal("default layout without prometheus should not collect ports")
+	}
+
+	currentConfig.DefaultLayout = LayoutPorts
+	if !shouldCollectPorts() {
+		t.Fatal("ports layout should collect ports")
+	}
+
+	currentConfig.DefaultLayout = LayoutDefault
+	prometheusPort = "9101"
+	if !shouldCollectPorts() {
+		t.Fatal("prometheus enabled should collect ports")
+	}
+}
+
 func TestCollectListeningPortsSmoke(t *testing.T) {
 	ports, err := collectListeningPorts()
 	if err != nil {
