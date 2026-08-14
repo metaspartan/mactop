@@ -518,24 +518,24 @@ func setHistorySoCLayoutGrid() {
 }
 
 func setUnifiedLayoutGrid() {
-	// The dashboard is ordered by the hardware/data-flow hierarchy:
-	// compute -> memory subsystem -> external I/O and power.
+	// Reserve the left two thirds for four equal-height histories. The right
+	// column keeps current-state context and a taller process list.
 	grid.Set(
-		ui.NewRow(0.38,
-			ui.NewCol(0.66, unifiedComputeHistoryChart),
-			ui.NewCol(0.34,
-				ui.NewRow(0.50, cpuCoreWidget),
-				ui.NewRow(0.50, unifiedHealthPanel),
+		ui.NewRow(1.0,
+			ui.NewCol(2.0/3,
+				ui.NewRow(1.0/4, unifiedComputeHistoryChart),
+				ui.NewRow(1.0/4, memoryHistoryChart),
+				ui.NewRow(1.0/4, socPowerHistoryChart),
+				ui.NewRow(1.0/4,
+					ui.NewCol(1.0/2, unifiedNetworkHistoryChart),
+					ui.NewCol(1.0/2, unifiedDiskHistoryChart),
+				),
 			),
-		),
-		ui.NewRow(0.32,
-			ui.NewCol(2.0/3, memoryHistoryChart),
-			ui.NewCol(1.0/3, unifiedProcessList),
-		),
-		ui.NewRow(0.30,
-			ui.NewCol(1.0/3, unifiedNetworkHistoryChart),
-			ui.NewCol(1.0/3, unifiedDiskHistoryChart),
-			ui.NewCol(1.0/3, socPowerHistoryChart),
+			ui.NewCol(1.0/3,
+				ui.NewRow(1.0/4, cpuCoreWidget),
+				ui.NewRow(1.0/4, unifiedHealthPanel),
+				ui.NewRow(1.0/2, unifiedProcessList),
+			),
 		),
 	)
 }

@@ -1130,7 +1130,7 @@ func updateMemoryHistory(memoryMetrics MemoryMetrics) {
 		if currentConfig.DefaultLayout == LayoutHistorySoC {
 			visibleWidth = (termWidth / 3) - 4
 		} else if currentConfig.DefaultLayout == LayoutUnified {
-			visibleWidth = (termWidth * 2 / 3) - 4
+			visibleWidth = unifiedHistoryWidth(termWidth)
 		}
 		if visibleWidth <= 0 || visibleWidth > len(memoryUsedHistory) {
 			visibleWidth = len(memoryUsedHistory)
@@ -1507,7 +1507,7 @@ func updateSoCPowerHistory(cpuMetrics CPUMetrics) {
 			// neighboring CPU/GPU/ANE charts' time window.
 			visibleWidth = (termWidth / 2) - 4
 		} else if currentConfig.DefaultLayout == LayoutUnified {
-			visibleWidth = (termWidth / 3) - 4
+			visibleWidth = unifiedHistoryWidth(termWidth)
 		}
 		if visibleWidth <= 0 || visibleWidth > len(cpuPowerHistory) {
 			visibleWidth = len(cpuPowerHistory)
@@ -1632,7 +1632,7 @@ func renderUnifiedComputeHistory() {
 	}
 
 	termWidth, _ := GetCachedTerminalDimensions()
-	visibleWidth := (termWidth * 2 / 3) - 4
+	visibleWidth := unifiedHistoryWidth(termWidth)
 	if visibleWidth <= 0 || visibleWidth > len(cpuUsageHistory) {
 		visibleWidth = len(cpuUsageHistory)
 	}
@@ -1663,6 +1663,10 @@ func renderUnifiedComputeHistory() {
 	}
 	unifiedComputeHistoryChart.Title = unifiedComputeHistoryTitle(lastCPUMetrics, lastGPUMetrics)
 	unifiedComputeHistoryChart.LineColors = unifiedComputeHistoryColors()
+}
+
+func unifiedHistoryWidth(termWidth int) int {
+	return (termWidth * 2 / 3) - 4
 }
 
 func unifiedComputeHistoryColors() []ui.Color {

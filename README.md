@@ -40,7 +40,7 @@
 - Easy-to-read terminal UI
 - **21 Layouts**: (`l` to cycle layouts) — includes a GPU + Memory focused layout with a DRAM read/write bandwidth history chart
   - New `history_soc` layout (`a` to jump to it): four large history StepCharts showing **CPU, GPU, ANE, and DRAM + ANE Bandwidth (Read/Write)** side-by-side, with a compact process list at the bottom. Ideal for observing sustained load, on-device Neural Engine inference, and memory bandwidth behavior over time.
-  - New `unified` layout: a full-width CPU/GPU/ANE history, a memory subsystem row, and separate network, disk I/O, and SoC power histories for a complete system view.
+  - New `unified` layout: the left two thirds contain four history rows for CPU/GPU/ANE, memory/DRAM, SoC power, and separate network/disk I/O; the right third shows cores, thermals, and processes.
 - **Persistent Settings**: Remembers your Layout and Theme choice across restarts
 - Customizable UI color (green, red, blue, skyblue, magenta, yellow, gold, silver, white, lime, orange, violet, pink, and more) (`c` to cycle colors)
 - Customizable background color (`b` to cycle colors)

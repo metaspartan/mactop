@@ -228,6 +228,57 @@ func TestRenderUnifiedMemoryHistoryUsesChartColumnWidth(t *testing.T) {
 	}
 }
 
+func TestUnifiedHistoryWidthUsesLeftTwoThirds(t *testing.T) {
+	if got, want := unifiedHistoryWidth(120), 76; got != want {
+		t.Fatalf("unified history width = %d, want %d", got, want)
+	}
+}
+
+func TestUnifiedLayoutPlacesHistoriesInLeftFourRows(t *testing.T) {
+	origGrid := grid
+	origCompute, origMemory, origPower := unifiedComputeHistoryChart, memoryHistoryChart, socPowerHistoryChart
+	origNetwork, origDisk := unifiedNetworkHistoryChart, unifiedDiskHistoryChart
+	origCores, origHealth, origProcesses := cpuCoreWidget, unifiedHealthPanel, unifiedProcessList
+	t.Cleanup(func() {
+		grid = origGrid
+		unifiedComputeHistoryChart, memoryHistoryChart, socPowerHistoryChart = origCompute, origMemory, origPower
+		unifiedNetworkHistoryChart, unifiedDiskHistoryChart = origNetwork, origDisk
+		cpuCoreWidget, unifiedHealthPanel, unifiedProcessList = origCores, origHealth, origProcesses
+	})
+
+	grid = ui.NewGrid()
+	unifiedComputeHistoryChart, memoryHistoryChart, socPowerHistoryChart = NewPeakStepChart(), NewPeakStepChart(), NewPeakStepChart()
+	unifiedNetworkHistoryChart, unifiedDiskHistoryChart = NewPeakStepChart(), NewPeakStepChart()
+	cpuCoreWidget = &CPUCoreWidget{Block: ui.NewBlock()}
+	unifiedHealthPanel, unifiedProcessList = w.NewParagraph(), w.NewList()
+	setUnifiedLayoutGrid()
+
+	itemFor := func(widget any) *ui.GridItem {
+		for _, item := range grid.Items {
+			if item.Entry == widget {
+				return item
+			}
+		}
+		t.Fatalf("layout item not found for %T", widget)
+		return nil
+	}
+
+	power := itemFor(socPowerHistoryChart)
+	if power.XRatio != 0 || power.WidthRatio != 2.0/3 || power.YRatio != 1.0/2 || power.HeightRatio != 1.0/4 {
+		t.Fatalf("power grid placement = %+v, want left third row", power)
+	}
+	for _, chart := range []any{unifiedComputeHistoryChart, memoryHistoryChart, socPowerHistoryChart, unifiedNetworkHistoryChart, unifiedDiskHistoryChart} {
+		item := itemFor(chart)
+		if item.XRatio+item.WidthRatio > 2.0/3 {
+			t.Fatalf("%T exceeds left two thirds: %+v", chart, item)
+		}
+	}
+	processes := itemFor(unifiedProcessList)
+	if processes.XRatio != 2.0/3 || processes.YRatio != 1.0/2 || processes.HeightRatio != 1.0/2 {
+		t.Fatalf("process grid placement = %+v, want right lower half", processes)
+	}
+}
+
 func TestUnifiedTemperatureLinesPreferComponentTemperatures(t *testing.T) {
 	origTempUnit := tempUnit
 	t.Cleanup(func() { tempUnit = origTempUnit })
