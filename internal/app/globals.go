@@ -26,14 +26,14 @@ func init() {
 }
 
 var (
-	version                                                     = "v2.1.5"
-	cpuGauge, gpuGauge, memoryGauge, aneGauge                   *w.Gauge
-	mainBlock                                                   *ui.Block
-	modelText, PowerChart, NetworkInfo, helpText, infoParagraph *w.Paragraph
-	tbInfoParagraph                                             *w.Paragraph
-	fanStatusPanel, fanTempPanel, fanControlPanel               *w.Paragraph
-	grid                                                        *ui.Grid
-	processList                                                 *w.List
+	version                                                                         = "v2.1.5"
+	cpuGauge, gpuGauge, memoryGauge, aneGauge                                       *w.Gauge
+	mainBlock                                                                       *ui.Block
+	modelText, PowerChart, NetworkInfo, unifiedHealthPanel, helpText, infoParagraph *w.Paragraph
+	tbInfoParagraph                                                                 *w.Paragraph
+	fanStatusPanel, fanTempPanel, fanControlPanel                                   *w.Paragraph
+	grid                                                                            *ui.Grid
+	processList, unifiedProcessList                                                 *w.List
 	// Search state
 	searchMode        bool
 	searchText        string
@@ -50,18 +50,21 @@ var (
 	tbNetSparklineGroup                 *w.SparklineGroup
 
 	// StepChart widgets for History layout
-	gpuHistoryChart, powerHistoryChart, memoryHistoryChart, cpuHistoryChart *w.StepChart
-	memBWHistoryChart                                                       *w.StepChart
-	aneHistoryChart, bandwidthHistoryChart                                  *w.StepChart
-	socPowerHistoryChart                                                    *w.StepChart // Multi-line power for history_soc (CPU/GPU/ANE/DRAM)
-	ssdReadHistoryChart                                                     *w.StepChart // Combined SSD read bandwidth history (GB/s)
-	memoryUsedHistory                                                       = make([]float64, 100)
-	swapUsedHistory                                                         = make([]float64, 100)
-	cpuUsageHistory                                                         = make([]float64, 100)
-	powerUsageHistory                                                       = make([]float64, 100)
-	memBWReadHistory                                                        = make([]float64, 100)
-	memBWWriteHistory                                                       = make([]float64, 100)
-	maxMemBWSeen                                                            float64
+	gpuHistoryChart, powerHistoryChart, cpuHistoryChart *w.StepChart
+	memoryHistoryChart                                  *PeakStepChart
+	memBWHistoryChart                                   *w.StepChart
+	aneHistoryChart, bandwidthHistoryChart              *w.StepChart
+	socPowerHistoryChart                                *PeakStepChart // Multi-line power for history_soc (CPU/GPU/ANE/DRAM)
+	ssdReadHistoryChart                                 *w.StepChart   // Combined SSD read bandwidth history (GB/s)
+	unifiedComputeHistoryChart                          *PeakStepChart
+	unifiedNetworkHistoryChart, unifiedDiskHistoryChart *PeakStepChart
+	memoryUsedHistory                                   = make([]float64, 100)
+	swapUsedHistory                                     = make([]float64, 100)
+	cpuUsageHistory                                     = make([]float64, 100)
+	powerUsageHistory                                   = make([]float64, 100)
+	memBWReadHistory                                    = make([]float64, 100)
+	memBWWriteHistory                                   = make([]float64, 100)
+	maxMemBWSeen                                        float64
 	// ANE estimate state shared between the sampler goroutine (latch writes in
 	// sampleSocMetrics) and the UI/menubar/overlay goroutines (reads + adaptive
 	// max updates in aneUtilizationPercent) — atomics to avoid a data race.
@@ -92,6 +95,11 @@ var (
 	// Additional histories for the split bottom section in history_soc
 	ssdReadHistory []float64 // SSD read bandwidth history in GB/s
 
+	// External-I/O histories used by the unified dashboard. Values remain in
+	// bytes/s so each chart can retain an independent, adaptive scale.
+	networkDownHistory, networkUpHistory []float64
+	diskReadHistory, diskWriteHistory    []float64
+
 	cpuCoreWidget                 *CPUCoreWidget
 	powerValues                   = make([]float64, 35)
 	tbNetInValues                 = make([]float64, 100)
@@ -106,8 +114,11 @@ var (
 	lastCPUTimes                  []CPUUsage
 	firstRun                      = true
 	sortReverse                   = false
-	columns                       = []string{"PID", "USER", "VIRT", "RES", "CPU", "GPU", "MEM", "TIME", "CMD"}
-	selectedColumn                = 4
+	columns                       = []string{"PID", "USER", "VIRT", "RES", "FOOT", "CPU", "GPU", "MEM", "TIME", "CMD"}
+	selectedColumn                = 5
+	unifiedProcessColumns         = []string{"PID", "C+GPU", "RSS", "FOOT", "CMD"}
+	unifiedProcessSelectedColumn  = 1
+	unifiedProcessSortReverse     = false
 	maxPowerSeen                  = 0.1
 	gpuValues                     = make([]float64, 100)
 

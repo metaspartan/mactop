@@ -9,9 +9,18 @@ package app
 #include <mach/processor_info.h>
 #include <mach/mach_init.h>
 #include <mach/mach_time.h>
+#include <sys/resource.h>
 
 static inline time_t get_proc_starttime(struct kinfo_proc *kp) {
     return kp->kp_proc.p_un.__p_starttime.tv_sec;
+}
+
+static inline uint64_t get_proc_phys_footprint(pid_t pid) {
+    struct rusage_info_v0 info = {0};
+    if (proc_pid_rusage(pid, RUSAGE_INFO_V0, (rusage_info_t *)&info) == 0) {
+        return info.ri_phys_footprint;
+    }
+    return 0;
 }
 
 extern kern_return_t vm_deallocate(vm_map_t target_task, vm_address_t address, vm_size_t size);
@@ -103,6 +112,7 @@ func processOsProc(kp C.struct_kinfo_proc, now time.Time, prevProcessTimes map[i
 	}
 
 	rssBytes := int64(0)
+	footprintBytes := int64(0)
 	vszBytes := int64(0)
 	totalTimeNs := uint64(0)
 
@@ -114,6 +124,10 @@ func processOsProc(kp C.struct_kinfo_proc, now time.Time, prevProcessTimes map[i
 		rawTime := uint64(taskInfo.pti_total_user) + uint64(taskInfo.pti_total_system)
 		totalTimeNs = (rawTime * numer) / denom
 	}
+
+	// phys_footprint is the macOS-reported memory footprint. It is distinct
+	// from RSS and deliberately not interpreted as per-process swap usage.
+	footprintBytes = int64(C.get_proc_phys_footprint(C.pid_t(pid)))
 
 	cpuPercent := 0.0
 	if prevState, ok := prevProcessTimes[pid]; ok {
@@ -151,6 +165,7 @@ func processOsProc(kp C.struct_kinfo_proc, now time.Time, prevProcessTimes map[i
 		Memory:      memPercent,
 		VSZ:         vszBytes / 1024,
 		RSS:         rssBytes / 1024,
+		Footprint:   footprintBytes / 1024,
 		Command:     comm,
 		State:       state,
 		Started:     "",
@@ -383,6 +398,9 @@ func sortProcesses(processes []ProcessMetrics) {
 		case "RES":
 			less = processes[i].RSS > processes[j].RSS // Descending default
 			equal = processes[i].RSS == processes[j].RSS
+		case "FOOT":
+			less = processes[i].Footprint > processes[j].Footprint // Descending default
+			equal = processes[i].Footprint == processes[j].Footprint
 		case "CPU":
 			less = processes[i].CPU > processes[j].CPU // Descending default
 			equal = processes[i].CPU == processes[j].CPU
@@ -424,6 +442,7 @@ func calculateMaxWidths(availableWidth int) map[string]int {
 		"USER": 8,
 		"VIRT": 6,
 		"RES":  6,
+		"FOOT": 6,
 		"CPU":  6,
 		"GPU":  6,
 		"MEM":  5,
@@ -492,6 +511,7 @@ func buildProcessRows(processes []ProcessMetrics, maxWidths map[string]int) []st
 		timeStr := formatTime(seconds)
 		virtStr := formatMemorySize(p.VSZ)
 		resStr := formatResMemorySize(p.RSS)
+		footStr := formatResMemorySize(p.Footprint)
 		username := runewidth.Truncate(p.User, maxWidths["USER"], "...")
 
 		cmdName := p.Command // Already simplified by ps -c
@@ -500,11 +520,12 @@ func buildProcessRows(processes []ProcessMetrics, maxWidths map[string]int) []st
 		// 1000 ms/s = 100% GPU utilization
 		gpuPercent := p.GPU / 10.0
 
-		line := fmt.Sprintf("%*d %-*s %*s %*s %*.1f%% %*.1f%% %*.1f%% %*s %-s",
+		line := fmt.Sprintf("%*d %-*s %*s %*s %*s %*.1f%% %*.1f%% %*.1f%% %*s %-s",
 			maxWidths["PID"], p.PID,
 			maxWidths["USER"], username,
 			maxWidths["VIRT"], virtStr,
 			maxWidths["RES"], resStr,
+			maxWidths["FOOT"], footStr,
 			maxWidths["CPU"]-1, p.CPU,
 			maxWidths["GPU"]-1, gpuPercent,
 			maxWidths["MEM"]-1, p.Memory,
@@ -559,6 +580,95 @@ func updateProcessList() {
 
 	processList.Title, processList.TitleStyle = getProcessListTitle()
 	processList.Rows = items
+	updateUnifiedProcessList(processes)
+}
+
+func updateUnifiedProcessList(processes []ProcessMetrics) {
+	if unifiedProcessList == nil {
+		return
+	}
+
+	termWidth, _ := GetCachedTerminalDimensions()
+	availableWidth := max(1, max(0, termWidth-2)/3-2)
+	ordered := append([]ProcessMetrics(nil), processes...)
+	sortUnifiedProcesses(ordered)
+	rows := make([]string, len(ordered)+1)
+	rows[0] = formatUnifiedProcessHeader(availableWidth)
+	for i, process := range ordered {
+		rows[i+1] = formatUnifiedProcessRow(process, availableWidth)
+	}
+
+	unifiedProcessList.Title = i18n.T("TUI_ProcessList")
+	unifiedProcessList.Rows = rows
+}
+
+func formatUnifiedProcessHeader(width int) string {
+	labels := append([]string(nil), unifiedProcessColumns...)
+	arrow := "↓"
+	if unifiedProcessSortReverse {
+		arrow = "↑"
+	}
+	labels[unifiedProcessSelectedColumn] += arrow
+	header := fmt.Sprintf("%6s %6s %5s %5s %s", labels[0], labels[1], labels[2], labels[3], labels[4])
+	return runewidth.Truncate(header, max(1, width), "")
+}
+
+func sortUnifiedProcesses(processes []ProcessMetrics) {
+	sort.Slice(processes, func(i, j int) bool {
+		left, right := processes[i], processes[j]
+		var less, equal bool
+		switch unifiedProcessColumns[unifiedProcessSelectedColumn] {
+		case "PID":
+			less, equal = left.PID < right.PID, left.PID == right.PID
+		case "C+GPU":
+			leftCompute, rightCompute := left.CPU+left.GPU/10.0, right.CPU+right.GPU/10.0
+			less, equal = leftCompute > rightCompute, leftCompute == rightCompute
+		case "RSS":
+			less, equal = left.RSS > right.RSS, left.RSS == right.RSS
+		case "FOOT":
+			less, equal = left.Footprint > right.Footprint, left.Footprint == right.Footprint
+		case "CMD":
+			leftCommand, rightCommand := strings.ToLower(left.Command), strings.ToLower(right.Command)
+			less, equal = leftCommand < rightCommand, leftCommand == rightCommand
+		}
+		if equal {
+			return left.PID < right.PID
+		}
+		if unifiedProcessSortReverse {
+			return !less
+		}
+		return less
+	})
+}
+
+func handleUnifiedProcessListEvent(e ui.Event) {
+	switch e.ID {
+	case "<Left>":
+		if unifiedProcessSelectedColumn > 0 {
+			unifiedProcessSelectedColumn--
+		}
+	case "<Right>":
+		if unifiedProcessSelectedColumn < len(unifiedProcessColumns)-1 {
+			unifiedProcessSelectedColumn++
+		}
+	case "<Enter>", "<Space>":
+		unifiedProcessSortReverse = !unifiedProcessSortReverse
+	default:
+		return
+	}
+	updateProcessList()
+}
+
+func formatUnifiedProcessRow(process ProcessMetrics, width int) string {
+	const fixedWidth = 26 // PID (6), C+GPU (6), RSS/Footprint GiB (5 each), and separators.
+	width = max(1, width)
+	commandWidth := max(1, width-fixedWidth)
+	command := runewidth.Truncate(process.Command, commandWidth, "...")
+	computePercent := process.CPU + process.GPU/10.0
+	rssGiB := float64(process.RSS) / 1024 / 1024
+	footprintGiB := float64(process.Footprint) / 1024 / 1024
+	row := fmt.Sprintf("%6d %5.1f%% %4.1fG %4.1fG %s", process.PID, computePercent, rssGiB, footprintGiB, command)
+	return runewidth.Truncate(row, width, "")
 }
 
 func handleSearchInput(e ui.Event) {
@@ -749,7 +859,12 @@ func handleNavigation(e ui.Event) {
 }
 
 func handleProcessListEvents(e ui.Event) {
-	// Don't handle process list navigation when in Info or Fan layout (allow their own scrolling)
+	// The unified dashboard contains a read-only compact process summary rather
+	// than the full selectable process table.
+	if currentConfig.DefaultLayout == LayoutUnified {
+		handleUnifiedProcessListEvent(e)
+		return
+	}
 	if currentConfig.DefaultLayout == LayoutInfo || currentConfig.DefaultLayout == LayoutFan {
 		return
 	}

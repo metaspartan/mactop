@@ -45,6 +45,10 @@ TUI_MemoryBandwidthHistory = "Memory Bandwidth History"
 TUI_CPUUsageHistory = "CPU Usage History"
 TUI_SoCPowerHistory = "SoC Power History (CPU / GPU / ANE / DRAM)"
 TUI_SSDReadHistory = "SSD Read (GB/s)"
+TUI_UnifiedComputeHistory = "Compute Utilization (CPU / GPU / ANE)"
+TUI_UnifiedDRAMHistory = "DRAM Bandwidth (Read / Write)"
+TUI_UnifiedNetworkHistory = "Network Throughput (Down / Up)"
+TUI_UnifiedDiskHistory = "Disk I/O (Read / Write)"
 Metrics_SoCPowerDetail = "SoC Power: Total %.1fW | ANE %s | CPU %.1fW | GPU %.1fW | DRAM %.1fW"
 Metrics_SoCPowerDetailNoANE = "SoC Power: Total %.1fW | CPU %.1fW | GPU %.1fW | DRAM %.1fW"
 Metrics_SSDReadDetail = "SSD Read %.2f GB/s (Peak %.2f)"
@@ -117,7 +121,8 @@ Metrics_MemGauge = "Mem: %.2f GB / %.2f GB (Swap: %.2f/%.2f GB) BW: %.1f GB/s"
 Process_PID = "PID"
 Process_USER = "USER"
 Process_VIRT = "VIRT"
-Process_RES = "RES"
+Process_RES = "RSS"
+Process_FOOT = "FOOT"
 Process_CPU = "CPU"
 Process_GPU = "GPU"
 Process_MEM = "MEM"
@@ -164,7 +169,7 @@ Update Interval: %dms
 - c / Shift + C: Cycle UI color themes forward / backward
 - b / Shift + B: Cycle UI background colors forward / backward
 - p: Toggle party mode (color cycling)
-- l / Shift + L: Cycle through the 20 available layouts forward / backward
+- l / Shift + L: Cycle through layouts forward / backward
 - a: Jump to the ANE/BW history layout (press again to go back)
 - i: Toggle information layout
 - Shift + F: Toggle fan control & thermals layout
@@ -327,6 +332,10 @@ Metrics_ANEHistoryPeak = "ANE %.1f%% (Peak %.1f%%, %.2fW)"
 Metrics_ANEHistoryPeakBW = "ANE %.1f%% (Peak %.1f%%, %.2f GB/s)"
 Metrics_BandwidthHistoryPeak = "DRAM R:%.1f W:%.1f  ANE R:%.1f W:%.1f GB/s (Peak %.1f)"
 Metrics_GPUHistoryEff = "GPU Eff %.0f%% @ %dMHz (Raw %.0f%%, Peak Raw %.0f%%)"
+Metrics_UnifiedComputeDetail = "Compute: CPU %.0f%% | GPU %.0f%% @ %dMHz | ANE %.0f%%"
+Metrics_UnifiedDRAMDetail = "DRAM: R %.1f W %.1f GB/s (Total %.1f)"
+Metrics_UnifiedNetworkDetail = "Network: Down %s/s Up %s/s"
+Metrics_UnifiedDiskDetail = "Disk I/O: R %s/s W %s/s"
 
 TUI_KillPIDTitle = " CONFIRM KILL PID %d "
 

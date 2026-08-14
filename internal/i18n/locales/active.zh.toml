@@ -44,6 +44,10 @@ TUI_MemorySwapHistory = "内存/交换历史"
 TUI_CPUUsageHistory = "CPU 使用历史"
 TUI_SoCPowerHistory = "SoC 功耗历史 (CPU / GPU / ANE / DRAM)"
 TUI_SSDReadHistory = "SSD 读取 (GB/s)"
+TUI_UnifiedComputeHistory = "计算利用率 (CPU / GPU / ANE)"
+TUI_UnifiedDRAMHistory = "DRAM 带宽 (读取 / 写入)"
+TUI_UnifiedNetworkHistory = "网络吞吐 (下行 / 上行)"
+TUI_UnifiedDiskHistory = "磁盘 I/O (读取 / 写入)"
 Metrics_SoCPowerDetail = "SoC: 总计 %.1fW | ANE %s | CPU %.1fW | GPU %.1fW | DRAM %.1fW"
 Metrics_SoCPowerDetailNoANE = "SoC: 总计 %.1fW | CPU %.1fW | GPU %.1fW | DRAM %.1fW"
 Metrics_SSDReadDetail = "SSD 读取 %.2f GB/s (峰值 %.2f)"
@@ -57,6 +61,10 @@ Metrics_ANEHistoryPeak = "ANE %.1f%% (峰值 %.1f%%, %.2fW)"
 Metrics_ANEHistoryPeakBW = "ANE %.1f%% (峰值 %.1f%%, %.2f GB/s)"
 Metrics_BandwidthHistoryPeak = "DRAM R:%.1f W:%.1f  ANE R:%.1f W:%.1f GB/s (峰值 %.1f)"
 Metrics_GPUHistoryEff = "GPU 有效 %.0f%% @ %dMHz (原始 %.0f%%, 原始峰值 %.0f%%)"
+Metrics_UnifiedComputeDetail = "计算: CPU %.0f%% | GPU %.0f%% @ %dMHz | ANE %.0f%%"
+Metrics_UnifiedDRAMDetail = "DRAM: 读 %.1f 写 %.1f GB/s (总计 %.1f)"
+Metrics_UnifiedNetworkDetail = "网络: 下行 %s/s 上行 %s/s"
+Metrics_UnifiedDiskDetail = "磁盘 I/O: 读 %s/s 写 %s/s"
 TUI_ConfirmKill = " 确认结束 "
 TUI_ConfirmKillBody = "确认终止"
 TUI_ConfirmYes = "是"
@@ -119,7 +127,8 @@ Metrics_MemGauge = "内存: %.2f GB / %.2f GB (交换: %.2f/%.2f GB) 带宽: %.1
 Process_PID = "PID"
 Process_USER = "用户"
 Process_VIRT = "虚拟"
-Process_RES = "物理"
+Process_RES = "RSS"
+Process_FOOT = "足迹"
 Process_CPU = "CPU"
 Process_GPU = "GPU"
 Process_MEM = "内存"
@@ -167,7 +176,7 @@ Prometheus 指标: %s
 - c / Shift + C: 切换 UI 颜色主题 正向 / 反向
 - b / Shift + B: 切换 UI 背景色 正向 / 反向
 - p: 开启/关闭派对模式 (色彩循环)
-- l / Shift + L: 在 19 种可用布局中切换 正向 / 反向
+- l / Shift + L: 在布局中切换 正向 / 反向
 - i: 切换信息面板布局
 - Shift + F: 切换风扇控制与散热状态面板
 - F9: 结束选中的进程 (需要 y/n 确认)

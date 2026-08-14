@@ -8,6 +8,7 @@ import (
 	"time"
 
 	ui "github.com/metaspartan/gotui/v5"
+	w "github.com/metaspartan/gotui/v5/widgets"
 )
 
 type CPUUsage struct {
@@ -70,7 +71,7 @@ type GPUMetrics struct {
 type ProcessMetrics struct {
 	PID                                      int
 	CPU, LastTime, Memory, GPU               float64 // GPU is ms/s of GPU time
-	VSZ, RSS                                 int64
+	VSZ, RSS, Footprint                      int64
 	User, TTY, State, Started, Time, Command string
 	LastUpdated                              time.Time
 }
@@ -89,6 +90,104 @@ type EventThrottler struct {
 	C           chan struct{}
 }
 
+// PeakStepChart augments StepChart with labels placed beside the actual maximum
+// sample of each rendered series. The regular DataLabels remain current values
+// at the right edge, while peak labels are opt-in for the unified dashboard.
+type PeakStepChart struct {
+	*w.StepChart
+	PeakLabels     []string
+	ShowPeakLabels bool
+}
+
+func NewPeakStepChart() *PeakStepChart {
+	return &PeakStepChart{StepChart: w.NewStepChart()}
+}
+
+func (sc *PeakStepChart) Draw(buf *ui.Buffer) {
+	sc.StepChart.Draw(buf)
+	if !sc.ShowPeakLabels || len(sc.PeakLabels) == 0 {
+		return
+	}
+	sc.drawPeakLabels(buf)
+}
+
+func (sc *PeakStepChart) drawPeakLabels(buf *ui.Buffer) {
+	if len(sc.Data) == 0 {
+		return
+	}
+	maxVal := sc.MaxVal
+	if maxVal <= 0 {
+		for _, series := range sc.Data {
+			maxVal = max(maxVal, seriesMax(series))
+		}
+	}
+	if maxVal <= 0 {
+		return
+	}
+
+	drawArea := sc.Inner
+	if sc.ShowAxes {
+		drawArea = image.Rect(sc.Inner.Min.X+5, sc.Inner.Min.Y, sc.Inner.Max.X, sc.Inner.Max.Y-2)
+	}
+	if drawArea.Dx() <= 0 || drawArea.Dy() <= 0 {
+		return
+	}
+
+	scale := max(sc.HorizontalScale, 1)
+	// Match StepChart.drawLine: a sample is visible only while its x position
+	// is strictly inside drawArea's right edge.
+	maxSamples := min((drawArea.Dx()-1)/scale+1, len(sc.Data[0]))
+	occupied := make(map[int][]image.Rectangle)
+	for lineIdx, series := range sc.Data {
+		if lineIdx >= len(sc.PeakLabels) || sc.PeakLabels[lineIdx] == "" || len(series) == 0 {
+			continue
+		}
+		visible := series[:min(maxSamples, len(series))]
+		peakIdx, peak := 0, visible[0]
+		for i, value := range visible[1:] {
+			if value > peak {
+				peakIdx, peak = i+1, value
+			}
+		}
+
+		x := drawArea.Min.X + peakIdx*scale
+		y := drawArea.Max.Y - 1 - int((peak/maxVal)*float64(drawArea.Dy()-1))
+		y = max(drawArea.Min.Y, min(y, drawArea.Max.Y-1))
+		label := sc.PeakLabels[lineIdx]
+		labelX := x + 1
+		if labelX+len(label) > drawArea.Max.X {
+			labelX = x - len(label)
+		}
+		labelX = max(drawArea.Min.X, min(labelX, drawArea.Max.X-len(label)))
+
+		labelY := sc.peakLabelY(y, labelX, len(label), drawArea, occupied)
+		occupied[labelY] = append(occupied[labelY], image.Rect(labelX, labelY, labelX+len(label), labelY+1))
+		style := ui.NewStyle(ui.SelectColor(sc.LineColors, lineIdx), sc.BorderStyle.Bg)
+		buf.SetString(label, style, image.Pt(labelX, labelY))
+	}
+}
+
+func (sc *PeakStepChart) peakLabelY(peakY, x, width int, area image.Rectangle, occupied map[int][]image.Rectangle) int {
+	for _, offset := range []int{-1, 1, -2, 2, 0} {
+		y := peakY + offset
+		if y < area.Min.Y || y >= area.Max.Y {
+			continue
+		}
+		candidate := image.Rect(x, y, x+width, y+1)
+		collision := false
+		for _, used := range occupied[y] {
+			if candidate.Overlaps(used) {
+				collision = true
+				break
+			}
+		}
+		if !collision {
+			return y
+		}
+	}
+	return peakY
+}
+
 type CPUCoreWidget struct {
 	*ui.Block
 	cores                              []float64
@@ -96,6 +195,7 @@ type CPUCoreWidget struct {
 	eCoreCount, pCoreCount, sCoreCount int
 	modelName                          string
 	cpuIndexMap                        []int // maps display index -> hardware CPU index
+	groupByType                        bool
 }
 
 func NewEventThrottler(gracePeriod time.Duration) *EventThrottler {
@@ -293,26 +393,98 @@ func (w *CPUCoreWidget) Draw(buf *ui.Buffer) {
 		return
 	}
 	themeColor := w.BorderStyle.Fg
-	totalCores := len(w.cores)
-	availableWidth := w.Inner.Dx()
-	availableHeight := w.Inner.Dy()
+	if w.groupByType && w.drawGroupedCores(buf, themeColor) {
+		return
+	}
+	w.drawCores(buf, themeColor, 0, len(w.cores), w.Inner)
+}
 
-	cols, rows, colXs, colWidths := w.calculateLayout(availableWidth, availableHeight, totalCores)
+type cpuCoreGroup struct {
+	label      string
+	start, end int
+}
+
+func (w *CPUCoreWidget) coreGroups() []cpuCoreGroup {
+	groups := make([]cpuCoreGroup, 0, 3)
+	start := 0
+	for _, tier := range []struct {
+		label string
+		count int
+	}{
+		{"E", w.eCoreCount},
+		{"P", w.pCoreCount},
+		{"S", w.sCoreCount},
+	} {
+		if tier.count <= 0 {
+			continue
+		}
+		end := min(start+tier.count, len(w.cores))
+		if end > start {
+			groups = append(groups, cpuCoreGroup{
+				label: fmt.Sprintf("%s %d", tier.label, end-start),
+				start: start,
+				end:   end,
+			})
+		}
+		start = end
+	}
+	return groups
+}
+
+func (w *CPUCoreWidget) drawGroupedCores(buf *ui.Buffer, themeColor ui.Color) bool {
+	groups := w.coreGroups()
+	if len(groups) <= 1 || w.Inner.Dx() < len(groups)*14 || w.Inner.Dy() < 4 {
+		return false
+	}
+
+	gapWidth := len(groups) - 1
+	availableWidth := w.Inner.Dx() - gapWidth
+	totalCores := len(w.cores)
+	x := w.Inner.Min.X
+	remainingWidth := availableWidth
+
+	for i, group := range groups {
+		groupCores := group.end - group.start
+		groupWidth := remainingWidth
+		if i < len(groups)-1 {
+			groupWidth = max(14, availableWidth*groupCores/totalCores)
+			groupWidth = min(groupWidth, remainingWidth-14*(len(groups)-i-1))
+		}
+		if groupWidth <= 0 {
+			return false
+		}
+
+		area := image.Rect(x, w.Inner.Min.Y+1, x+groupWidth, w.Inner.Max.Y)
+		buf.SetString(group.label, ui.NewStyle(SecondaryTextColor, CurrentBgColor), image.Pt(x, w.Inner.Min.Y))
+		w.drawCores(buf, themeColor, group.start, group.end, area)
+
+		x += groupWidth + 1
+		remainingWidth -= groupWidth
+	}
+	return true
+}
+
+func (w *CPUCoreWidget) drawCores(buf *ui.Buffer, themeColor ui.Color, start, end int, area image.Rectangle) {
+	totalCores := end - start
+	if totalCores <= 0 {
+		return
+	}
+	cols, rows, colXs, colWidths := w.calculateLayout(area.Dx(), area.Dy(), totalCores)
 	fullCols := totalCores - (rows-1)*cols
 
 	for i := range totalCores {
 		col := i % cols
 		row := i / cols
-		actualIndex := col*rows + row - max(0, col-fullCols)
+		actualIndex := start + col*rows + row - max(0, col-fullCols)
 
-		if actualIndex >= totalCores || row >= rows {
+		if actualIndex >= end || row >= rows {
 			continue
 		}
 
-		x := w.Inner.Min.X + colXs[col]
-		y := w.Inner.Min.Y + row
+		x := area.Min.X + colXs[col]
+		y := area.Min.Y + row
 
-		if y >= w.Inner.Max.Y {
+		if y >= area.Max.Y {
 			continue
 		}
 
