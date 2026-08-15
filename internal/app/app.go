@@ -343,18 +343,79 @@ func unifiedHistoryTitle(title string, peakLabels []string) string {
 	return title + " (" + legend + ")"
 }
 
+func unifiedMemoryHistoryTitle(peakLabels []string) string {
+	termWidth, _ := GetCachedTerminalDimensions()
+	if !unifiedShowsSidebar(termWidth) {
+		return memorySwapTitle() + "(" + strings.Join(compactMemoryHistoryValues(peakLabels), ",") + ")"
+	}
+	return memorySwapTitle() + "(" + strings.Join(orderedMemoryHistoryValues(peakLabels), ",") + ")"
+}
+
+func memorySwapTitle() string {
+	title := i18n.T("TUI_MemorySwapHistory")
+	if strings.HasSuffix(title, "历史") {
+		return strings.TrimSuffix(title, "历史")
+	}
+	return i18n.T("Info_Memory") + "/" + i18n.T("Info_Swap")
+}
+
+func orderedMemoryHistoryValues(labels []string) []string {
+	return memoryHistoryValues(labels, []string{"M", "S", "R", "W", "D"}, map[string]string{
+		"M": "Memory", "S": "Swap", "R": "DRAM Read", "W": "DRAM Write", "D": "DRAM",
+	})
+}
+
+func compactMemoryHistoryValues(labels []string) []string {
+	return memoryHistoryValues(labels, []string{"M", "S", "R", "W", "D"}, map[string]string{
+		"M": "M", "S": "S", "R": "R", "W": "W", "D": "D",
+	})
+}
+
+func memoryHistoryValues(labels, order []string, names map[string]string) []string {
+	values := make([]string, 0, len(order))
+	for _, prefix := range order {
+		for _, label := range labels {
+			parts := strings.SplitN(label, " ", 2)
+			if len(parts) != 2 || parts[0] != prefix || parts[1] == "" {
+				continue
+			}
+			values = append(values, names[prefix]+":"+parts[1])
+			break
+		}
+	}
+	return values
+}
+
 func namedHistoryValues(labels []string, names map[string]string) []string {
+	return namedHistoryValuesInOrder(labels, nil, names)
+}
+
+func namedHistoryValuesInOrder(labels, order []string, names map[string]string) []string {
 	values := make([]string, 0, len(labels))
-	for _, label := range labels {
+	addValue := func(label string) {
 		parts := strings.SplitN(label, " ", 2)
 		if len(parts) != 2 || parts[1] == "" {
-			continue
+			return
 		}
 		name := names[parts[0]]
 		if name == "" {
 			name = parts[0]
 		}
 		values = append(values, name+": "+parts[1])
+	}
+	if len(order) == 0 {
+		for _, label := range labels {
+			addValue(label)
+		}
+		return values
+	}
+	for _, prefix := range order {
+		for _, label := range labels {
+			if strings.HasPrefix(label, prefix+" ") {
+				addValue(label)
+				break
+			}
+		}
 	}
 	return values
 }
@@ -1863,7 +1924,7 @@ func renderUnifiedMemoryDRAMHistory(memoryMetrics MemoryMetrics, cpuMetrics CPUM
 		memoryHistoryChart.ShowPeakLabels = true
 		memoryHistoryChart.SeriesGroups = []string{"capacity", "capacity"}
 		memoryHistoryChart.CurrentLabelOrder = []int{1, 0}
-		memoryHistoryChart.Title = unifiedHistoryTitle(unifiedChartTitle("TUI_MemorySwapHistory", "Memory / Swap, GB")+" | DRAM calibrating", namedHistoryValues(memoryHistoryChart.PeakLabels, map[string]string{"M": "Memory", "S": "Swap"}))
+		memoryHistoryChart.Title = unifiedMemoryHistoryTitle(memoryHistoryChart.PeakLabels)
 		memoryHistoryChart.LineColors = []ui.Color{ui.ColorOrange, ui.ColorMagenta}
 		return
 	}
@@ -1889,11 +1950,7 @@ func renderUnifiedMemoryDRAMHistory(memoryMetrics MemoryMetrics, cpuMetrics CPUM
 		// Draw bandwidth first so the capacity pair retains the visible right
 		// column when a compact chart cannot fit every current-value label.
 		memoryHistoryChart.CurrentLabelOrder = []int{2, 1, 0}
-		sourceLabel := "combined"
-		if cpuMetrics.DRAMBandwidthSource == DRAMBandwidthPowerEstimate {
-			sourceLabel = "estimated"
-		}
-		memoryHistoryChart.Title = unifiedHistoryTitle(unifiedChartTitle("TUI_MemorySwapHistory", "Memory / Swap, GB")+" | DRAM Bandwidth ("+sourceLabel+")", namedHistoryValues(memoryHistoryChart.PeakLabels, map[string]string{"M": "Memory", "S": "Swap", "D": "DRAM"}))
+		memoryHistoryChart.Title = unifiedMemoryHistoryTitle(memoryHistoryChart.PeakLabels)
 		memoryHistoryChart.LineColors = []ui.Color{ui.ColorOrange, ui.ColorMagenta, ui.ColorCyan}
 		return
 	}
@@ -1916,10 +1973,7 @@ func renderUnifiedMemoryDRAMHistory(memoryMetrics MemoryMetrics, cpuMetrics CPUM
 	// Capacity labels are the highest priority: M/S must remain vertically
 	// readable even when R/W has to yield on a short chart.
 	memoryHistoryChart.CurrentLabelOrder = []int{2, 3, 1, 0}
-	memoryHistoryChart.Title = unifiedHistoryTitle(
-		unifiedChartTitle("TUI_MemorySwapHistory", ""),
-		namedHistoryValues(memoryHistoryChart.PeakLabels, map[string]string{"M": "Memory", "S": "Swap", "R": "DRAM Read", "W": "DRAM Write"}),
-	)
+	memoryHistoryChart.Title = unifiedMemoryHistoryTitle(memoryHistoryChart.PeakLabels)
 	// StepChart draws later series on top. Swap is intentionally first so the
 	// memory line and labels remain visible when the two occupy the same cells.
 	memoryHistoryChart.LineColors = []ui.Color{ui.ColorOrange, ui.ColorMagenta, ui.ColorCyan, ui.ColorRed}

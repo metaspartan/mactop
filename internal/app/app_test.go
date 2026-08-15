@@ -110,6 +110,22 @@ func TestUnifiedHistoryTitleAddsVisiblePeaks(t *testing.T) {
 	}
 }
 
+func TestUnifiedMemoryHistoryTitleIsCompactOnNarrowTerminals(t *testing.T) {
+	origWidth, origHeight := GetCachedTerminalDimensions()
+	t.Cleanup(func() { UpdateCachedTerminalDimensions(origWidth, origHeight) })
+	peaks := []string{"S 3GB", "M 12GB", "R 10GB/s", "W 8GB/s"}
+
+	UpdateCachedTerminalDimensions(120, 30)
+	if got, want := unifiedMemoryHistoryTitle(peaks), memorySwapTitle()+"(Memory:12GB,Swap:3GB,DRAM Read:10GB/s,DRAM Write:8GB/s)"; got != want {
+		t.Fatalf("wide memory title = %q, want %q", got, want)
+	}
+
+	UpdateCachedTerminalDimensions(99, 30)
+	if got, want := unifiedMemoryHistoryTitle(peaks), memorySwapTitle()+"(M:12GB,S:3GB,R:10GB/s,W:8GB/s)"; got != want {
+		t.Fatalf("narrow memory title = %q, want compact %q", got, want)
+	}
+}
+
 func TestCPUCoreWidgetTitleOmitsTemperature(t *testing.T) {
 	title := formatCPUCoreWidgetTitle(12, "(8P/4E)", 37.5, " @ P3.2 GHz")
 	if strings.Contains(title, "°") || !strings.Contains(title, "37.50%") {
@@ -224,8 +240,8 @@ func TestRenderUnifiedMemoryDRAMHistoryUsesFourNormalizedSeries(t *testing.T) {
 	if got, want := memoryHistoryChart.LineColors[:2], []ui.Color{ui.ColorOrange, ui.ColorMagenta}; !slices.Equal(got, want) {
 		t.Fatalf("memory draw order colors = %v, want swap then memory %v", got, want)
 	}
-	if got := memoryHistoryChart.Title; !strings.Contains(got, "(Swap: 4GB, Memory: 40GB, DRAM Read: 8GB/s, DRAM Write: 12GB/s)") {
-		t.Fatalf("memory chart title does not contain visible peaks: %q", got)
+	if got, want := memoryHistoryChart.Title, memorySwapTitle()+"(M:40GB,S:4GB,R:8GB/s,W:12GB/s)"; got != want {
+		t.Fatalf("narrow memory chart title = %q, want compact peaks %q", got, want)
 	}
 }
 
