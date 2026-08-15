@@ -119,6 +119,14 @@ func formatResMemorySize(kb int64) string {
 }
 
 func formatBytes(val float64, unitType string) string {
+	return formatBytesWithPrecision(val, unitType, 1)
+}
+
+func formatRoundedBytes(val float64, unitType string) string {
+	return formatBytesWithPrecision(val, unitType, 0)
+}
+
+func formatBytesWithPrecision(val float64, unitType string, precision int) string {
 	units := []string{"B", "KB", "MB", "GB", "TB"}
 
 	targetUnit := strings.ToLower(unitType)
@@ -157,7 +165,7 @@ func formatBytes(val float64, unitType string) string {
 		suffix = units[i]
 	}
 
-	return fmt.Sprintf("%.1f%s", value, suffix)
+	return fmt.Sprintf("%.*f%s", precision, value, suffix)
 }
 
 // formatBytesDecimal formats a raw byte count using SI (1000-based) units.

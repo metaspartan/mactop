@@ -265,7 +265,7 @@ func applyMultiSeriesChartColors(theme *CustomThemeConfig, fgColor ui.Color) {
 		// including bandwidth/cyan DRAM read, red DRAM write, and violet total.
 	}
 	// Power uses the same fixed CPU/GPU/ANE recognition colors as compute.
-	// Series order matches updateSoCPowerHistory: CPU, GPU, DRAM, ANE.
+	// Series order matches updateSoCPowerHistory: Total, CPU, GPU, DRAM, ANE.
 	if socPowerHistoryChart != nil {
 		socPowerHistoryChart.LineColors = socPowerHistoryColors()
 	}

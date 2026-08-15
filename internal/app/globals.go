@@ -62,6 +62,7 @@ var (
 	unifiedTemperatureHistoryChart                      *PeakStepChart
 	memoryUsedHistory                                   = make([]float64, 100)
 	swapUsedHistory                                     = make([]float64, 100)
+	memoryHistorySeeded                                 bool
 	cpuUsageHistory                                     = make([]float64, 100)
 	powerUsageHistory                                   = make([]float64, 100)
 	memBWReadHistory                                    = make([]float64, 100)
@@ -130,7 +131,7 @@ var (
 	sortReverse                   = false
 	columns                       = []string{"PID", "USER", "VIRT", "RES", "FOOT", "CPU", "GPU", "MEM", "TIME", "CMD"}
 	selectedColumn                = 5
-	unifiedProcessColumns         = []string{"PID", "C+GPU", "RSS", "FOOT", "CMD"}
+	unifiedProcessColumns         = []string{"PID", "ACT", "CPU", "GPU", "RSS", "FOOT", "CMD"}
 	unifiedProcessSelectedColumn  = 1
 	unifiedProcessSortReverse     = false
 	maxPowerSeen                  = 0.1

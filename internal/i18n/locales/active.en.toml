@@ -177,8 +177,11 @@ Update Interval: %dms
 - f: Freeze the process list
 - /: Search process list
 - g/G: Jump to top/bottom of process list
+- Unified process list ACT: 0-9 activity score; displayed rounded but sorted by its fractional value. It combines CPU, proportional GPU time, memory page-ins plus RSS/footprint occupancy, and per-process disk I/O. Network is excluded because it is not measured per process.
+
 - + or -: Adjust update interval (faster/slower)
 - h or ?: Toggle this help menu
+- Esc: Return to the main view
 - j/k or ↓/↑: Scroll help text
 - q or <C-c>: Quit the application
 

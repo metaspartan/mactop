@@ -132,6 +132,7 @@ func setupUI() {
 	gpuValues = make([]float64, numPoints)
 	memoryUsedHistory = make([]float64, numPoints)
 	swapUsedHistory = make([]float64, numPoints)
+	memoryHistorySeeded = false
 	cpuUsageHistory = make([]float64, numPoints)
 	powerUsageHistory = make([]float64, numPoints)
 	memBWReadHistory = make([]float64, numPoints)
@@ -266,7 +267,7 @@ func setupUI() {
 	ssdReadHistoryChart.LineColors = []ui.Color{ui.ColorCyan}
 
 	unifiedComputeHistoryChart = NewPeakStepChart()
-	unifiedComputeHistoryChart.Title = unifiedComputeHistoryTitle(lastCPUMetrics, lastGPUMetrics)
+	unifiedComputeHistoryChart.Title = unifiedComputeHistoryTitle()
 	unifiedComputeHistoryChart.ShowAxes = false
 	unifiedComputeHistoryChart.ShowRightAxis = true
 	unifiedComputeHistoryChart.LineColors = []ui.Color{ui.ColorYellow, ui.ColorGreen, ui.ColorRed}
@@ -313,19 +314,8 @@ func setupUI() {
 	})
 }
 
-func unifiedComputeHistoryTitle(cpu CPUMetrics, gpu GPUMetrics) string {
-	title := unifiedChartTitle("TUI_UnifiedComputeHistory", "CPU / GPU / ANE")
-	temps := make([]string, 0, 2)
-	if cpu.CPUTemp > 0 {
-		temps = append(temps, "CPU "+formatTemp(cpu.CPUTemp))
-	}
-	if gpu.Temp > 0 {
-		temps = append(temps, "GPU "+formatTemp(float64(gpu.Temp)))
-	}
-	if len(temps) == 0 {
-		return title
-	}
-	return title + " | " + strings.Join(temps, " | ")
+func unifiedComputeHistoryTitle() string {
+	return unifiedChartTitle("TUI_UnifiedComputeHistory", "CPU / GPU / ANE")
 }
 
 func unifiedChartTitle(key, englishLegend string) string {
@@ -337,6 +327,36 @@ func unifiedChartTitle(key, englishLegend string) string {
 		return base
 	}
 	return base + " (" + englishLegend + ")"
+}
+
+func unifiedHistoryTitle(title string, peakLabels []string) string {
+	if len(peakLabels) == 0 {
+		return title
+	}
+	legend := strings.Join(peakLabels, ", ")
+	if start := strings.Index(title, " ("); start >= 0 {
+		if end := strings.Index(title[start:], ")"); end >= 0 {
+			end += start
+			return title[:start] + " (" + legend + ")" + title[end+1:]
+		}
+	}
+	return title + " (" + legend + ")"
+}
+
+func namedHistoryValues(labels []string, names map[string]string) []string {
+	values := make([]string, 0, len(labels))
+	for _, label := range labels {
+		parts := strings.SplitN(label, " ", 2)
+		if len(parts) != 2 || parts[1] == "" {
+			continue
+		}
+		name := names[parts[0]]
+		if name == "" {
+			name = parts[0]
+		}
+		values = append(values, name+": "+parts[1])
+	}
+	return values
 }
 
 func updateMainTitleWithHardware() {
@@ -1139,12 +1159,20 @@ func updateMemoryHistory(memoryMetrics MemoryMetrics) {
 	swapGB := float64(memoryMetrics.SwapUsed) / 1024 / 1024 / 1024
 	totalGB := float64(memoryMetrics.Total) / 1024 / 1024 / 1024
 
-	for i := 0; i < len(memoryUsedHistory)-1; i++ {
-		memoryUsedHistory[i] = memoryUsedHistory[i+1]
-		swapUsedHistory[i] = swapUsedHistory[i+1]
+	if !memoryHistorySeeded {
+		for i := range memoryUsedHistory {
+			memoryUsedHistory[i] = usedGB
+			swapUsedHistory[i] = swapGB
+		}
+		memoryHistorySeeded = true
+	} else {
+		for i := 0; i < len(memoryUsedHistory)-1; i++ {
+			memoryUsedHistory[i] = memoryUsedHistory[i+1]
+			swapUsedHistory[i] = swapUsedHistory[i+1]
+		}
+		memoryUsedHistory[len(memoryUsedHistory)-1] = usedGB
+		swapUsedHistory[len(swapUsedHistory)-1] = swapGB
 	}
-	memoryUsedHistory[len(memoryUsedHistory)-1] = usedGB
-	swapUsedHistory[len(swapUsedHistory)-1] = swapGB
 
 	if memoryHistoryChart != nil {
 		termWidth, _ := GetCachedTerminalDimensions()
@@ -1571,7 +1599,7 @@ func updateSoCPowerHistory(cpuMetrics CPUMetrics) {
 		visDRAM := dramPowerHistory[len(dramPowerHistory)-visibleWidth:]
 		visTotal := totalPowerHistory[len(totalPowerHistory)-visibleWidth:]
 
-		// Find max across all for scaling
+		// Find max across all for scaling, including the total-power trace.
 		maxVal := 0.0
 		for i := range visCPU {
 			if visCPU[i] > maxVal {
@@ -1586,14 +1614,16 @@ func updateSoCPowerHistory(cpuMetrics CPUMetrics) {
 			if visDRAM[i] > maxVal {
 				maxVal = visDRAM[i]
 			}
+			if visTotal[i] > maxVal {
+				maxVal = visTotal[i]
+			}
 		}
 		if maxVal < 0.5 {
 			maxVal = 0.5
 		}
 
-		// ANE last so its red line draws on top of overlapping series
-		// (at idle all rails sit near 0 and later series overpaint earlier ones).
-		socPowerHistoryChart.Data = [][]float64{visCPU, visGPU, visDRAM, visANE}
+		// Total is first so the component traces remain visible where they overlap.
+		socPowerHistoryChart.Data = [][]float64{visTotal, visCPU, visGPU, visDRAM}
 		socPowerHistoryChart.MaxVal = maxVal * 1.15
 		// ANE is omitted from the labels and title entirely when its energy
 		// counter is provably dead (macOS 27+) — there is no reading to show.
@@ -1602,33 +1632,45 @@ func updateSoCPowerHistory(cpuMetrics CPUMetrics) {
 		// build revives the counter (aneBWLabelMode flips off when watts flow).
 		aneDead := aneBWLabelMode(cpuMetrics)
 		labels := []string{
+			fmt.Sprintf("T %.1fW", cpuMetrics.PackageW),
 			fmt.Sprintf("C %.1fW", cpuMetrics.CPUW),
 			fmt.Sprintf("G %.1fW", cpuMetrics.GPUW+cpuMetrics.GPUSRAMW),
 			fmt.Sprintf("D %.1fW", cpuMetrics.DRAMW),
 		}
 		peakLabels := []string{
-			fmt.Sprintf("C %.1fW", seriesMax(visCPU)),
-			fmt.Sprintf("G %.1fW", seriesMax(visGPU)),
-			fmt.Sprintf("D %.1fW", seriesMax(visDRAM)),
+			fmt.Sprintf("T %.0fW", seriesMax(visTotal)),
+			fmt.Sprintf("C %.0fW", seriesMax(visCPU)),
+			fmt.Sprintf("G %.0fW", seriesMax(visGPU)),
+			fmt.Sprintf("D %.0fW", seriesMax(visDRAM)),
 		}
 		if !aneDead {
-			// ANE is the last series, so omitting its label leaves the
-			// CPU/GPU/DRAM labels correctly aligned with their series.
+			socPowerHistoryChart.Data = append(socPowerHistoryChart.Data, visANE)
 			labels = append(labels, fmt.Sprintf("A %.1fW", cpuMetrics.ANEW))
-			peakLabels = append(peakLabels, fmt.Sprintf("A %.1fW", seriesMax(visANE)))
+			peakLabels = append(peakLabels, fmt.Sprintf("A %.0fW", seriesMax(visANE)))
 		}
 		socPowerHistoryChart.DataLabels = labels
 		socPowerHistoryChart.ShowPeakLabels = currentConfig.DefaultLayout == LayoutUnified
 		socPowerHistoryChart.PeakLabels = peakLabels
-		// Keep CPU/GPU/ANE colors identical to the unified compute chart. DRAM
-		// remains cyan, its established memory-data color.
+		// Keep CPU/GPU/ANE colors identical to the unified compute chart. Total
+		// is neutral; DRAM remains cyan, its established memory-data color.
 		socPowerHistoryChart.LineColors = socPowerHistoryColors()
 
 		legend := "CPU / GPU / DRAM"
 		if !aneDead {
 			legend += " / ANE"
 		}
-		socPowerHistoryChart.Title = fmt.Sprintf("%s | Total %.1fW / %.1fW", unifiedChartTitle("TUI_SoCPowerHistory", legend), cpuMetrics.PackageW, seriesMax(visTotal))
+		powerHistoryValues := []string{
+			fmt.Sprintf("CPU: %.0fw", seriesMax(visCPU)),
+			fmt.Sprintf("GPU: %.0fw", seriesMax(visGPU)),
+			fmt.Sprintf("DRAM: %.0fw", seriesMax(visDRAM)),
+		}
+		if !aneDead {
+			powerHistoryValues = append(powerHistoryValues, fmt.Sprintf("ANE: %.0fw", seriesMax(visANE)))
+		}
+		socPowerHistoryChart.Title = unifiedHistoryTitle(
+			fmt.Sprintf("%s | Total %.1fW", unifiedChartTitle("TUI_SoCPowerHistory", legend), seriesMax(visTotal)),
+			powerHistoryValues,
+		)
 	}
 }
 
@@ -1743,7 +1785,11 @@ func renderUnifiedComputeHistory() {
 		fmt.Sprintf("G %.0f%%", seriesMax(gpu)),
 		fmt.Sprintf("C %.0f%%", seriesMax(cpu)),
 	}
-	unifiedComputeHistoryChart.Title = unifiedComputeHistoryTitle(lastCPUMetrics, lastGPUMetrics)
+	unifiedComputeHistoryChart.Title = unifiedHistoryTitle(unifiedComputeHistoryTitle(), []string{
+		fmt.Sprintf("CPU: %.0f%%", seriesMax(cpu)),
+		fmt.Sprintf("GPU: %.0f%%", seriesMax(gpu)),
+		fmt.Sprintf("ANE: %.0f%%", seriesMax(ane)),
+	})
 	unifiedComputeHistoryChart.LineColors = unifiedComputeHistoryColors()
 }
 
@@ -1772,10 +1818,10 @@ func unifiedComputeHistoryColors() []ui.Color {
 	return []ui.Color{ui.ColorGreen, ui.ColorYellow, ui.ColorRed}
 }
 
-// socPowerHistoryColors follows the CPU/GPU/DRAM/ANE series order. CPU, GPU,
+// socPowerHistoryColors follows Total/CPU/GPU/DRAM/ANE series order. CPU, GPU,
 // and ANE deliberately match the A/G/C colors in unifiedComputeHistoryColors.
 func socPowerHistoryColors() []ui.Color {
-	return []ui.Color{ui.ColorRed, ui.ColorYellow, ui.ColorCyan, ui.ColorGreen}
+	return []ui.Color{ui.ColorSilver, ui.ColorRed, ui.ColorYellow, ui.ColorCyan, ui.ColorGreen}
 }
 
 func renderUnifiedMemoryDRAMHistory(memoryMetrics MemoryMetrics, cpuMetrics CPUMetrics) {
@@ -1802,17 +1848,22 @@ func renderUnifiedMemoryDRAMHistory(memoryMetrics MemoryMetrics, cpuMetrics CPUM
 	total := dramTotalHistory[len(dramTotalHistory)-visibleWidth:]
 
 	capacitySeries := normalizeHistoryGroup(swap, memory)
+	// Every unified memory/DRAM series is normalized to a 0-100 plot range.
+	// updateMemoryHistory sets a physical-GB MaxVal before this renderer runs,
+	// so reset it here for every source mode rather than retaining that stale
+	// scale and clamping Memory and Swap onto the same row.
+	memoryHistoryChart.MaxVal = 100
 	if cpuMetrics.DRAMBandwidthSource == DRAMBandwidthUnavailable {
 		memoryHistoryChart.Data = capacitySeries
 		memoryHistoryChart.DataLabels = []string{
 			fmt.Sprintf("S %.1fGB", float64(memoryMetrics.SwapUsed)/1024/1024/1024),
 			fmt.Sprintf("M %.1fGB", float64(memoryMetrics.Used)/1024/1024/1024),
 		}
-		memoryHistoryChart.PeakLabels = []string{fmt.Sprintf("S %.1fGB", seriesMax(swap)), fmt.Sprintf("M %.1fGB", seriesMax(memory))}
+		memoryHistoryChart.PeakLabels = []string{fmt.Sprintf("S %.0fGB", seriesMax(swap)), fmt.Sprintf("M %.0fGB", seriesMax(memory))}
 		memoryHistoryChart.ShowPeakLabels = true
 		memoryHistoryChart.SeriesGroups = []string{"capacity", "capacity"}
 		memoryHistoryChart.CurrentLabelOrder = []int{1, 0}
-		memoryHistoryChart.Title = unifiedChartTitle("TUI_MemorySwapHistory", "Memory / Swap, GB") + " | DRAM calibrating"
+		memoryHistoryChart.Title = unifiedHistoryTitle(unifiedChartTitle("TUI_MemorySwapHistory", "Memory / Swap, GB")+" | DRAM calibrating", namedHistoryValues(memoryHistoryChart.PeakLabels, map[string]string{"M": "Memory", "S": "Swap"}))
 		memoryHistoryChart.LineColors = []ui.Color{ui.ColorOrange, ui.ColorMagenta}
 		return
 	}
@@ -1831,22 +1882,23 @@ func renderUnifiedMemoryDRAMHistory(memoryMetrics MemoryMetrics, cpuMetrics CPUM
 		memoryHistoryChart.ShowPeakLabels = true
 		memoryHistoryChart.SeriesGroups = []string{"capacity", "capacity", "bandwidth"}
 		memoryHistoryChart.PeakLabels = []string{
-			fmt.Sprintf("S %.1fGB", seriesMax(swap)),
-			fmt.Sprintf("M %.1fGB", seriesMax(memory)),
-			fmt.Sprintf("%s%.1fGB/s", prefix, seriesMax(total)),
+			fmt.Sprintf("S %.0fGB", seriesMax(swap)),
+			fmt.Sprintf("M %.0fGB", seriesMax(memory)),
+			fmt.Sprintf("%s%.0fGB/s", prefix, seriesMax(total)),
 		}
-		memoryHistoryChart.CurrentLabelOrder = []int{1, 0, 2}
+		// Draw bandwidth first so the capacity pair retains the visible right
+		// column when a compact chart cannot fit every current-value label.
+		memoryHistoryChart.CurrentLabelOrder = []int{2, 1, 0}
 		sourceLabel := "combined"
 		if cpuMetrics.DRAMBandwidthSource == DRAMBandwidthPowerEstimate {
 			sourceLabel = "estimated"
 		}
-		memoryHistoryChart.Title = unifiedChartTitle("TUI_MemorySwapHistory", "Memory / Swap, GB") + " | DRAM Bandwidth (" + sourceLabel + ")"
+		memoryHistoryChart.Title = unifiedHistoryTitle(unifiedChartTitle("TUI_MemorySwapHistory", "Memory / Swap, GB")+" | DRAM Bandwidth ("+sourceLabel+")", namedHistoryValues(memoryHistoryChart.PeakLabels, map[string]string{"M": "Memory", "S": "Swap", "D": "DRAM"}))
 		memoryHistoryChart.LineColors = []ui.Color{ui.ColorOrange, ui.ColorMagenta, ui.ColorCyan}
 		return
 	}
 	bandwidthSeries := normalizeHistoryGroup(read, write)
 	memoryHistoryChart.Data = append(capacitySeries, bandwidthSeries...)
-	memoryHistoryChart.MaxVal = 100
 	memoryHistoryChart.DataLabels = []string{
 		fmt.Sprintf("S %.1fGB", float64(memoryMetrics.SwapUsed)/1024/1024/1024),
 		fmt.Sprintf("M %.1fGB", float64(memoryMetrics.Used)/1024/1024/1024),
@@ -1856,14 +1908,18 @@ func renderUnifiedMemoryDRAMHistory(memoryMetrics MemoryMetrics, cpuMetrics CPUM
 	memoryHistoryChart.ShowPeakLabels = true
 	memoryHistoryChart.SeriesGroups = []string{"capacity", "capacity", "bandwidth", "bandwidth"}
 	memoryHistoryChart.PeakLabels = []string{
-		fmt.Sprintf("S %.1fGB", seriesMax(swap)),
-		fmt.Sprintf("M %.1fGB", seriesMax(memory)),
-		fmt.Sprintf("R %.1fGB/s", seriesMax(read)),
-		fmt.Sprintf("W %.1fGB/s", seriesMax(write)),
+		fmt.Sprintf("S %.0fGB", seriesMax(swap)),
+		fmt.Sprintf("M %.0fGB", seriesMax(memory)),
+		fmt.Sprintf("R %.0fGB/s", seriesMax(read)),
+		fmt.Sprintf("W %.0fGB/s", seriesMax(write)),
 	}
-	memoryHistoryChart.CurrentLabelOrder = []int{1, 0, 2, 3}
-	memoryHistoryChart.Title = unifiedChartTitle("TUI_MemorySwapHistory", "Memory / Swap, GB") +
-		" | " + unifiedChartTitle("TUI_UnifiedDRAMHistory", "Read / Write, GB/s")
+	// Capacity labels are the highest priority: M/S must remain vertically
+	// readable even when R/W has to yield on a short chart.
+	memoryHistoryChart.CurrentLabelOrder = []int{2, 3, 1, 0}
+	memoryHistoryChart.Title = unifiedHistoryTitle(
+		unifiedChartTitle("TUI_MemorySwapHistory", ""),
+		namedHistoryValues(memoryHistoryChart.PeakLabels, map[string]string{"M": "Memory", "S": "Swap", "R": "DRAM Read", "W": "DRAM Write"}),
+	)
 	// StepChart draws later series on top. Swap is intentionally first so the
 	// memory line and labels remain visible when the two occupy the same cells.
 	memoryHistoryChart.LineColors = []ui.Color{ui.ColorOrange, ui.ColorMagenta, ui.ColorCyan, ui.ColorRed}
@@ -1918,7 +1974,7 @@ func updateUnifiedTemperatureHistory(cpuMetrics CPUMetrics) {
 		visibleRPM := fanRPMHistory[fan.slot][len(fanRPMHistory[fan.slot])-visibleWidth:]
 		series = append([][]float64{visibleDuty}, series...)
 		labels = append([]string{fmt.Sprintf("%s %.1fk", fan.label, float64(fan.rpm)/1000)}, labels...)
-		peaks = append([]string{fmt.Sprintf("%s %.1fk", fan.label, seriesMax(visibleRPM)/1000)}, peaks...)
+		peaks = append([]string{fmt.Sprintf("%s %.0fk", fan.label, seriesMax(visibleRPM)/1000)}, peaks...)
 		colors = append([]ui.Color{fan.color}, colors...)
 		groups = append([]string{"fan"}, groups...)
 	}
@@ -1933,7 +1989,7 @@ func updateUnifiedTemperatureHistory(cpuMetrics CPUMetrics) {
 	unifiedTemperatureHistoryChart.LineColors = colors
 	unifiedTemperatureHistoryChart.SeriesGroups = groups
 	unifiedTemperatureHistoryChart.CurrentLabelOrder = temperatureCurrentLabelOrder(len(fans), len(series))
-	unifiedTemperatureHistoryChart.Title = unifiedChartTitle("TUI_Temperatures", "CPU / GPU / MEM / SSD, Fan kRPM")
+	unifiedTemperatureHistoryChart.Title = unifiedHistoryTitle(unifiedChartTitle("TUI_Temperatures", "CPU / GPU / MEM / SSD, Fan kRPM"), namedHistoryValues(peaks, map[string]string{"C": "CPU", "G": "GPU", "M": "Memory", "S": "SSD", "L": "Fan Left", "R": "Fan Right"}))
 }
 
 const temperatureDisplayFloor = 25.0
@@ -2079,6 +2135,7 @@ func updateUnifiedIOHistory(metrics NetDiskMetrics) {
 			ui.ColorRed,
 			historyLineColor(func(t *CustomThemeConfig) string { return t.Bandwidth }, ui.ColorCyan),
 		},
+		map[string]string{"D": "Download", "U": "Upload"},
 	)
 	renderUnifiedIOChart(
 		unifiedDiskHistoryChart,
@@ -2089,6 +2146,7 @@ func updateUnifiedIOHistory(metrics NetDiskMetrics) {
 		"W",
 		diskUnit,
 		readWriteHistoryColors(),
+		map[string]string{"R": "Read", "W": "Write"},
 	)
 }
 
@@ -2100,7 +2158,7 @@ func shiftAndAppend(history []float64, value float64) {
 	history[len(history)-1] = value
 }
 
-func renderUnifiedIOChart(chart *PeakStepChart, first, second []float64, title, firstLabel, secondLabel, unitType string, colors []ui.Color) {
+func renderUnifiedIOChart(chart *PeakStepChart, first, second []float64, title, firstLabel, secondLabel, unitType string, colors []ui.Color, names map[string]string) {
 	if chart == nil || len(first) == 0 || len(second) == 0 {
 		return
 	}
@@ -2120,10 +2178,10 @@ func renderUnifiedIOChart(chart *PeakStepChart, first, second []float64, title, 
 	}
 	chart.ShowPeakLabels = true
 	chart.PeakLabels = []string{
-		firstLabel + " " + formatBytes(seriesMax(firstVisible), unitType) + "/s",
-		secondLabel + " " + formatBytes(seriesMax(secondVisible), unitType) + "/s",
+		firstLabel + " " + formatRoundedBytes(seriesMax(firstVisible), unitType) + "/s",
+		secondLabel + " " + formatRoundedBytes(seriesMax(secondVisible), unitType) + "/s",
 	}
-	chart.Title = title
+	chart.Title = unifiedHistoryTitle(title, namedHistoryValues(chart.PeakLabels, names))
 	chart.LineColors = colors
 }
 
@@ -2171,13 +2229,7 @@ func updateCPUGaugeTitles(totalUsage float64, cpuMetrics CPUMetrics) {
 			formatTemp(cpuMetrics.CPUTemp),
 		)
 	}
-	cpuCoreWidget.Title = fmt.Sprintf(i18n.T("Metrics_CPUGauge"),
-		totalCPUCores,
-		coreSummary,
-		totalUsage,
-		cpuFreqStr,
-		formatTemp(cpuMetrics.CPUTemp),
-	)
+	cpuCoreWidget.Title = formatCPUCoreWidgetTitle(totalCPUCores, coreSummary, totalUsage, cpuFreqStr)
 	// Utilization priority (see aneUtilizationPercent): PMP residency-based %
 	// (macOS 27/M5) -> Energy Model power estimate (macOS 26) -> AMC/PMP
 	// bandwidth activity estimate (M1-M4 on macOS 27).
@@ -2200,6 +2252,14 @@ func updateCPUGaugeTitles(totalUsage float64, cpuMetrics CPUMetrics) {
 		}
 	}
 	aneGauge.Percent = int(aneUtil)
+}
+
+func formatCPUCoreWidgetTitle(totalCores int, coreSummary string, totalUsage float64, cpuFreqStr string) string {
+	title := fmt.Sprintf(i18n.T("TUI_Cores"), totalCores)
+	if coreSummary != "" {
+		title += " " + coreSummary
+	}
+	return fmt.Sprintf("%s %.2f%%%s", title, totalUsage, cpuFreqStr)
 }
 
 func updatePowerChartText(cpuMetrics CPUMetrics, thermalStr string) {

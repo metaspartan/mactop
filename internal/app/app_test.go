@@ -11,6 +11,7 @@ import (
 	"github.com/mattn/go-runewidth"
 	ui "github.com/metaspartan/gotui/v5"
 	w "github.com/metaspartan/gotui/v5/widgets"
+	"github.com/metaspartan/mactop/v2/internal/i18n"
 )
 
 func TestFormatBytes(t *testing.T) {
@@ -35,6 +36,38 @@ func TestFormatBytes(t *testing.T) {
 				t.Errorf("formatBytes() = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestFormatRoundedBytes(t *testing.T) {
+	if got, want := formatRoundedBytes(1536, "kb"), "2KB"; got != want {
+		t.Fatalf("rounded bytes = %q, want %q", got, want)
+	}
+}
+
+func TestUpdateMemoryHistorySeedsFirstSample(t *testing.T) {
+	origMemory, origSwap, origSeeded, origChart := memoryUsedHistory, swapUsedHistory, memoryHistorySeeded, memoryHistoryChart
+	t.Cleanup(func() {
+		memoryUsedHistory, swapUsedHistory, memoryHistorySeeded, memoryHistoryChart = origMemory, origSwap, origSeeded, origChart
+	})
+
+	memoryUsedHistory, swapUsedHistory = make([]float64, 4), make([]float64, 4)
+	memoryHistorySeeded = false
+	memoryHistoryChart = nil
+	updateMemoryHistory(MemoryMetrics{Used: 8 * 1024 * 1024 * 1024, SwapUsed: 2 * 1024 * 1024 * 1024, Total: 16 * 1024 * 1024 * 1024})
+	if !memoryHistorySeeded {
+		t.Fatal("first memory sample must seed the history")
+	}
+	if got, want := memoryUsedHistory, []float64{8, 8, 8, 8}; !slices.Equal(got, want) {
+		t.Fatalf("seeded memory history = %v, want %v", got, want)
+	}
+	if got, want := swapUsedHistory, []float64{2, 2, 2, 2}; !slices.Equal(got, want) {
+		t.Fatalf("seeded swap history = %v, want %v", got, want)
+	}
+
+	updateMemoryHistory(MemoryMetrics{Used: 9 * 1024 * 1024 * 1024, SwapUsed: 3 * 1024 * 1024 * 1024, Total: 16 * 1024 * 1024 * 1024})
+	if got, want := memoryUsedHistory, []float64{8, 8, 8, 9}; !slices.Equal(got, want) {
+		t.Fatalf("shifted memory history = %v, want %v", got, want)
 	}
 }
 
@@ -65,16 +98,22 @@ func TestFormatTemp(t *testing.T) {
 	}
 }
 
-func TestUnifiedComputeHistoryTitleIncludesAvailableTemperatures(t *testing.T) {
-	origTempUnit := tempUnit
-	t.Cleanup(func() { tempUnit = origTempUnit })
-	tempUnit = "celsius"
-
-	if got := unifiedComputeHistoryTitle(CPUMetrics{CPUTemp: 42}, GPUMetrics{Temp: 51}); !strings.Contains(got, "CPU 42°C | GPU 51°C") {
-		t.Fatalf("title %q does not contain CPU/GPU temperatures", got)
+func TestUnifiedComputeHistoryTitleOmitsTemperatures(t *testing.T) {
+	if got := unifiedComputeHistoryTitle(); strings.Contains(got, "°") {
+		t.Fatalf("title %q must not contain temperature values", got)
 	}
-	if got := unifiedComputeHistoryTitle(CPUMetrics{}, GPUMetrics{}); strings.Contains(got, "°") {
-		t.Fatalf("title %q must omit unavailable temperatures", got)
+}
+
+func TestUnifiedHistoryTitleAddsVisiblePeaks(t *testing.T) {
+	if got, want := unifiedHistoryTitle("Compute", []string{"ANE: 30%", "GPU: 50%", "CPU: 70%"}), "Compute (ANE: 30%, GPU: 50%, CPU: 70%)"; got != want {
+		t.Fatalf("history title = %q, want %q", got, want)
+	}
+}
+
+func TestCPUCoreWidgetTitleOmitsTemperature(t *testing.T) {
+	title := formatCPUCoreWidgetTitle(12, "(8P/4E)", 37.5, " @ P3.2 GHz")
+	if strings.Contains(title, "°") || !strings.Contains(title, "37.50%") {
+		t.Fatalf("CPU core title = %q; want utilization without temperature", title)
 	}
 }
 
@@ -176,14 +215,17 @@ func TestRenderUnifiedMemoryDRAMHistoryUsesFourNormalizedSeries(t *testing.T) {
 	if got, want := memoryHistoryChart.DataLabels, []string{"S 4.0GB", "M 40.0GB", "R 8.0GB/s", "W 12.0GB/s"}; !slices.Equal(got, want) {
 		t.Fatalf("mixed current labels = %v, want %v", got, want)
 	}
-	if got, want := memoryHistoryChart.PeakLabels, []string{"S 4.0GB", "M 40.0GB", "R 8.0GB/s", "W 12.0GB/s"}; !slices.Equal(got, want) {
+	if got, want := memoryHistoryChart.currentLabelOrder(), []int{2, 3, 0, 1}; !slices.Equal(got, want) {
+		t.Fatalf("mixed current label order = %v, want bandwidth before capacity %v", got, want)
+	}
+	if got, want := memoryHistoryChart.PeakLabels, []string{"S 4GB", "M 40GB", "R 8GB/s", "W 12GB/s"}; !slices.Equal(got, want) {
 		t.Fatalf("mixed peak labels = %v, want %v", got, want)
 	}
 	if got, want := memoryHistoryChart.LineColors[:2], []ui.Color{ui.ColorOrange, ui.ColorMagenta}; !slices.Equal(got, want) {
 		t.Fatalf("memory draw order colors = %v, want swap then memory %v", got, want)
 	}
-	if got := memoryHistoryChart.Title; !strings.Contains(got, "(Memory / Swap, GB)") || !strings.Contains(got, "(Read / Write, GB/s)") {
-		t.Fatalf("memory chart title does not contain English legends: %q", got)
+	if got := memoryHistoryChart.Title; !strings.Contains(got, "(Swap: 4GB, Memory: 40GB, DRAM Read: 8GB/s, DRAM Write: 12GB/s)") {
+		t.Fatalf("memory chart title does not contain visible peaks: %q", got)
 	}
 }
 
@@ -204,6 +246,7 @@ func TestRenderUnifiedMemoryDRAMHistoryUsesOneEstimatedTotalSeries(t *testing.T)
 	currentConfig.DefaultLayout = LayoutUnified
 	UpdateCachedTerminalDimensions(20, 10)
 	memoryHistoryChart = NewPeakStepChart()
+	memoryHistoryChart.MaxVal = 64 // Simulate the physical-GB scale left by updateMemoryHistory.
 	memoryUsedHistory = []float64{10, 20, 40}
 	swapUsedHistory = []float64{1, 2, 4}
 	dramReadHistory = []float64{2, 4, 8}
@@ -218,8 +261,14 @@ func TestRenderUnifiedMemoryDRAMHistoryUsesOneEstimatedTotalSeries(t *testing.T)
 	if got, want := len(memoryHistoryChart.Data), 3; got != want {
 		t.Fatalf("estimated series count = %d, want memory/swap/total %d", got, want)
 	}
+	if got, want := memoryHistoryChart.MaxVal, 100.0; got != want {
+		t.Fatalf("estimated chart max = %.1f, want normalized %.1f", got, want)
+	}
 	if got, want := memoryHistoryChart.DataLabels[2], "D ~16.0GB/s"; got != want {
 		t.Fatalf("estimated label = %q, want %q", got, want)
+	}
+	if got, want := memoryHistoryChart.currentLabelOrder(), []int{2, 0, 1}; !slices.Equal(got, want) {
+		t.Fatalf("estimated current label order = %v, want bandwidth before capacity %v", got, want)
 	}
 	if strings.Contains(strings.Join(memoryHistoryChart.DataLabels, " "), "R ") || strings.Contains(strings.Join(memoryHistoryChart.DataLabels, " "), "W ") {
 		t.Fatalf("estimated labels must not fabricate directions: %v", memoryHistoryChart.DataLabels)
@@ -243,6 +292,72 @@ func TestPeakStepChartOrdersSameUnitCurrentLabelsHighToLow(t *testing.T) {
 	chart.SeriesGroups = []string{"power", "power", "power"}
 	if got, want := chart.currentLabelOrder(), []int{1, 0, 2}; !slices.Equal(got, want) {
 		t.Fatalf("same-unit placement order = %v, want low-to-high %v", got, want)
+	}
+}
+
+func TestPeakStepChartKeepsMemoryAboveSwapWhenValuesMatch(t *testing.T) {
+	chart := NewPeakStepChart()
+	chart.Data = [][]float64{{20}, {20}}
+	chart.CurrentLabelOrder = []int{1, 0}
+	chart.SeriesGroups = []string{"capacity", "capacity"}
+	if got, want := chart.currentLabelOrder(), []int{0, 1}; !slices.Equal(got, want) {
+		t.Fatalf("equal memory/swap label order = %v, want swap then memory %v", got, want)
+	}
+}
+
+func TestPeakStepChartDrawsMemoryAboveSwapWhenValuesMatch(t *testing.T) {
+	chart := NewPeakStepChart()
+	chart.Border = false
+	chart.ShowAxes = false
+	chart.ShowRightAxis = true
+	chart.SetRect(0, 0, 20, 6)
+	chart.MaxVal = 100
+	chart.Data = [][]float64{{50}, {50}}
+	chart.DataLabels = []string{"S 1.0GB", "M 1.0GB"}
+	chart.CurrentLabelOrder = []int{1, 0}
+	chart.SeriesGroups = []string{"capacity", "capacity"}
+
+	buf := ui.NewBuffer(image.Rect(0, 0, 20, 6))
+	chart.Draw(buf)
+	rows := make(map[rune]int)
+	for y := 0; y < 6; y++ {
+		for x := 0; x < 20; x++ {
+			r := buf.GetCell(image.Pt(x, y)).Rune
+			if r == 'M' || r == 'S' {
+				rows[r] = y
+			}
+		}
+	}
+	if rows['M'] >= rows['S'] {
+		t.Fatalf("memory/swap rows = %v; memory must be above swap", rows)
+	}
+}
+
+func TestPeakStepChartKeepsMemoryAndSwapOverDRAMOnShortChart(t *testing.T) {
+	chart := NewPeakStepChart()
+	chart.Border = false
+	chart.ShowAxes = false
+	chart.ShowRightAxis = true
+	chart.SetRect(0, 0, 20, 4)
+	chart.MaxVal = 100
+	chart.Data = [][]float64{{50}, {50}, {50}, {50}}
+	chart.DataLabels = []string{"S 1.0GB", "M 1.0GB", "R 1.0GB/s", "W 1.0GB/s"}
+	chart.CurrentLabelOrder = []int{2, 3, 1, 0}
+	chart.SeriesGroups = []string{"capacity", "capacity", "bandwidth", "bandwidth"}
+
+	buf := ui.NewBuffer(image.Rect(0, 0, 20, 4))
+	chart.Draw(buf)
+	rows := make(map[rune]int)
+	for y := 0; y < 4; y++ {
+		for x := 0; x < 20; x++ {
+			r := buf.GetCell(image.Pt(x, y)).Rune
+			if r == 'M' || r == 'S' {
+				rows[r] = y
+			}
+		}
+	}
+	if len(rows) != 2 || rows['M'] >= rows['S'] {
+		t.Fatalf("short-chart memory/swap rows = %v; want M above S", rows)
 	}
 }
 
@@ -481,7 +596,7 @@ func TestUpdateUnifiedTemperatureHistoryRendersComponentsAndFan(t *testing.T) {
 	}
 }
 
-func TestSoCPowerHistoryTitleShowsCurrentAndPeakTotal(t *testing.T) {
+func TestSoCPowerHistoryDrawsTotalAndShowsOnlyItsPeakInTitle(t *testing.T) {
 	origChart, origHistory := socPowerHistoryChart, totalPowerHistory
 	origConfig := currentConfig
 	origWidth, origHeight := GetCachedTerminalDimensions()
@@ -497,7 +612,13 @@ func TestSoCPowerHistoryTitleShowsCurrentAndPeakTotal(t *testing.T) {
 	totalPowerHistory = make([]float64, 100)
 	totalPowerHistory[len(totalPowerHistory)-1] = 15
 	updateSoCPowerHistory(CPUMetrics{CPUW: 4, GPUW: 3, DRAMW: 2, ANEW: 1, PackageW: 12})
-	if !strings.Contains(socPowerHistoryChart.Title, "Total 12.0W / 15.0W") {
+	if got, want := socPowerHistoryChart.DataLabels[0], "T 12.0W"; got != want {
+		t.Fatalf("total current label = %q, want %q", got, want)
+	}
+	if got, want := socPowerHistoryChart.Data[0][len(socPowerHistoryChart.Data[0])-1], 12.0; got != want {
+		t.Fatalf("total trace current value = %.1f, want %.1f", got, want)
+	}
+	if !strings.Contains(socPowerHistoryChart.Title, "Total 15.0W") || strings.Contains(socPowerHistoryChart.Title, "Total 12.0W /") {
 		t.Fatalf("power title = %q", socPowerHistoryChart.Title)
 	}
 }
@@ -531,13 +652,13 @@ func TestUnifiedComputeHistoryColors(t *testing.T) {
 }
 
 func TestSoCPowerHistoryColorsMatchUnifiedComputeComponents(t *testing.T) {
-	// Power series are CPU/GPU/DRAM/ANE; compute series are ANE/GPU/CPU.
+	// Power series are Total/CPU/GPU/DRAM/ANE; compute series are ANE/GPU/CPU.
 	power := socPowerHistoryColors()
 	compute := unifiedComputeHistoryColors()
-	if got, want := power, []ui.Color{ui.ColorRed, ui.ColorYellow, ui.ColorCyan, ui.ColorGreen}; !slices.Equal(got, want) {
+	if got, want := power, []ui.Color{ui.ColorSilver, ui.ColorRed, ui.ColorYellow, ui.ColorCyan, ui.ColorGreen}; !slices.Equal(got, want) {
 		t.Fatalf("power colors = %v, want %v", got, want)
 	}
-	if power[0] != compute[2] || power[1] != compute[1] || power[3] != compute[0] {
+	if power[1] != compute[2] || power[2] != compute[1] || power[4] != compute[0] {
 		t.Fatalf("power CPU/GPU/ANE colors = %v do not match compute %v", power, compute)
 	}
 }
@@ -561,6 +682,9 @@ func TestRenderUnifiedComputeHistoryDrawsCPUAboveGPUAboveANE(t *testing.T) {
 	got := unifiedComputeHistoryChart.Data
 	if !slices.Equal(got[0], aneUsageHistory) || !slices.Equal(got[1], gpuEffectiveHistory) || !slices.Equal(got[2], cpuUsageHistory) {
 		t.Fatalf("compute draw order = %v, want ANE/GPU/CPU", got)
+	}
+	if got := unifiedComputeHistoryChart.Title; !strings.Contains(got, "(CPU: 20%, GPU: 40%, ANE: 60%)") || strings.Contains(got, "°") {
+		t.Fatalf("compute title = %q", got)
 	}
 }
 
@@ -722,7 +846,7 @@ func TestFormatUnifiedProcessRowUsesCompactColumns(t *testing.T) {
 		Command:   "long-running-command",
 	}
 
-	if got, want := formatUnifiedProcessRow(process, 35), "    42  14.8%  1.5G  2.0G long-r..."; got != want {
+	if got, want := formatUnifiedProcessRow(process, 59), "    42   0  12.3%   2.5%  1.5G  2.0G long-running-command"; got != want {
 		t.Fatalf("compact process row = %q, want %q", got, want)
 	}
 	if got := runewidth.StringWidth(formatUnifiedProcessRow(process, 12)); got > 12 {
@@ -742,6 +866,34 @@ func TestUnifiedProcessListUsesValidUnselectedRow(t *testing.T) {
 	list.Draw(buf)
 }
 
+func TestFormatUnifiedProcessSummary(t *testing.T) {
+	if got, want := formatUnifiedProcessSummary(summarizeUnifiedProcesses([]ProcessMetrics{{}, {}, {}})), "Processes: 3 total"; got != want {
+		t.Fatalf("process summary = %q, want %q", got, want)
+	}
+}
+
+func TestUnifiedProcessListTitleUsesSummaryOutsideSearch(t *testing.T) {
+	origList, origSummary, origSearchMode, origSearchText := unifiedProcessList, latestUnifiedProcessSummary, searchMode, searchText
+	t.Cleanup(func() {
+		unifiedProcessList, latestUnifiedProcessSummary = origList, origSummary
+		searchMode, searchText = origSearchMode, origSearchText
+	})
+
+	unifiedProcessList = w.NewList()
+	latestUnifiedProcessSummary = unifiedProcessSummary{Total: 980}
+	searchMode, searchText = false, ""
+	updateUnifiedProcessList([]ProcessMetrics{{PID: 1}})
+	if got, want := unifiedProcessList.Title, i18n.T("TUI_ProcessList")+" Processes: 980 total | / Search"; got != want {
+		t.Fatalf("unified process title = %q, want %q", got, want)
+	}
+
+	searchText = "Safari"
+	updateUnifiedProcessList([]ProcessMetrics{{PID: 1}})
+	if strings.Contains(unifiedProcessList.Title, "Processes: 980 total") {
+		t.Fatalf("search title %q must not include process summary", unifiedProcessList.Title)
+	}
+}
+
 func TestUnifiedProcessSearchAppliesOnEnter(t *testing.T) {
 	origLayout := currentConfig.DefaultLayout
 	origProcessList, origUnifiedList, origProcesses := processList, unifiedProcessList, lastProcesses
@@ -755,7 +907,7 @@ func TestUnifiedProcessSearchAppliesOnEnter(t *testing.T) {
 	})
 
 	currentConfig.DefaultLayout = LayoutUnified
-	UpdateCachedTerminalDimensions(120, 30)
+	UpdateCachedTerminalDimensions(180, 30)
 	processList, unifiedProcessList = w.NewList(), w.NewList()
 	lastProcesses = []ProcessMetrics{{PID: 1, Command: "Safari"}, {PID: 2, Command: "Terminal"}}
 	searchMode, searchDraft, searchText, filteredProcesses = false, "", "", nil
@@ -785,11 +937,11 @@ func TestUnifiedProcessHeaderShowsSelectedSortColumn(t *testing.T) {
 
 	unifiedProcessSelectedColumn = 1
 	unifiedProcessSortReverse = false
-	if got := formatUnifiedProcessHeader(40); !strings.Contains(got, "C+GPU↓") {
+	if got := formatUnifiedProcessHeader(40); !strings.Contains(got, "ACT↓") {
 		t.Fatalf("header %q does not show selected descending column", got)
 	}
 	unifiedProcessSortReverse = true
-	if got := formatUnifiedProcessHeader(40); !strings.Contains(got, "C+GPU↑") {
+	if got := formatUnifiedProcessHeader(40); !strings.Contains(got, "ACT↑") {
 		t.Fatalf("header %q does not show reversed column", got)
 	}
 }
@@ -799,17 +951,17 @@ func TestUnifiedProcessHeaderAlignsWithDataColumns(t *testing.T) {
 	t.Cleanup(func() {
 		unifiedProcessSelectedColumn, unifiedProcessSortReverse = origColumn, origReverse
 	})
-	unifiedProcessSelectedColumn, unifiedProcessSortReverse = 1, false
+	unifiedProcessSelectedColumn, unifiedProcessSortReverse = 2, false
 
-	if got, want := formatUnifiedProcessHeader(40), "   PID C+GPU↓   RSS  FOOT CMD"; got != want {
+	if got, want := formatUnifiedProcessHeader(45), "   PID ACT   CPU↓    GPU   RSS  FOOT CMD"; got != want {
 		t.Fatalf("aligned header = %q, want %q", got, want)
 	}
-	if got, want := formatUnifiedProcessRow(ProcessMetrics{PID: 42, CPU: 12.3, RSS: 1536 * 1024, Footprint: 2048 * 1024, Command: "cmd"}, 40), "    42  12.3%  1.5G  2.0G cmd"; got != want {
+	if got, want := formatUnifiedProcessRow(ProcessMetrics{PID: 42, CPU: 12.3, RSS: 1536 * 1024, Footprint: 2048 * 1024, Command: "cmd"}, 49), "    42   0  12.3%   0.0%  1.5G  2.0G cmd"; got != want {
 		t.Fatalf("aligned row = %q, want %q", got, want)
 	}
 }
 
-func TestSortUnifiedProcessesUsesCombinedComputeAndRSS(t *testing.T) {
+func TestSortUnifiedProcessesUsesSeparateCPUAndGPU(t *testing.T) {
 	origColumn, origReverse := unifiedProcessSelectedColumn, unifiedProcessSortReverse
 	t.Cleanup(func() {
 		unifiedProcessSelectedColumn, unifiedProcessSortReverse = origColumn, origReverse
@@ -819,12 +971,17 @@ func TestSortUnifiedProcessesUsesCombinedComputeAndRSS(t *testing.T) {
 		{PID: 2, CPU: 10, GPU: 200, RSS: 1 * 1024 * 1024},
 	}
 
-	unifiedProcessSelectedColumn, unifiedProcessSortReverse = 1, false
+	unifiedProcessSelectedColumn, unifiedProcessSortReverse = 2, false
+	sortUnifiedProcesses(processes)
+	if got := processes[0].PID; got != 1 {
+		t.Fatalf("CPU first PID = %d, want 1", got)
+	}
+	unifiedProcessSelectedColumn = 3
 	sortUnifiedProcesses(processes)
 	if got := processes[0].PID; got != 2 {
-		t.Fatalf("combined compute first PID = %d, want 2", got)
+		t.Fatalf("GPU first PID = %d, want 2", got)
 	}
-	unifiedProcessSelectedColumn = 2
+	unifiedProcessSelectedColumn = 4
 	sortUnifiedProcesses(processes)
 	if got := processes[0].PID; got != 1 {
 		t.Fatalf("RSS first PID = %d, want 1", got)
@@ -841,10 +998,52 @@ func TestSortUnifiedProcessesUsesFootprint(t *testing.T) {
 		{PID: 2, Footprint: 3 * 1024 * 1024},
 	}
 
-	unifiedProcessSelectedColumn, unifiedProcessSortReverse = 3, false
+	unifiedProcessSelectedColumn, unifiedProcessSortReverse = 5, false
 	sortUnifiedProcesses(processes)
 	if got := processes[0].PID; got != 2 {
 		t.Fatalf("footprint first PID = %d, want 2", got)
+	}
+}
+
+func TestCalculateProcessActivityUsesLargestStaticMemoryView(t *testing.T) {
+	totalMem := uint64(100 * 1024 * 1024 * 1024)
+	process := ProcessMetrics{
+		RSS:       10 * 1024 * 1024,
+		Footprint: 12 * 1024 * 1024,
+	}
+
+	// Twelve GiB is 80% of the 15 GiB static-memory reference. RSS and
+	// footprint overlap, so the score must use 12 GiB rather than their sum.
+	if got, want := calculateProcessActivity(process, totalMem), 2.1825; math.Abs(got-want) > 0.0001 {
+		t.Fatalf("static memory activity = %.4f, want %.4f", got, want)
+	}
+}
+
+func TestCalculateProcessActivityIncludesPageInsAndDisk(t *testing.T) {
+	process := ProcessMetrics{
+		PageInsPerSecond:   50,
+		DiskBytesPerSecond: 64 * 1024 * 1024,
+	}
+
+	if got, want := calculateProcessActivity(process, 0), 7.875; math.Abs(got-want) > 0.0001 {
+		t.Fatalf("dynamic memory/disk activity = %.4f, want %.4f", got, want)
+	}
+}
+
+func TestUnifiedProcessActivitySortUsesFractionalValue(t *testing.T) {
+	origColumn, origReverse := unifiedProcessSelectedColumn, unifiedProcessSortReverse
+	t.Cleanup(func() {
+		unifiedProcessSelectedColumn, unifiedProcessSortReverse = origColumn, origReverse
+	})
+	processes := []ProcessMetrics{{PID: 1, Activity: 1.49}, {PID: 2, Activity: 1.41}}
+
+	unifiedProcessSelectedColumn, unifiedProcessSortReverse = 3, false
+	sortUnifiedProcesses(processes)
+	if got := processes[0].PID; got != 1 {
+		t.Fatalf("fractional ACT sort first PID = %d, want 1", got)
+	}
+	if got := formatUnifiedProcessRow(processes[0], 40); !strings.Contains(got, "   1 ") {
+		t.Fatalf("ACT row = %q, want rounded integer display", got)
 	}
 }
 

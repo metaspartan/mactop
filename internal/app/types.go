@@ -95,7 +95,8 @@ type GPUMetrics struct {
 
 type ProcessMetrics struct {
 	PID                                      int
-	CPU, LastTime, Memory, GPU               float64 // GPU is ms/s of GPU time
+	CPU, LastTime, Memory, GPU, Activity     float64 // GPU is ms/s of GPU time
+	PageInsPerSecond, DiskBytesPerSecond     float64
 	VSZ, RSS, Footprint                      int64
 	User, TTY, State, Started, Time, Command string
 	LastUpdated                              time.Time
@@ -244,6 +245,12 @@ func (sc *PeakStepChart) orderCurrentLabelsByGroup(base []int) []int {
 			}
 			if len(right) > 0 {
 				rightValue = right[len(right)-1]
+			}
+			if leftValue == rightValue {
+				// Memory/swap uses series order Swap then Memory. Keeping that
+				// order for equal values lets Swap claim the lower row first and
+				// Memory remain visible immediately above it.
+				return members[i] < members[j]
 			}
 			return leftValue < rightValue
 		})

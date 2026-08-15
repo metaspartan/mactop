@@ -8,6 +8,12 @@
 
 `mactop` is a terminal-based monitoring tool "top" designed to display real-time metrics for Apple Silicon chips written by Carsen Klock. It provides a simple and efficient way to monitor CPU and GPU usage, E-Cores and P-Cores, power consumption, GPU frequency, temperatures, and other system metrics directly from your terminal
 
+## Make Apple Silicon Visible
+
+Turn your terminal into a live Apple Silicon cockpit. `mactop` brings compute, memory pressure, DRAM bandwidth, power, thermals, fans, and the processes driving them into one fast, keyboard-first view. Spot a runaway workload, sustained thermal pressure, or a memory-and-disk-heavy process before it becomes a slowdown.
+
+The unified dashboard is built for the moments when a single percentage is not enough: compare CPU, GPU, and ANE activity against memory, DRAM, power, temperature, and fan trends on the same timeline, then sort the compact process list by `ACT` to find the work that matters now.
+
 ![mactop](mactop.gif)
 
 ## Compatibility
@@ -40,7 +46,7 @@
 - Easy-to-read terminal UI
 - **21 Layouts**: (`l` to cycle layouts) — includes a GPU + Memory focused layout with a DRAM read/write bandwidth history chart
   - New `history_soc` layout (`a` to jump to it): four large history StepCharts showing **CPU, GPU, ANE, and DRAM + ANE Bandwidth (Read/Write)** side-by-side, with a compact process list at the bottom. Ideal for observing sustained load, on-device Neural Engine inference, and memory bandwidth behavior over time.
-  - New `unified` layout: the left two thirds align four history rows for CPU/GPU/ANE, memory/DRAM, SoC power, and temperatures/fans. The right third shares those row boundaries for CPU cores, processes, network I/O, and disk I/O.
+  - New `unified` layout: the left two thirds align four history rows for CPU/GPU/ANE, memory/DRAM, SoC power, and temperatures/fans. The right third shares those row boundaries for CPU cores, processes, network I/O, and disk I/O. Its compact process list includes sortable `ACT` (0-9): a rounded display of a fractional activity score derived from CPU, proportional GPU time, memory page-ins plus the larger of RSS/physical footprint, and per-process disk I/O. Network traffic is excluded because it is not collected per PID.
 - **Persistent Settings**: Remembers your Layout and Theme choice across restarts
 - Customizable UI color (green, red, blue, skyblue, magenta, yellow, gold, silver, white, lime, orange, violet, pink, and more) (`c` to cycle colors)
 - Customizable background color (`b` to cycle colors)
