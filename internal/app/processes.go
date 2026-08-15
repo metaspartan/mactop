@@ -598,7 +598,11 @@ func updateUnifiedProcessList(processes []ProcessMetrics) {
 		rows[i+1] = formatUnifiedProcessRow(process, availableWidth)
 	}
 
-	unifiedProcessList.Title = i18n.T("TUI_ProcessList")
+	if searchMode || searchText != "" {
+		unifiedProcessList.Title, unifiedProcessList.TitleStyle = getProcessListTitle()
+	} else {
+		unifiedProcessList.Title = i18n.T("TUI_ProcessList")
+	}
 	unifiedProcessList.Rows = rows
 }
 
@@ -642,7 +646,18 @@ func sortUnifiedProcesses(processes []ProcessMetrics) {
 }
 
 func handleUnifiedProcessListEvent(e ui.Event) {
+	if searchMode {
+		handleSearchInput(e)
+		return
+	}
+
 	switch e.ID {
+	case "/":
+		handleSearchToggle()
+		return
+	case "<Escape>":
+		handleSearchClear()
+		return
 	case "<Left>":
 		if unifiedProcessSelectedColumn > 0 {
 			unifiedProcessSelectedColumn--
@@ -675,30 +690,30 @@ func handleSearchInput(e ui.Event) {
 	switch e.ID {
 	case "<Escape>":
 		searchMode = false
+		searchDraft = ""
 		searchText = ""
 		filteredProcesses = nil
 		updateProcessList()
 	case "<Enter>":
 		searchMode = false
+		searchText = searchDraft
+		updateFilteredProcesses()
 		updateProcessList()
 	case "<F9>":
 		attemptKillProcess()
 	case "<Backspace>":
-		if len(searchText) > 0 {
-			runes := []rune(searchText)
-			searchText = string(runes[:len(runes)-1])
+		if len(searchDraft) > 0 {
+			runes := []rune(searchDraft)
+			searchDraft = string(runes[:len(runes)-1])
 		}
-		updateFilteredProcesses()
 		updateProcessList()
 	case "<Space>":
-		searchText += " "
-		updateFilteredProcesses()
+		searchDraft += " "
 		updateProcessList()
 	default:
 		// Only append printable characters (simple check)
 		if len(e.ID) == 1 {
-			searchText += e.ID
-			updateFilteredProcesses()
+			searchDraft += e.ID
 			updateProcessList()
 		}
 	}

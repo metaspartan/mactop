@@ -3,6 +3,7 @@ package app
 import (
 	"fmt"
 	"slices"
+	"strings"
 
 	ui "github.com/metaspartan/gotui/v5"
 	w "github.com/metaspartan/gotui/v5/widgets"
@@ -263,19 +264,26 @@ func applyMultiSeriesChartColors(theme *CustomThemeConfig, fgColor ui.Color) {
 		// In history_soc the renderer restores the full five-series palette,
 		// including bandwidth/cyan DRAM read, red DRAM write, and violet total.
 	}
-	// Consistent per-block colors for SoC Power History.
-	// Series order matches updateSoCPowerHistory: CPU, GPU, DRAM, ANE —
-	// ANE is drawn last (on top) and stays red regardless of theme.
+	// Power uses the same fixed CPU/GPU/ANE recognition colors as compute.
+	// Series order matches updateSoCPowerHistory: CPU, GPU, DRAM, ANE.
 	if socPowerHistoryChart != nil {
-		cpuC := resolveCustomColor(theme.CPU, fgColor)
-		gpuC := resolveCustomColor(theme.GPU, fgColor)
-		memC := resolveCustomColor(theme.Memory, fgColor)
-		socPowerHistoryChart.LineColors = []ui.Color{cpuC, gpuC, memC, ui.ColorRed}
+		socPowerHistoryChart.LineColors = socPowerHistoryColors()
 	}
 	if unifiedComputeHistoryChart != nil {
 		// The unified compute chart uses the fixed C/G/A palette selected for
 		// cross-view recognition, independent of component theme overrides.
 		unifiedComputeHistoryChart.LineColors = unifiedComputeHistoryColors()
+	}
+	if unifiedTemperatureHistoryChart != nil {
+		fanCount := 0
+		for _, label := range unifiedTemperatureHistoryChart.DataLabels {
+			if strings.HasPrefix(label, "L ") || strings.HasPrefix(label, "R ") || strings.HasPrefix(label, "F") {
+				fanCount++
+				continue
+			}
+			break
+		}
+		unifiedTemperatureHistoryChart.LineColors = unifiedTemperatureChartColors(fanCount)
 	}
 	if unifiedNetworkHistoryChart != nil {
 		unifiedNetworkHistoryChart.LineColors = []ui.Color{ui.ColorRed, resolveCustomColor(theme.Bandwidth, fgColor)}
@@ -327,7 +335,7 @@ func applyCustomWidgetColors(theme *CustomThemeConfig, fgColor ui.Color) {
 	styleParagraph(PowerChart, powerColor)
 	styleParagraph(NetworkInfo, netColor)
 	styleParagraph(tbInfoParagraph, resolveCustomColor(theme.Thunderbolt, fgColor))
-	styleParagraph(unifiedHealthPanel, resolveCustomColor(theme.Power, fgColor))
+	styleStepChart(unifiedTemperatureHistoryChart, resolveCustomColor(theme.Power, fgColor))
 	styleParagraph(infoParagraph, fgColor) // info box uses foreground directly
 	styleParagraph(helpText, fgColor)
 	styleParagraph(modelText, resolveCustomColor(theme.SystemInfo, fgColor))
@@ -414,7 +422,7 @@ func applyThemeToWidgets(color ui.Color, lightMode bool) {
 	styleParagraph(modelText, color)
 	styleParagraph(helpText, color)
 	styleParagraph(tbInfoParagraph, color)
-	styleParagraph(unifiedHealthPanel, color)
+	styleStepChart(unifiedTemperatureHistoryChart, color)
 	styleParagraph(infoParagraph, color)
 
 	// CPU Cores widget
@@ -814,7 +822,7 @@ func applyBackgroundToSparklines(bgColor ui.Color) {
 }
 
 func applyBackgroundToStepCharts(bgColor ui.Color) {
-	stepCharts := []any{gpuHistoryChart, powerHistoryChart, memoryHistoryChart, memBWHistoryChart, cpuHistoryChart, aneHistoryChart, bandwidthHistoryChart, socPowerHistoryChart, ssdReadHistoryChart, unifiedComputeHistoryChart, unifiedNetworkHistoryChart, unifiedDiskHistoryChart}
+	stepCharts := []any{gpuHistoryChart, powerHistoryChart, memoryHistoryChart, memBWHistoryChart, cpuHistoryChart, aneHistoryChart, bandwidthHistoryChart, socPowerHistoryChart, ssdReadHistoryChart, unifiedComputeHistoryChart, unifiedNetworkHistoryChart, unifiedDiskHistoryChart, unifiedTemperatureHistoryChart}
 	for _, chart := range stepCharts {
 		sc := asStepChart(chart)
 		if sc != nil {
@@ -822,12 +830,6 @@ func applyBackgroundToStepCharts(bgColor ui.Color) {
 			sc.BorderStyle.Bg = bgColor
 			sc.TitleStyle.Bg = bgColor
 		}
-	}
-	if unifiedHealthPanel != nil {
-		unifiedHealthPanel.BackgroundColor = bgColor
-		unifiedHealthPanel.BorderStyle.Bg = bgColor
-		unifiedHealthPanel.TitleStyle.Bg = bgColor
-		unifiedHealthPanel.TextStyle.Bg = bgColor
 	}
 }
 

@@ -64,6 +64,7 @@ typedef struct {
   double tflops_fp32;
   char rdma_status[64];
   double dram_bw_combined_gbs;
+  int dram_bw_source;
   int fan_count;
   int fan_rpm[4];
   char fan_name[4][32];
@@ -1574,8 +1575,14 @@ static void drawMiniBar(CGFloat x, CGFloat y, CGFloat w, CGFloat h,
   };
 
   void (^drawSectionBandwidth)(void) = ^{
-    NSString *bwStr =
-        [NSString stringWithFormat:@"%.1f GB/s", m.dram_bw_combined_gbs];
+    NSString *bwStr;
+    if (m.dram_bw_source == 0) {
+      bwStr = @"calibrating";
+    } else if (m.dram_bw_source == 3) {
+      bwStr = [NSString stringWithFormat:@"~%.1f GB/s", m.dram_bw_combined_gbs];
+    } else {
+      bwStr = [NSString stringWithFormat:@"%.1f GB/s", m.dram_bw_combined_gbs];
+    }
     drawMetricKV([NSString stringWithUTF8String:sectionDisplayName(kSectionBandwidth)], bwStr, overlayAccentBlue());
   };
 

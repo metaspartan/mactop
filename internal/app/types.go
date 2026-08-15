@@ -3,10 +3,12 @@ package app
 import (
 	"fmt"
 	"image"
+	"sort"
 	"strings"
 	"sync/atomic"
 	"time"
 
+	"github.com/mattn/go-runewidth"
 	ui "github.com/metaspartan/gotui/v5"
 	w "github.com/metaspartan/gotui/v5/widgets"
 )
@@ -35,9 +37,32 @@ type CPUMetrics struct {
 	DRAMReadBW                                                       float64
 	DRAMWriteBW                                                      float64
 	DRAMBWCombined                                                   float64
+	DRAMBandwidthSource                                              DRAMBandwidthSource
 	ANEBW                                                            float64
 	Fans                                                             []FanInfo
 	TempSensors                                                      []TempSensor
+}
+
+// DRAMBandwidthSource states whether DRAM directions are measured or derived.
+// The zero value preserves legacy callers while native samples use unavailable
+// until a source becomes usable.
+type DRAMBandwidthSource string
+
+const (
+	DRAMBandwidthUnavailable   DRAMBandwidthSource = "unavailable"
+	DRAMBandwidthDirectional   DRAMBandwidthSource = "directional"
+	DRAMBandwidthCombined      DRAMBandwidthSource = "combined"
+	DRAMBandwidthPowerEstimate DRAMBandwidthSource = "power_estimate"
+)
+
+func (s DRAMBandwidthSource) IsNonDirectional() bool {
+	return s == DRAMBandwidthCombined || s == DRAMBandwidthPowerEstimate
+}
+
+func (s DRAMBandwidthSource) IsAvailable() bool {
+	// Empty is retained as directional for pre-source callers and tests. Native
+	// sampling always returns the explicit unavailable value before calibration.
+	return s != DRAMBandwidthUnavailable
 }
 
 type SystemInfo struct {
@@ -95,8 +120,10 @@ type EventThrottler struct {
 // at the right edge, while peak labels are opt-in for the unified dashboard.
 type PeakStepChart struct {
 	*w.StepChart
-	PeakLabels     []string
-	ShowPeakLabels bool
+	PeakLabels        []string
+	ShowPeakLabels    bool
+	CurrentLabelOrder []int    // Optional draw priority for right-side current labels.
+	SeriesGroups      []string // Optional unit groups; equal groups sort labels by value.
 }
 
 func NewPeakStepChart() *PeakStepChart {
@@ -104,11 +131,214 @@ func NewPeakStepChart() *PeakStepChart {
 }
 
 func (sc *PeakStepChart) Draw(buf *ui.Buffer) {
+	// StepChart draws every current label at its sample's Y coordinate. That
+	// makes coincident series overwrite each other, so reserve those labels for
+	// our collision-aware pass after the lines and peak labels are rendered.
+	labels := sc.DataLabels
+	if sc.ShowRightAxis {
+		sc.DataLabels = make([]string, len(sc.Data))
+	}
 	sc.StepChart.Draw(buf)
+	sc.DataLabels = labels
 	if !sc.ShowPeakLabels || len(sc.PeakLabels) == 0 {
+		sc.drawCurrentLabels(buf, labels)
 		return
 	}
 	sc.drawPeakLabels(buf)
+	sc.drawCurrentLabels(buf, labels)
+}
+
+type chartLabelPlacement struct {
+	text string
+	rect image.Rectangle
+	line int
+}
+
+func (sc *PeakStepChart) drawCurrentLabels(buf *ui.Buffer, labels []string) {
+	if !sc.ShowRightAxis || len(sc.Data) == 0 {
+		return
+	}
+
+	area := sc.currentLabelDrawArea()
+	if area.Dx() <= 0 || area.Dy() <= 0 {
+		return
+	}
+	maxVal := sc.MaxVal
+	if maxVal <= 0 {
+		for _, series := range sc.Data {
+			maxVal = max(maxVal, seriesMax(series))
+		}
+	}
+	if maxVal <= 0 {
+		maxVal = 1
+	}
+
+	// Resolve same-unit labels from low to high. The lower value claims its
+	// natural row first; a colliding higher value is then displaced upward,
+	// preserving the final top-to-bottom numeric order at the chart bottom.
+	order := sc.currentLabelOrder()
+	occupied := make([]image.Rectangle, 0, len(sc.Data))
+	groupCeiling := make(map[string]int, len(sc.Data))
+	for _, lineIdx := range order {
+		series := sc.Data[lineIdx]
+		if len(series) == 0 {
+			continue
+		}
+		label := fmt.Sprintf("%.2f", series[len(series)-1])
+		if lineIdx < len(labels) && labels[lineIdx] != "" {
+			label = labels[lineIdx]
+		}
+		idealY := area.Max.Y - 1 - int((series[len(series)-1]/maxVal)*float64(area.Dy()-1))
+		idealY = max(area.Min.Y, min(idealY, area.Max.Y-1))
+		ceiling, ok := groupCeiling[sc.seriesGroup(lineIdx)]
+		if !ok {
+			ceiling = area.Max.Y - 1
+		}
+		placement := chooseCurrentLabelPlacementWithin(area, label, idealY, lineIdx, occupied, ceiling, func(rect image.Rectangle) int {
+			return chartLineCells(buf, rect)
+		})
+		occupied = append(occupied, placement.rect)
+		// Same-unit labels are placed low to high, so every next label must be
+		// physically above the previous one, even when line avoidance moves it.
+		groupCeiling[sc.seriesGroup(lineIdx)] = placement.rect.Min.Y - 1
+		style := ui.NewStyle(ui.SelectColor(sc.LineColors, lineIdx), sc.BorderStyle.Bg)
+		buf.SetString(label, style, placement.rect.Min)
+	}
+}
+
+func (sc *PeakStepChart) currentLabelOrder() []int {
+	base := currentLabelOrder(len(sc.Data))
+	if len(sc.CurrentLabelOrder) == len(sc.Data) {
+		seen := make([]bool, len(sc.Data))
+		for _, idx := range sc.CurrentLabelOrder {
+			if idx < 0 || idx >= len(sc.Data) || seen[idx] {
+				return sc.orderCurrentLabelsByGroup(base)
+			}
+			seen[idx] = true
+		}
+		base = sc.CurrentLabelOrder
+	}
+	return sc.orderCurrentLabelsByGroup(base)
+}
+
+func (sc *PeakStepChart) orderCurrentLabelsByGroup(base []int) []int {
+	result := make([]int, 0, len(base))
+	usedGroups := make(map[string]bool, len(base))
+	for _, first := range base {
+		group := sc.seriesGroup(first)
+		if usedGroups[group] {
+			continue
+		}
+		usedGroups[group] = true
+		members := make([]int, 0, len(base))
+		for _, idx := range base {
+			if sc.seriesGroup(idx) == group {
+				members = append(members, idx)
+			}
+		}
+		sort.SliceStable(members, func(i, j int) bool {
+			left, right := sc.Data[members[i]], sc.Data[members[j]]
+			leftValue, rightValue := 0.0, 0.0
+			if len(left) > 0 {
+				leftValue = left[len(left)-1]
+			}
+			if len(right) > 0 {
+				rightValue = right[len(right)-1]
+			}
+			return leftValue < rightValue
+		})
+		result = append(result, members...)
+	}
+	return result
+}
+
+func (sc *PeakStepChart) seriesGroup(index int) string {
+	if index >= 0 && index < len(sc.SeriesGroups) && sc.SeriesGroups[index] != "" {
+		return sc.SeriesGroups[index]
+	}
+	return "default"
+}
+
+func (sc *PeakStepChart) currentLabelDrawArea() image.Rectangle {
+	if sc.ShowAxes {
+		return image.Rect(sc.Inner.Min.X+5, sc.Inner.Min.Y, sc.Inner.Max.X, sc.Inner.Max.Y-2)
+	}
+	return sc.Inner
+}
+
+func currentLabelOrder(seriesCount int) []int {
+	order := make([]int, 0, seriesCount)
+	if seriesCount < 4 {
+		for idx := 0; idx < seriesCount; idx++ {
+			order = append(order, idx)
+		}
+		return order
+	}
+	// The mixed unified memory chart has memory/swap in 0/1 and DRAM in 2/3.
+	for _, idx := range []int{2, 3} {
+		if idx < seriesCount {
+			order = append(order, idx)
+		}
+	}
+	for idx := 0; idx < seriesCount; idx++ {
+		if idx < 2 {
+			order = append(order, idx)
+		}
+	}
+	return order
+}
+
+func chooseCurrentLabelPlacement(area image.Rectangle, label string, idealY, line int, occupied []image.Rectangle, lineCells func(image.Rectangle) int) chartLabelPlacement {
+	return chooseCurrentLabelPlacementWithin(area, label, idealY, line, occupied, area.Max.Y-1, lineCells)
+}
+
+func chooseCurrentLabelPlacementWithin(area image.Rectangle, label string, idealY, line int, occupied []image.Rectangle, maxY int, _ func(image.Rectangle) int) chartLabelPlacement {
+	width := runewidth.StringWidth(label)
+	if width <= 0 {
+		return chartLabelPlacement{line: line}
+	}
+	// Reserve the rightmost chart cell for the latest plotted sample.
+	xs := []int{max(area.Min.X, area.Max.X-1-width)}
+	for distance := 0; distance < area.Dy(); distance++ {
+		for _, y := range []int{idealY + distance, idealY - distance} {
+			if y < area.Min.Y || y >= area.Max.Y || y > maxY || (distance == 0 && y != idealY) {
+				continue
+			}
+			for _, x := range xs {
+				rect := image.Rect(x, y, x+width, y+1)
+				if overlapsAny(rect, occupied) {
+					continue
+				}
+				return chartLabelPlacement{text: label, rect: rect, line: line}
+			}
+		}
+	}
+	// A one-row chart cannot fit all labels. Keep the high-priority label
+	// readable even when the terminal leaves no non-overlapping placement.
+	fallbackY := max(area.Min.Y, min(idealY, maxY))
+	return chartLabelPlacement{text: label, rect: image.Rect(xs[0], fallbackY, xs[0]+width, fallbackY+1), line: line}
+}
+
+func overlapsAny(candidate image.Rectangle, occupied []image.Rectangle) bool {
+	for _, used := range occupied {
+		if candidate.Overlaps(used) {
+			return true
+		}
+	}
+	return false
+}
+
+func chartLineCells(buf *ui.Buffer, rect image.Rectangle) int {
+	count := 0
+	for y := rect.Min.Y; y < rect.Max.Y; y++ {
+		for x := rect.Min.X; x < rect.Max.X; x++ {
+			switch buf.GetCell(image.Pt(x, y)).Rune {
+			case ui.HORIZONTAL_LINE, ui.VERTICAL_LINE, ui.TOP_RIGHT, ui.BOTTOM_RIGHT, ui.TOP_LEFT, ui.BOTTOM_LEFT:
+				count++
+			}
+		}
+	}
+	return count
 }
 
 func (sc *PeakStepChart) drawPeakLabels(buf *ui.Buffer) {
@@ -132,60 +362,81 @@ func (sc *PeakStepChart) drawPeakLabels(buf *ui.Buffer) {
 	if drawArea.Dx() <= 0 || drawArea.Dy() <= 0 {
 		return
 	}
-
-	scale := max(sc.HorizontalScale, 1)
 	// Match StepChart.drawLine: a sample is visible only while its x position
 	// is strictly inside drawArea's right edge.
+	scale := max(sc.HorizontalScale, 1)
 	maxSamples := min((drawArea.Dx()-1)/scale+1, len(sc.Data[0]))
-	occupied := make(map[int][]image.Rectangle)
+	type peakLabel struct {
+		line  int
+		value float64
+		y     int
+		text  string
+	}
+	labels := make([]peakLabel, 0, len(sc.Data))
 	for lineIdx, series := range sc.Data {
 		if lineIdx >= len(sc.PeakLabels) || sc.PeakLabels[lineIdx] == "" || len(series) == 0 {
 			continue
 		}
 		visible := series[:min(maxSamples, len(series))]
-		peakIdx, peak := 0, visible[0]
-		for i, value := range visible[1:] {
+		peak := visible[0]
+		for _, value := range visible[1:] {
 			if value > peak {
-				peakIdx, peak = i+1, value
+				peak = value
 			}
 		}
 
-		x := drawArea.Min.X + peakIdx*scale
 		y := drawArea.Max.Y - 1 - int((peak/maxVal)*float64(drawArea.Dy()-1))
 		y = max(drawArea.Min.Y, min(y, drawArea.Max.Y-1))
-		label := sc.PeakLabels[lineIdx]
-		labelX := x + 1
-		if labelX+len(label) > drawArea.Max.X {
-			labelX = x - len(label)
+		text := sc.PeakLabels[lineIdx]
+		if runewidth.StringWidth(text) <= 0 {
+			continue
 		}
-		labelX = max(drawArea.Min.X, min(labelX, drawArea.Max.X-len(label)))
+		labels = append(labels, peakLabel{line: lineIdx, value: peak, y: y, text: text})
+	}
 
-		labelY := sc.peakLabelY(y, labelX, len(label), drawArea, occupied)
-		occupied[labelY] = append(occupied[labelY], image.Rect(labelX, labelY, labelX+len(label), labelY+1))
-		style := ui.NewStyle(ui.SelectColor(sc.LineColors, lineIdx), sc.BorderStyle.Bg)
-		buf.SetString(label, style, image.Pt(labelX, labelY))
+	// Resolve collisions from the lowest peak up. At the bottom edge a lower
+	// peak can retain its natural row while each higher collision moves upward,
+	// preserving the final top-to-bottom numeric order.
+	sort.SliceStable(labels, func(i, j int) bool {
+		if labels[i].value == labels[j].value {
+			return labels[i].line < labels[j].line
+		}
+		return labels[i].value < labels[j].value
+	})
+	usedRows := make(map[int]bool, len(labels))
+	for _, label := range labels {
+		if drawArea.Min.X+runewidth.StringWidth(label.text) > drawArea.Max.X {
+			continue
+		}
+		y, ok := nearestPeakLabelRow(label.y, drawArea, usedRows)
+		if !ok {
+			// There are more peak labels than display rows. Keep the label in the
+			// left column rather than moving it horizontally.
+			y = label.y
+		}
+		usedRows[y] = true
+		style := ui.NewStyle(ui.SelectColor(sc.LineColors, label.line), sc.BorderStyle.Bg)
+		buf.SetString(label.text, style, image.Pt(drawArea.Min.X, y))
 	}
 }
 
-func (sc *PeakStepChart) peakLabelY(peakY, x, width int, area image.Rectangle, occupied map[int][]image.Rectangle) int {
-	for _, offset := range []int{-1, 1, -2, 2, 0} {
-		y := peakY + offset
-		if y < area.Min.Y || y >= area.Max.Y {
+func nearestPeakLabelRow(target int, area image.Rectangle, used map[int]bool) (int, bool) {
+	for distance := 0; distance < area.Dy(); distance++ {
+		if distance == 0 {
+			if !used[target] {
+				return target, true
+			}
 			continue
 		}
-		candidate := image.Rect(x, y, x+width, y+1)
-		collision := false
-		for _, used := range occupied[y] {
-			if candidate.Overlaps(used) {
-				collision = true
-				break
+		// Higher labels are placed after their lower colliding peers, so prefer
+		// the row above to retain descending values from top to bottom.
+		for _, y := range []int{target - distance, target + distance} {
+			if y >= area.Min.Y && y < area.Max.Y && !used[y] {
+				return y, true
 			}
 		}
-		if !collision {
-			return y
-		}
 	}
-	return peakY
+	return 0, false
 }
 
 type CPUCoreWidget struct {

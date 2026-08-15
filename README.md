@@ -40,14 +40,14 @@
 - Easy-to-read terminal UI
 - **21 Layouts**: (`l` to cycle layouts) — includes a GPU + Memory focused layout with a DRAM read/write bandwidth history chart
   - New `history_soc` layout (`a` to jump to it): four large history StepCharts showing **CPU, GPU, ANE, and DRAM + ANE Bandwidth (Read/Write)** side-by-side, with a compact process list at the bottom. Ideal for observing sustained load, on-device Neural Engine inference, and memory bandwidth behavior over time.
-  - New `unified` layout: the left two thirds contain four history rows for CPU/GPU/ANE, memory/DRAM, SoC power, and separate network/disk I/O; the right third shows cores, thermals, and processes.
+  - New `unified` layout: the left two thirds align four history rows for CPU/GPU/ANE, memory/DRAM, SoC power, and temperatures/fans. The right third shares those row boundaries for CPU cores, processes, network I/O, and disk I/O.
 - **Persistent Settings**: Remembers your Layout and Theme choice across restarts
 - Customizable UI color (green, red, blue, skyblue, magenta, yellow, gold, silver, white, lime, orange, violet, pink, and more) (`c` to cycle colors)
 - Customizable background color (`b` to cycle colors)
 - Customizable update interval (default is 1000ms) (`-` or `=` to speed up, `+` to slow down)
 - Process list matching htop format (VIRT in GB, CPU normalized by core count)
 - **Process Management**: Kill processes directly from the UI (F9) with safe confirmation.
-- **Process Filter**: Search and filter processes by name (`/`)
+- **Process Filter**: Press `/` to enter a process-name search, type a query, then press `Enter` to apply it (`Esc` clears it). Works in both the full process table and the compact list in the `unified` layout.
 - **Navigation**: Enhanced Vim-like navigation (`g` top, `G` bottom, `j`/`k` scroll)
 - **Headless Mode**: Output JSON metrics to stdout for scripting/logging (`--headless`)
 - **JSON Formatting**: Pretty print JSON output (`--pretty`) or set collection count (`--count <n>`)
@@ -340,7 +340,7 @@ Use the following keys to interact with the application while its running:
 - `F9`: Kill the currently selected process (pauses updates while selecting).
 - `Arrow Keys` or `h/j/k/l`: Navigate the process list and select columns.
 - `g` / `G`: Jump to the top or bottom of the process list.
-- `/`: Search/Filter the process list by name (Esc to clear).
+- `/`: Enter process-name search mode; type a query and press `Enter` to filter. `Esc` clears the active filter.
 - `Enter` or `Space`: Sort by the selected column.
 - `h` or `?`: Toggle the help menu.
 

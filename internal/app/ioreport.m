@@ -1461,6 +1461,8 @@ typedef struct {
   float gpuTemp;
   int64_t dramReadBytes;
   int64_t dramWriteBytes;
+  // 0 unavailable, 1 directional, 2 combined-only, 3 power estimate.
+  int dramBandwidthSource;
   // ANE traffic bytes for this sample. Sourced from the AMC Stats
   // "ANE<n> RD/WR" byte counters when they produce data (M1-M4, where they
   // survive the macOS 27 energy-counter breakage), otherwise from the PMP
@@ -3148,18 +3150,23 @@ PowerMetrics samplePowerMetrics(int durationMs) {
   if (hasAmcExactDcsDirectional) {
     metrics.dramReadBytes = amcExactDcsReadBytes;
     metrics.dramWriteBytes = amcExactDcsWriteBytes;
+    metrics.dramBandwidthSource = 1;
   } else if (hasAmcExactDcsCombined) {
     metrics.dramReadBytes = amcExactDcsCombinedBytes / 2;
     metrics.dramWriteBytes = amcExactDcsCombinedBytes - metrics.dramReadBytes;
+    metrics.dramBandwidthSource = 2;
   } else if (hasAmcPartitionDcsDirectional) {
     metrics.dramReadBytes = amcPartitionDcsReadBytes;
     metrics.dramWriteBytes = amcPartitionDcsWriteBytes;
+    metrics.dramBandwidthSource = 1;
   } else if (hasAmcPartitionDcsCombined) {
     metrics.dramReadBytes = amcPartitionDcsCombinedBytes / 2;
     metrics.dramWriteBytes = amcPartitionDcsCombinedBytes - metrics.dramReadBytes;
+    metrics.dramBandwidthSource = 2;
   } else if (hasAmcClientDcs) {
     metrics.dramReadBytes = amcClientDcsReadBytes;
     metrics.dramWriteBytes = amcClientDcsWriteBytes;
+    metrics.dramBandwidthSource = 1;
   }
 
   if (metrics.dramPower > 0.001 &&
@@ -3215,10 +3222,14 @@ PowerMetrics samplePowerMetrics(int durationMs) {
       metrics.dramReadBytes == 0 && metrics.dramWriteBytes == 0) {
     metrics.dramReadBytes = pmpDramReadBytes;
     metrics.dramWriteBytes = pmpDramWriteBytes;
+    if (metrics.dramReadBytes > 0 || metrics.dramWriteBytes > 0) {
+      metrics.dramBandwidthSource = 1;
+    }
     if (metrics.dramReadBytes == 0 && metrics.dramWriteBytes == 0 &&
         pmpDramCombinedBytes > 0) {
       metrics.dramReadBytes = pmpDramCombinedBytes / 2;
       metrics.dramWriteBytes = pmpDramCombinedBytes - metrics.dramReadBytes;
+      metrics.dramBandwidthSource = 2;
     }
   }
 
@@ -3266,6 +3277,7 @@ PowerMetrics samplePowerMetrics(int durationMs) {
     // Split evenly between read and write (power can't distinguish direction)
     metrics.dramReadBytes = totalBytes / 2;
     metrics.dramWriteBytes = totalBytes / 2;
+    metrics.dramBandwidthSource = 3;
   }
 
   // Fallback: use kperf PMU counters for DRAM BW (requires root).
@@ -3275,6 +3287,7 @@ PowerMetrics samplePowerMetrics(int durationMs) {
     readKperfDramBW(&kperfRd, &kperfWr);
     metrics.dramReadBytes = kperfRd;
     metrics.dramWriteBytes = kperfWr;
+    metrics.dramBandwidthSource = 1;
   }
 
   // Last-resort compatibility fallback: request counters can over-count fabric
@@ -3285,6 +3298,7 @@ PowerMetrics samplePowerMetrics(int durationMs) {
       hasAmcRequestBytes) {
     metrics.dramReadBytes = amcRequestReadBytes;
     metrics.dramWriteBytes = amcRequestWriteBytes;
+    metrics.dramBandwidthSource = 1;
   }
 
   // ANE power is taken strictly from the Energy Model "ANE" channel (if present

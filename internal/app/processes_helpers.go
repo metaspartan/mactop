@@ -88,7 +88,11 @@ func getProcessListTitle() (string, ui.Style) {
 	if killPending {
 		return fmt.Sprintf(i18n.T("TUI_ProcessListKill"), killPID), ui.NewStyle(ui.ColorRed, CurrentBgColor, ui.ModifierBold)
 	} else if searchMode || searchText != "" {
-		return fmt.Sprintf(i18n.T("TUI_ProcessListSearch"), searchText), ui.NewStyle(titleColor, CurrentBgColor, ui.ModifierBold)
+		query := searchText
+		if searchMode {
+			query = searchDraft
+		}
+		return fmt.Sprintf(i18n.T("TUI_ProcessListSearch"), query), ui.NewStyle(titleColor, CurrentBgColor, ui.ModifierBold)
 	} else if isFrozen {
 		return i18n.T("TUI_ProcessListFrozen"), ui.NewStyle(titleColor, CurrentBgColor, ui.ModifierBold)
 	} else if filterPID > 0 {
@@ -124,6 +128,7 @@ func attemptKillProcess() {
 
 func handleSearchToggle() {
 	searchMode = true
+	searchDraft = ""
 	searchText = ""
 	filteredProcesses = nil
 	updateProcessList()
@@ -131,6 +136,7 @@ func handleSearchToggle() {
 
 func handleSearchClear() {
 	if searchText != "" {
+		searchDraft = ""
 		searchText = ""
 		filteredProcesses = nil
 		updateProcessList()

@@ -95,7 +95,7 @@ func buildInfoLines(themeColor string) []string {
 		formatLine(i18n.T("Info_Thermals"), thermalStr),
 		formatLine(i18n.T("Info_Network"), fmt.Sprintf(i18n.T("Info_NetworkValue"), formatBytes(lastNetDiskMetrics.OutBytesPerSec, networkUnit), formatBytes(lastNetDiskMetrics.InBytesPerSec, networkUnit))),
 		formatLine(i18n.T("Info_Disk"), fmt.Sprintf(i18n.T("Info_DiskValue"), formatBytes(lastNetDiskMetrics.ReadKBytesPerSec*1024, diskUnit), formatBytes(lastNetDiskMetrics.WriteKBytesPerSec*1024, diskUnit))),
-		formatLine(i18n.T("Info_DRAMBW"), fmt.Sprintf(i18n.T("Info_DRAMBWValue"), lastCPUMetrics.DRAMReadBW, lastCPUMetrics.DRAMWriteBW, lastCPUMetrics.DRAMBWCombined)),
+		formatLine(i18n.T("Info_DRAMBW"), formatDRAMBandwidth(lastCPUMetrics)),
 	}
 
 	if bat := GetBatteryInfo(); bat.Displayable() {
@@ -128,6 +128,19 @@ func buildInfoLines(themeColor string) []string {
 	infoLines = append(infoLines, buildThunderboltInfoLines(themeColor)...)
 
 	return infoLines
+}
+
+func formatDRAMBandwidth(metrics CPUMetrics) string {
+	switch metrics.DRAMBandwidthSource {
+	case DRAMBandwidthPowerEstimate:
+		return fmt.Sprintf("~%.1f GB/s (estimate)", metrics.DRAMBWCombined)
+	case DRAMBandwidthCombined:
+		return fmt.Sprintf("%.1f GB/s (combined)", metrics.DRAMBWCombined)
+	case DRAMBandwidthUnavailable:
+		return "calibrating"
+	default:
+		return fmt.Sprintf(i18n.T("Info_DRAMBWValue"), metrics.DRAMReadBW, metrics.DRAMWriteBW, metrics.DRAMBWCombined)
+	}
 }
 
 func buildNetworkLinkLines(formatLine func(string, string) string) []string {

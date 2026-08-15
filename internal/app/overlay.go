@@ -44,6 +44,7 @@ typedef struct {
     double tflops_fp32;
     char rdma_status[64];
     double dram_bw_combined_gbs;
+    int dram_bw_source;
     int fan_count;
     int fan_rpm[4];
     char fan_name[4][32];
@@ -331,6 +332,7 @@ func updateOverlayFromPayload(p MenuBarMetricsPayload) {
 	// TFLOPs / DRAM BW
 	cm.tflops_fp32 = C.double(p.TFLOPs)
 	cm.dram_bw_combined_gbs = C.double(p.CPUMetrics.DRAMBWCombined)
+	cm.dram_bw_source = C.int(dramBandwidthSourceNative(p.CPUMetrics.DRAMBandwidthSource))
 
 	// SysInfo
 	cm.gpu_core_count = C.int(p.SysInfo.GPUCoreCount)
@@ -388,6 +390,19 @@ func updateOverlayFromPayload(p MenuBarMetricsPayload) {
 	}
 
 	C.updateOverlayMetrics((*C.overlay_metrics_t)(unsafe.Pointer(&cm)))
+}
+
+func dramBandwidthSourceNative(source DRAMBandwidthSource) int {
+	switch source {
+	case DRAMBandwidthDirectional:
+		return 1
+	case DRAMBandwidthCombined:
+		return 2
+	case DRAMBandwidthPowerEstimate:
+		return 3
+	default:
+		return 0
+	}
 }
 
 // startOverlayProcess spawns the worker process and sets up the pipe.

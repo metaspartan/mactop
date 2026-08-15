@@ -26,16 +26,17 @@ func init() {
 }
 
 var (
-	version                                                                         = "v2.1.5"
-	cpuGauge, gpuGauge, memoryGauge, aneGauge                                       *w.Gauge
-	mainBlock                                                                       *ui.Block
-	modelText, PowerChart, NetworkInfo, unifiedHealthPanel, helpText, infoParagraph *w.Paragraph
-	tbInfoParagraph                                                                 *w.Paragraph
-	fanStatusPanel, fanTempPanel, fanControlPanel                                   *w.Paragraph
-	grid                                                                            *ui.Grid
-	processList, unifiedProcessList                                                 *w.List
+	version                                                     = "v2.1.5"
+	cpuGauge, gpuGauge, memoryGauge, aneGauge                   *w.Gauge
+	mainBlock                                                   *ui.Block
+	modelText, PowerChart, NetworkInfo, helpText, infoParagraph *w.Paragraph
+	tbInfoParagraph                                             *w.Paragraph
+	fanStatusPanel, fanTempPanel, fanControlPanel               *w.Paragraph
+	grid                                                        *ui.Grid
+	processList, unifiedProcessList                             *w.List
 	// Search state
 	searchMode        bool
+	searchDraft       string
 	searchText        string
 	filteredProcesses []ProcessMetrics
 	isFrozen          bool
@@ -58,12 +59,16 @@ var (
 	ssdReadHistoryChart                                 *w.StepChart   // Combined SSD read bandwidth history (GB/s)
 	unifiedComputeHistoryChart                          *PeakStepChart
 	unifiedNetworkHistoryChart, unifiedDiskHistoryChart *PeakStepChart
+	unifiedTemperatureHistoryChart                      *PeakStepChart
 	memoryUsedHistory                                   = make([]float64, 100)
 	swapUsedHistory                                     = make([]float64, 100)
 	cpuUsageHistory                                     = make([]float64, 100)
 	powerUsageHistory                                   = make([]float64, 100)
 	memBWReadHistory                                    = make([]float64, 100)
 	memBWWriteHistory                                   = make([]float64, 100)
+	memBWTotalHistory                                   = make([]float64, 100)
+	memBWHistoryCount                                   int
+	lastMemBWSource                                     DRAMBandwidthSource
 	maxMemBWSeen                                        float64
 	// ANE estimate state shared between the sampler goroutine (latch writes in
 	// sampleSocMetrics) and the UI/menubar/overlay goroutines (reads + adaptive
@@ -74,6 +79,9 @@ var (
 	aneUsageHistory     = make([]float64, 100)
 	dramReadHistory     = make([]float64, 100)
 	dramWriteHistory    = make([]float64, 100)
+	dramTotalHistory    = make([]float64, 100)
+	dramBWHistoryCount  int
+	lastDRAMBWSource    DRAMBandwidthSource
 	aneReadBwHistory    = make([]float64, 100)
 	aneWriteBwHistory   = make([]float64, 100)
 
@@ -81,8 +89,14 @@ var (
 	// jump (e.g. the 'a' ANE/BW history shortcut), so the key toggles back.
 	previousLayout string
 
-	// Per-component power histories for the SoC history layout (history_soc)
-	cpuPowerHistory, gpuPowerHistory, anePowerHistory, dramPowerHistory = make([]float64, 100), make([]float64, 100), make([]float64, 100), make([]float64, 100)
+	// Per-component power histories for the SoC history layout (history_soc).
+	cpuPowerHistory, gpuPowerHistory, anePowerHistory, dramPowerHistory, totalPowerHistory = make([]float64, 100), make([]float64, 100), make([]float64, 100), make([]float64, 100), make([]float64, 100)
+	// Unified dashboard thermal histories. Fans use individual full-height duty
+	// traces, while their labels retain the physical RPM readings.
+	cpuTempHistory, gpuTempHistory, memoryTempHistory, ssdTempHistory = make([]float64, 100), make([]float64, 100), make([]float64, 100), make([]float64, 100)
+	fanDutyHistory, fanRPMHistory                                     [2][]float64
+	fanHistoryIDs                                                     [2]int
+	fanHistoryNames                                                   [2]string
 
 	// Decaying-peak histories for the four SoC usage charts in history_soc layout
 	cpuPeakHistory, gpuPeakHistory, anePeakHistory, bwPeakHistory []float64
@@ -330,6 +344,13 @@ var (
 			Help: "DRAM bandwidth in GB/s",
 		},
 		[]string{"direction"},
+	)
+	dramBandwidthSource = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "mactop_dram_bandwidth_source",
+			Help: "DRAM bandwidth source state (one active source has value 1)",
+		},
+		[]string{"source"},
 	)
 
 	// Per-core CPU usage metrics

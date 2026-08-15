@@ -43,6 +43,7 @@ typedef struct {
     double tflops_fp32;
     char rdma_status[64];
     double dram_bw_combined_gbs;
+    int dram_bw_source;
     int fan_count;
     int fan_rpm[4];
     char fan_name[4][32];
@@ -331,6 +332,7 @@ func updateMenuBarFromPayload(p MenuBarMetricsPayload) {
 
 	// DRAM Bandwidth
 	cm.dram_bw_combined_gbs = C.double(p.CPUMetrics.DRAMBWCombined)
+	cm.dram_bw_source = C.int(dramBandwidthSourceNative(p.CPUMetrics.DRAMBandwidthSource))
 
 	// SysInfo Mapping
 	cm.gpu_core_count = C.int(p.SysInfo.GPUCoreCount)

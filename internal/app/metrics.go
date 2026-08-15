@@ -31,6 +31,7 @@ func startPrometheusServer(port string) {
 	registry.MustRegister(rdmaAvailable)
 	registry.MustRegister(scoreUsage)
 	registry.MustRegister(dramBandwidth)
+	registry.MustRegister(dramBandwidthSource)
 	registry.MustRegister(batteryPercent)
 	registry.MustRegister(batteryCharging)
 	registry.MustRegister(cpuCoreUsage)
@@ -80,6 +81,9 @@ func initializePrometheusSeries(sysInfo SystemInfo) {
 	for _, direction := range []string{"read", "write", "combined"} {
 		dramBandwidth.With(prometheus.Labels{"direction": direction}).Set(0)
 	}
+	for _, source := range []DRAMBandwidthSource{DRAMBandwidthUnavailable, DRAMBandwidthDirectional, DRAMBandwidthCombined, DRAMBandwidthPowerEstimate} {
+		dramBandwidthSource.With(prometheus.Labels{"source": string(source)}).Set(0)
+	}
 	for _, direction := range []string{"upload", "download"} {
 		tbNetworkSpeed.With(prometheus.Labels{"direction": direction}).Set(0)
 	}
@@ -101,33 +105,34 @@ func normalizeSocMetricsPower(m SocMetrics) SocMetrics {
 
 func cpuMetricsFromSoc(m SocMetrics, coreUsages []float64, avgUsage float64, throttled bool) CPUMetrics {
 	return CPUMetrics{
-		CPUW:            m.CPUPower,
-		GPUW:            m.GPUPower,
-		ANEW:            m.ANEPower,
-		ANEActive:       m.ANEActive,
-		ANEReadBW:       m.ANEReadBW,
-		ANEWriteBW:      m.ANEWriteBW,
-		DRAMW:           m.DRAMPower,
-		GPUSRAMW:        m.GPUSRAMPower,
-		SystemW:         m.SystemPower,
-		PackageW:        m.TotalPower,
-		Throttled:       throttled,
-		CPUTemp:         float64(m.CPUTemp),
-		GPUTemp:         float64(m.GPUTemp),
-		EClusterActive:  int(m.EClusterActive),
-		PClusterActive:  int(m.PClusterActive),
-		EClusterFreqMHz: int(m.EClusterFreqMHz),
-		PClusterFreqMHz: int(m.PClusterFreqMHz),
-		SClusterActive:  int(m.SClusterActive),
-		SClusterFreqMHz: int(m.SClusterFreqMHz),
-		DRAMReadBW:      m.DRAMReadBW,
-		DRAMWriteBW:     m.DRAMWriteBW,
-		DRAMBWCombined:  m.DRAMBWCombined,
-		ANEBW:           m.ANEBWCombined,
-		Fans:            m.Fans,
-		TempSensors:     m.TempSensors,
-		CoreUsages:      coreUsages,
-		AvgUsage:        avgUsage,
+		CPUW:                m.CPUPower,
+		GPUW:                m.GPUPower,
+		ANEW:                m.ANEPower,
+		ANEActive:           m.ANEActive,
+		ANEReadBW:           m.ANEReadBW,
+		ANEWriteBW:          m.ANEWriteBW,
+		DRAMW:               m.DRAMPower,
+		GPUSRAMW:            m.GPUSRAMPower,
+		SystemW:             m.SystemPower,
+		PackageW:            m.TotalPower,
+		Throttled:           throttled,
+		CPUTemp:             float64(m.CPUTemp),
+		GPUTemp:             float64(m.GPUTemp),
+		EClusterActive:      int(m.EClusterActive),
+		PClusterActive:      int(m.PClusterActive),
+		EClusterFreqMHz:     int(m.EClusterFreqMHz),
+		PClusterFreqMHz:     int(m.PClusterFreqMHz),
+		SClusterActive:      int(m.SClusterActive),
+		SClusterFreqMHz:     int(m.SClusterFreqMHz),
+		DRAMReadBW:          m.DRAMReadBW,
+		DRAMWriteBW:         m.DRAMWriteBW,
+		DRAMBWCombined:      m.DRAMBWCombined,
+		DRAMBandwidthSource: m.DRAMBandwidthSource,
+		ANEBW:               m.ANEBWCombined,
+		Fans:                m.Fans,
+		TempSensors:         m.TempSensors,
+		CoreUsages:          coreUsages,
+		AvgUsage:            avgUsage,
 	}
 }
 
@@ -325,9 +330,25 @@ func publishPrometheusMetrics(snapshot prometheusMetricsSnapshot) {
 	socTemp.Set(cpuMetrics.CPUTemp)
 	gpuTemp.Set(cpuMetrics.GPUTemp)
 	thermalState.Set(prometheusThermalStateValue(snapshot.ThermalLevel))
-	dramBandwidth.With(prometheus.Labels{"direction": "read"}).Set(cpuMetrics.DRAMReadBW)
-	dramBandwidth.With(prometheus.Labels{"direction": "write"}).Set(cpuMetrics.DRAMWriteBW)
+	if cpuMetrics.DRAMBandwidthSource.IsNonDirectional() || cpuMetrics.DRAMBandwidthSource == DRAMBandwidthUnavailable {
+		dramBandwidth.With(prometheus.Labels{"direction": "read"}).Set(0)
+		dramBandwidth.With(prometheus.Labels{"direction": "write"}).Set(0)
+	} else {
+		dramBandwidth.With(prometheus.Labels{"direction": "read"}).Set(cpuMetrics.DRAMReadBW)
+		dramBandwidth.With(prometheus.Labels{"direction": "write"}).Set(cpuMetrics.DRAMWriteBW)
+	}
 	dramBandwidth.With(prometheus.Labels{"direction": "combined"}).Set(cpuMetrics.DRAMBWCombined)
+	activeSource := cpuMetrics.DRAMBandwidthSource
+	if activeSource == "" {
+		activeSource = DRAMBandwidthDirectional
+	}
+	for _, source := range []DRAMBandwidthSource{DRAMBandwidthUnavailable, DRAMBandwidthDirectional, DRAMBandwidthCombined, DRAMBandwidthPowerEstimate} {
+		value := 0.0
+		if source == activeSource {
+			value = 1
+		}
+		dramBandwidthSource.With(prometheus.Labels{"source": string(source)}).Set(value)
+	}
 
 	memoryUsage.With(prometheus.Labels{"type": "used"}).Set(float64(snapshot.Memory.Used) / 1024 / 1024 / 1024)
 	memoryUsage.With(prometheus.Labels{"type": "total"}).Set(float64(snapshot.Memory.Total) / 1024 / 1024 / 1024)

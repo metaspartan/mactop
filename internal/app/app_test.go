@@ -187,6 +187,84 @@ func TestRenderUnifiedMemoryDRAMHistoryUsesFourNormalizedSeries(t *testing.T) {
 	}
 }
 
+func TestRenderUnifiedMemoryDRAMHistoryUsesOneEstimatedTotalSeries(t *testing.T) {
+	origConfig := currentConfig
+	origWidth, origHeight := GetCachedTerminalDimensions()
+	origChart := memoryHistoryChart
+	origMemory, origSwap := memoryUsedHistory, swapUsedHistory
+	origRead, origWrite, origTotal := dramReadHistory, dramWriteHistory, dramTotalHistory
+	t.Cleanup(func() {
+		currentConfig = origConfig
+		UpdateCachedTerminalDimensions(origWidth, origHeight)
+		memoryHistoryChart = origChart
+		memoryUsedHistory, swapUsedHistory = origMemory, origSwap
+		dramReadHistory, dramWriteHistory, dramTotalHistory = origRead, origWrite, origTotal
+	})
+
+	currentConfig.DefaultLayout = LayoutUnified
+	UpdateCachedTerminalDimensions(20, 10)
+	memoryHistoryChart = NewPeakStepChart()
+	memoryUsedHistory = []float64{10, 20, 40}
+	swapUsedHistory = []float64{1, 2, 4}
+	dramReadHistory = []float64{2, 4, 8}
+	dramWriteHistory = []float64{2, 4, 8}
+	dramTotalHistory = []float64{4, 8, 16}
+
+	renderUnifiedMemoryDRAMHistory(
+		MemoryMetrics{Used: 40 * 1024 * 1024 * 1024, SwapUsed: 4 * 1024 * 1024 * 1024},
+		CPUMetrics{DRAMReadBW: 8, DRAMWriteBW: 8, DRAMBWCombined: 16, DRAMBandwidthSource: DRAMBandwidthPowerEstimate},
+	)
+
+	if got, want := len(memoryHistoryChart.Data), 3; got != want {
+		t.Fatalf("estimated series count = %d, want memory/swap/total %d", got, want)
+	}
+	if got, want := memoryHistoryChart.DataLabels[2], "D ~16.0GB/s"; got != want {
+		t.Fatalf("estimated label = %q, want %q", got, want)
+	}
+	if strings.Contains(strings.Join(memoryHistoryChart.DataLabels, " "), "R ") || strings.Contains(strings.Join(memoryHistoryChart.DataLabels, " "), "W ") {
+		t.Fatalf("estimated labels must not fabricate directions: %v", memoryHistoryChart.DataLabels)
+	}
+}
+
+func TestPeakStepChartUsesConfiguredCurrentLabelOrder(t *testing.T) {
+	chart := NewPeakStepChart()
+	chart.Data = [][]float64{{1}, {2}, {3}}
+	chart.CurrentLabelOrder = []int{1, 0, 2}
+	chart.SeriesGroups = []string{"first", "second", "third"}
+	if got, want := chart.currentLabelOrder(), []int{1, 0, 2}; !slices.Equal(got, want) {
+		t.Fatalf("current label order = %v, want %v", got, want)
+	}
+}
+
+func TestPeakStepChartOrdersSameUnitCurrentLabelsHighToLow(t *testing.T) {
+	chart := NewPeakStepChart()
+	chart.Data = [][]float64{{1.4}, {0}, {2.0}}
+	chart.CurrentLabelOrder = []int{1, 0, 2}
+	chart.SeriesGroups = []string{"power", "power", "power"}
+	if got, want := chart.currentLabelOrder(), []int{1, 0, 2}; !slices.Equal(got, want) {
+		t.Fatalf("same-unit placement order = %v, want low-to-high %v", got, want)
+	}
+}
+
+func TestPeakStepChartKeepsDifferentUnitGroupsIndependent(t *testing.T) {
+	chart := NewPeakStepChart()
+	chart.Data = [][]float64{{1.4}, {0}, {32.5}}
+	chart.CurrentLabelOrder = []int{1, 0, 2}
+	chart.SeriesGroups = []string{"power", "power", "capacity"}
+	if got, want := chart.currentLabelOrder(), []int{1, 0, 2}; !slices.Equal(got, want) {
+		t.Fatalf("mixed-unit current order = %v, want %v", got, want)
+	}
+}
+
+func TestFormatDRAMBandwidthMarksNonDirectionalSources(t *testing.T) {
+	if got := formatDRAMBandwidth(CPUMetrics{DRAMBWCombined: 20, DRAMBandwidthSource: DRAMBandwidthPowerEstimate}); got != "~20.0 GB/s (estimate)" {
+		t.Fatalf("power estimate = %q", got)
+	}
+	if got := formatDRAMBandwidth(CPUMetrics{DRAMBandwidthSource: DRAMBandwidthUnavailable}); got != "calibrating" {
+		t.Fatalf("unavailable bandwidth = %q", got)
+	}
+}
+
 func TestUnifiedChartTitleLocalizesBaseAndUsesEnglishLegend(t *testing.T) {
 	if got := unifiedChartTitle("TUI_UnifiedNetworkHistory", "Download / Upload"); !strings.HasSuffix(got, " (Download / Upload)") || strings.Contains(got, "下行") {
 		t.Fatalf("unified chart title has incorrect legend: %q", got)
@@ -234,24 +312,39 @@ func TestUnifiedHistoryWidthUsesLeftTwoThirds(t *testing.T) {
 	}
 }
 
-func TestUnifiedLayoutPlacesHistoriesInLeftFourRows(t *testing.T) {
+func TestUnifiedHistoryWidthsExpandWhenSidebarIsHidden(t *testing.T) {
+	if unifiedShowsSidebar(99) {
+		t.Fatal("sidebar must be hidden below 100 columns")
+	}
+	if !unifiedShowsSidebar(100) {
+		t.Fatal("sidebar must be shown at 100 columns")
+	}
+	if got, want := unifiedHistoryWidth(99), 95; got != want {
+		t.Fatalf("narrow history width = %d, want %d", got, want)
+	}
+	if got, want := unifiedIOHistoryWidth(99), 95; got != want {
+		t.Fatalf("narrow I/O history width = %d, want %d", got, want)
+	}
+}
+
+func TestUnifiedLayoutPlacesCorrelatedHistoriesInLeftFourRows(t *testing.T) {
 	origGrid := grid
 	origCompute, origMemory, origPower := unifiedComputeHistoryChart, memoryHistoryChart, socPowerHistoryChart
 	origNetwork, origDisk := unifiedNetworkHistoryChart, unifiedDiskHistoryChart
-	origCores, origHealth, origProcesses := cpuCoreWidget, unifiedHealthPanel, unifiedProcessList
+	origCores, origTemp, origProcesses := cpuCoreWidget, unifiedTemperatureHistoryChart, unifiedProcessList
 	t.Cleanup(func() {
 		grid = origGrid
 		unifiedComputeHistoryChart, memoryHistoryChart, socPowerHistoryChart = origCompute, origMemory, origPower
 		unifiedNetworkHistoryChart, unifiedDiskHistoryChart = origNetwork, origDisk
-		cpuCoreWidget, unifiedHealthPanel, unifiedProcessList = origCores, origHealth, origProcesses
+		cpuCoreWidget, unifiedTemperatureHistoryChart, unifiedProcessList = origCores, origTemp, origProcesses
 	})
 
 	grid = ui.NewGrid()
 	unifiedComputeHistoryChart, memoryHistoryChart, socPowerHistoryChart = NewPeakStepChart(), NewPeakStepChart(), NewPeakStepChart()
 	unifiedNetworkHistoryChart, unifiedDiskHistoryChart = NewPeakStepChart(), NewPeakStepChart()
 	cpuCoreWidget = &CPUCoreWidget{Block: ui.NewBlock()}
-	unifiedHealthPanel, unifiedProcessList = w.NewParagraph(), w.NewList()
-	setUnifiedLayoutGrid()
+	unifiedTemperatureHistoryChart, unifiedProcessList = NewPeakStepChart(), w.NewList()
+	setUnifiedLayoutGridForWidth(120)
 
 	itemFor := func(widget any) *ui.GridItem {
 		for _, item := range grid.Items {
@@ -267,32 +360,145 @@ func TestUnifiedLayoutPlacesHistoriesInLeftFourRows(t *testing.T) {
 	if power.XRatio != 0 || power.WidthRatio != 2.0/3 || power.YRatio != 1.0/2 || power.HeightRatio != 1.0/4 {
 		t.Fatalf("power grid placement = %+v, want left third row", power)
 	}
-	for _, chart := range []any{unifiedComputeHistoryChart, memoryHistoryChart, socPowerHistoryChart, unifiedNetworkHistoryChart, unifiedDiskHistoryChart} {
+	temperature := itemFor(unifiedTemperatureHistoryChart)
+	if temperature.XRatio != 0 || temperature.WidthRatio != 2.0/3 || temperature.YRatio != 3.0/4 || temperature.HeightRatio != 1.0/4 {
+		t.Fatalf("temperature grid placement = %+v, want left fourth row", temperature)
+	}
+	for _, chart := range []any{unifiedComputeHistoryChart, memoryHistoryChart, socPowerHistoryChart, unifiedTemperatureHistoryChart} {
 		item := itemFor(chart)
 		if item.XRatio+item.WidthRatio > 2.0/3 {
 			t.Fatalf("%T exceeds left two thirds: %+v", chart, item)
 		}
 	}
 	processes := itemFor(unifiedProcessList)
-	if processes.XRatio != 2.0/3 || processes.YRatio != 1.0/2 || processes.HeightRatio != 1.0/2 {
-		t.Fatalf("process grid placement = %+v, want right lower half", processes)
+	if processes.XRatio != 2.0/3 || processes.YRatio != 1.0/4 || processes.WidthRatio != 1.0/3 || processes.HeightRatio != 1.0/4 {
+		t.Fatalf("process grid placement = %+v, want right second row aligned with memory", processes)
+	}
+	for chart, wantY := range map[any]float64{unifiedNetworkHistoryChart: 1.0 / 2, unifiedDiskHistoryChart: 3.0 / 4} {
+		item := itemFor(chart)
+		if item.XRatio != 2.0/3 || item.YRatio != wantY || item.WidthRatio != 1.0/3 || item.HeightRatio != 1.0/4 {
+			t.Fatalf("%T grid placement = %+v, want aligned right-side I/O row", chart, item)
+		}
 	}
 }
 
-func TestUnifiedTemperatureLinesPreferComponentTemperatures(t *testing.T) {
-	origTempUnit := tempUnit
-	t.Cleanup(func() { tempUnit = origTempUnit })
-	tempUnit = "celsius"
-	lines := unifiedTemperatureLines(CPUMetrics{
-		CPUTemp: 50,
-		GPUTemp: 48,
-		TempSensors: []TempSensor{
-			{Key: "Tm0", Name: "Memory", Value: 44},
-			{Key: "Ts0", Name: "SSD", Value: 40},
-		},
+func TestUnifiedLayoutHidesSidebarOnNarrowTerminal(t *testing.T) {
+	origGrid := grid
+	origCompute, origMemory, origPower := unifiedComputeHistoryChart, memoryHistoryChart, socPowerHistoryChart
+	origNetwork, origDisk := unifiedNetworkHistoryChart, unifiedDiskHistoryChart
+	origCores, origTemp, origProcesses := cpuCoreWidget, unifiedTemperatureHistoryChart, unifiedProcessList
+	t.Cleanup(func() {
+		grid = origGrid
+		unifiedComputeHistoryChart, memoryHistoryChart, socPowerHistoryChart = origCompute, origMemory, origPower
+		unifiedNetworkHistoryChart, unifiedDiskHistoryChart = origNetwork, origDisk
+		cpuCoreWidget, unifiedTemperatureHistoryChart, unifiedProcessList = origCores, origTemp, origProcesses
 	})
-	if len(lines) < 2 || lines[0] != "CPU 50°C | GPU 48°C" || lines[1] != "Memory 44°C | SSD 40°C" {
-		t.Fatalf("temperature lines = %v", lines)
+
+	grid = ui.NewGrid()
+	unifiedComputeHistoryChart, memoryHistoryChart, socPowerHistoryChart = NewPeakStepChart(), NewPeakStepChart(), NewPeakStepChart()
+	unifiedNetworkHistoryChart, unifiedDiskHistoryChart = NewPeakStepChart(), NewPeakStepChart()
+	cpuCoreWidget = &CPUCoreWidget{Block: ui.NewBlock()}
+	unifiedTemperatureHistoryChart, unifiedProcessList = NewPeakStepChart(), w.NewList()
+	setUnifiedLayoutGridForWidth(99)
+
+	if got, want := len(grid.Items), 4; got != want {
+		t.Fatalf("narrow layout item count = %d, want %d charts only", got, want)
+	}
+	for _, item := range grid.Items {
+		if item.XRatio+item.WidthRatio > 1 {
+			t.Fatalf("narrow layout item exceeds full width: %+v", item)
+		}
+	}
+}
+
+func TestUnifiedComponentTemperaturesSelectMemoryAndSSD(t *testing.T) {
+	memory, ssd := unifiedComponentTemperatures([]TempSensor{
+		{Key: "Tm0", Name: "Memory", Value: 44},
+		{Key: "Ts0", Name: "SSD", Value: 40},
+	})
+	if memory != 44 || ssd != 40 {
+		t.Fatalf("component temperatures = memory %.1f, ssd %.1f", memory, ssd)
+	}
+}
+
+func TestUnifiedTemperatureDisplayBoundsRoundToTens(t *testing.T) {
+	low, high := unifiedTemperatureDisplayBounds([]float64{33, 35})
+	if low != 30 || high != 40 {
+		t.Fatalf("temperature bounds = %.0f..%.0f, want 30..40", low, high)
+	}
+}
+
+func TestUnifiedTemperatureChartColorsPreserveFanLane(t *testing.T) {
+	if got, want := unifiedTemperatureChartColors(2), []ui.Color{ui.ColorSilver, ui.ColorGrey, ui.ColorCyan, ui.ColorMagenta, ui.ColorYellow, ui.ColorRed}; !slices.Equal(got, want) {
+		t.Fatalf("temperature colors with fan = %v, want %v", got, want)
+	}
+}
+
+func TestUpdateUnifiedTemperatureHistoryRendersComponentsAndFan(t *testing.T) {
+	origChart := unifiedTemperatureHistoryChart
+	origCPU, origGPU := cpuTempHistory, gpuTempHistory
+	origMemory, origSSD := memoryTempHistory, ssdTempHistory
+	origFanDuty, origFanRPM := fanDutyHistory, fanRPMHistory
+	origFanIDs, origFanNames := fanHistoryIDs, fanHistoryNames
+	origWidth, origHeight := GetCachedTerminalDimensions()
+	t.Cleanup(func() {
+		unifiedTemperatureHistoryChart = origChart
+		cpuTempHistory, gpuTempHistory = origCPU, origGPU
+		memoryTempHistory, ssdTempHistory = origMemory, origSSD
+		fanDutyHistory, fanRPMHistory = origFanDuty, origFanRPM
+		fanHistoryIDs, fanHistoryNames = origFanIDs, origFanNames
+		UpdateCachedTerminalDimensions(origWidth, origHeight)
+	})
+
+	UpdateCachedTerminalDimensions(30, 20)
+	unifiedTemperatureHistoryChart = NewPeakStepChart()
+	cpuTempHistory, gpuTempHistory = make([]float64, 10), make([]float64, 10)
+	memoryTempHistory, ssdTempHistory = make([]float64, 10), make([]float64, 10)
+	fanDutyHistory = [2][]float64{make([]float64, 10), make([]float64, 10)}
+	fanRPMHistory = [2][]float64{make([]float64, 10), make([]float64, 10)}
+	fanHistoryIDs, fanHistoryNames = [2]int{}, [2]string{}
+	updateUnifiedTemperatureHistory(CPUMetrics{
+		CPUTemp: 52,
+		GPUTemp: 49,
+		TempSensors: []TempSensor{
+			{Key: "Tm0", Name: "Memory", Value: 45},
+			{Key: "Ts0", Name: "SSD", Value: 41},
+		},
+		Fans: []FanInfo{{ID: 1, Name: "Left", ActualRPM: 1200, MaxRPM: 2400}, {ID: 2, Name: "Right", ActualRPM: 1800, MaxRPM: 3600}},
+	})
+
+	if got, want := unifiedTemperatureHistoryChart.DataLabels, []string{"L 1.2k", "R 1.8k", "S 41°C", "M 45°C", "G 49°C", "C 52°C"}; !slices.Equal(got, want) {
+		t.Fatalf("temperature labels = %v, want %v", got, want)
+	}
+	if got, want := unifiedTemperatureHistoryChart.LineColors, []ui.Color{ui.ColorSilver, ui.ColorGrey, ui.ColorCyan, ui.ColorMagenta, ui.ColorYellow, ui.ColorRed}; !slices.Equal(got, want) {
+		t.Fatalf("temperature colors = %v, want %v", got, want)
+	}
+	if got := unifiedTemperatureHistoryChart.Data[0][len(unifiedTemperatureHistoryChart.Data[0])-1]; got != 50 {
+		t.Fatalf("left fan duty = %.1f, want 50", got)
+	}
+	if got := unifiedTemperatureHistoryChart.Data[5][len(unifiedTemperatureHistoryChart.Data[5])-1]; got != 70 {
+		t.Fatalf("CPU scaled temperature = %.1f, want 70", got)
+	}
+}
+
+func TestSoCPowerHistoryTitleShowsCurrentAndPeakTotal(t *testing.T) {
+	origChart, origHistory := socPowerHistoryChart, totalPowerHistory
+	origConfig := currentConfig
+	origWidth, origHeight := GetCachedTerminalDimensions()
+	t.Cleanup(func() {
+		socPowerHistoryChart, totalPowerHistory = origChart, origHistory
+		currentConfig = origConfig
+		UpdateCachedTerminalDimensions(origWidth, origHeight)
+	})
+
+	UpdateCachedTerminalDimensions(10, 20)
+	currentConfig.DefaultLayout = LayoutUnified
+	socPowerHistoryChart = NewPeakStepChart()
+	totalPowerHistory = make([]float64, 100)
+	totalPowerHistory[len(totalPowerHistory)-1] = 15
+	updateSoCPowerHistory(CPUMetrics{CPUW: 4, GPUW: 3, DRAMW: 2, ANEW: 1, PackageW: 12})
+	if !strings.Contains(socPowerHistoryChart.Title, "Total 12.0W / 15.0W") {
+		t.Fatalf("power title = %q", socPowerHistoryChart.Title)
 	}
 }
 
@@ -324,6 +530,18 @@ func TestUnifiedComputeHistoryColors(t *testing.T) {
 	}
 }
 
+func TestSoCPowerHistoryColorsMatchUnifiedComputeComponents(t *testing.T) {
+	// Power series are CPU/GPU/DRAM/ANE; compute series are ANE/GPU/CPU.
+	power := socPowerHistoryColors()
+	compute := unifiedComputeHistoryColors()
+	if got, want := power, []ui.Color{ui.ColorRed, ui.ColorYellow, ui.ColorCyan, ui.ColorGreen}; !slices.Equal(got, want) {
+		t.Fatalf("power colors = %v, want %v", got, want)
+	}
+	if power[0] != compute[2] || power[1] != compute[1] || power[3] != compute[0] {
+		t.Fatalf("power CPU/GPU/ANE colors = %v do not match compute %v", power, compute)
+	}
+}
+
 func TestRenderUnifiedComputeHistoryDrawsCPUAboveGPUAboveANE(t *testing.T) {
 	origChart, origCPU, origGPU, origANE := unifiedComputeHistoryChart, cpuUsageHistory, gpuEffectiveHistory, aneUsageHistory
 	origMetrics := lastCPUMetrics
@@ -346,7 +564,7 @@ func TestRenderUnifiedComputeHistoryDrawsCPUAboveGPUAboveANE(t *testing.T) {
 	}
 }
 
-func TestPeakStepChartDrawsPeakBesideHighestSample(t *testing.T) {
+func TestPeakStepChartDrawsPeakBesideLeftAxis(t *testing.T) {
 	chart := NewPeakStepChart()
 	chart.Border = false
 	chart.ShowAxes = false
@@ -362,18 +580,111 @@ func TestPeakStepChartDrawsPeakBesideHighestSample(t *testing.T) {
 	chart.Draw(buf)
 
 	peakFound := false
-	for y := 0; y < 4; y++ {
-		for x := 2; x < 8; x++ {
-			if buf.GetCell(image.Pt(x, y)).Rune == 'C' {
-				peakFound = true
-			}
+	for y := chart.Inner.Min.Y; y < chart.Inner.Max.Y; y++ {
+		if buf.GetCell(image.Pt(chart.Inner.Min.X, y)).Rune == 'C' {
+			peakFound = true
 		}
 	}
 	if !peakFound {
-		t.Fatal("peak label was not drawn beside the highest non-terminal sample")
+		t.Fatal("peak label was not drawn beside the left axis")
 	}
 	if got := buf.GetCell(image.Pt(19, 6)).Rune; got == 'C' {
 		t.Fatal("peak label was drawn at the right edge instead of at its sample")
+	}
+}
+
+func TestPeakStepChartStacksOverlappingPeaksInTheLeftColumn(t *testing.T) {
+	chart := NewPeakStepChart()
+	chart.Border = false
+	chart.ShowAxes = false
+	chart.ShowRightAxis = true
+	chart.SetRect(0, 0, 20, 8)
+	chart.MaxVal = 10
+	chart.Data = [][]float64{{9.2, 1}, {9.0, 2}}
+	chart.DataLabels = []string{"D 1.0", "M 1.0"}
+	chart.PeakLabels = []string{"P1", "P2"}
+	chart.ShowPeakLabels = true
+
+	buf := ui.NewBuffer(image.Rect(0, 0, 20, 8))
+	chart.Draw(buf)
+	left := chart.Inner.Min
+	peakRows := make(map[string]int)
+	for y := chart.Inner.Min.Y; y < chart.Inner.Max.Y; y++ {
+		if buf.GetCell(image.Pt(left.X, y)).Rune == 'P' {
+			peakRows[string([]rune{buf.GetCell(image.Pt(left.X+1, y)).Rune})] = y
+		}
+	}
+	if len(peakRows) != 2 {
+		t.Fatalf("left-column peak rows = %v, want two labels", peakRows)
+	}
+	if peakRows["1"] >= peakRows["2"] {
+		t.Fatalf("higher peak P1 must be above lower peak P2: rows %v", peakRows)
+	}
+	for _, y := range peakRows {
+		if got := buf.GetCell(image.Pt(left.X+3, y)).Rune; got == 'P' {
+			t.Fatalf("peak label at row %d was placed horizontally beside the left column", y)
+		}
+	}
+}
+
+func TestCurrentLabelPlacementKeepsDRAMLabelsSeparateFromMemoryLabels(t *testing.T) {
+	area := image.Rect(0, 0, 20, 4)
+	var occupied []image.Rectangle
+	placements := make(map[int]chartLabelPlacement)
+	for _, line := range currentLabelOrder(4) {
+		placement := chooseCurrentLabelPlacement(area, "X 10.0", 2, line, occupied, func(image.Rectangle) int { return 0 })
+		placements[line] = placement
+		occupied = append(occupied, placement.rect)
+	}
+	for line, placement := range placements {
+		for other, otherPlacement := range placements {
+			if line != other && placement.rect.Overlaps(otherPlacement.rect) {
+				t.Fatalf("labels %d and %d overlap: %v and %v", line, other, placement.rect, otherPlacement.rect)
+			}
+		}
+	}
+	if placements[2].rect.Min.X != area.Max.X-1-runewidth.StringWidth("X 10.0") || placements[3].rect.Min.X != area.Max.X-1-runewidth.StringWidth("X 10.0") {
+		t.Fatalf("DRAM labels must retain the right-side current-value column: read=%v write=%v", placements[2].rect, placements[3].rect)
+	}
+	for line, placement := range placements {
+		if placement.rect.Min.X != area.Max.X-1-runewidth.StringWidth("X 10.0") {
+			t.Fatalf("label %d moved away from the right axis: %v", line, placement.rect)
+		}
+	}
+}
+
+func TestCurrentLabelPlacementCoversItsLatestLine(t *testing.T) {
+	area := image.Rect(0, 0, 20, 5)
+	placement := chooseCurrentLabelPlacement(area, "R 10.0", 2, 2, nil, func(rect image.Rectangle) int {
+		if rect.Min.Y == 2 {
+			return 3
+		}
+		return 0
+	})
+	if got, want := placement.rect.Min.Y, 2; got != want {
+		t.Fatalf("current-value row = %d, want latest-line row %d", got, want)
+	}
+}
+
+func TestCurrentLabelPlacementStaysNearItsLineWhenNoLocalGapExists(t *testing.T) {
+	area := image.Rect(0, 0, 20, 7)
+	placement := chooseCurrentLabelPlacement(area, "M 33.1", 3, 1, nil, func(rect image.Rectangle) int {
+		if rect.Min.Y <= 5 { // Every row within the two-row avoidance radius has a line.
+			return 1
+		}
+		return 0
+	})
+	if got, want := placement.rect.Min.Y, 3; got != want {
+		t.Fatalf("label moved away from its current line to row %d, want %d", got, want)
+	}
+}
+
+func TestCurrentSameUnitLabelsCannotInvertAfterLineAvoidance(t *testing.T) {
+	area := image.Rect(0, 0, 20, 5)
+	low := chooseCurrentLabelPlacementWithin(area, "A 0.0", 4, 0, nil, 4, func(image.Rectangle) int { return 0 })
+	high := chooseCurrentLabelPlacementWithin(area, "G 0.8", 4, 1, []image.Rectangle{low.rect}, low.rect.Min.Y-1, func(image.Rectangle) int { return 1 })
+	if high.rect.Min.Y >= low.rect.Min.Y {
+		t.Fatalf("higher current value row %d must be above lower row %d", high.rect.Min.Y, low.rect.Min.Y)
 	}
 }
 
@@ -429,6 +740,41 @@ func TestUnifiedProcessListUsesValidUnselectedRow(t *testing.T) {
 
 	buf := ui.NewBuffer(image.Rect(0, 0, 20, 4))
 	list.Draw(buf)
+}
+
+func TestUnifiedProcessSearchAppliesOnEnter(t *testing.T) {
+	origLayout := currentConfig.DefaultLayout
+	origProcessList, origUnifiedList, origProcesses := processList, unifiedProcessList, lastProcesses
+	origSearchMode, origSearchDraft, origSearchText, origFiltered := searchMode, searchDraft, searchText, filteredProcesses
+	origWidth, origHeight := GetCachedTerminalDimensions()
+	t.Cleanup(func() {
+		currentConfig.DefaultLayout = origLayout
+		processList, unifiedProcessList, lastProcesses = origProcessList, origUnifiedList, origProcesses
+		searchMode, searchDraft, searchText, filteredProcesses = origSearchMode, origSearchDraft, origSearchText, origFiltered
+		UpdateCachedTerminalDimensions(origWidth, origHeight)
+	})
+
+	currentConfig.DefaultLayout = LayoutUnified
+	UpdateCachedTerminalDimensions(120, 30)
+	processList, unifiedProcessList = w.NewList(), w.NewList()
+	lastProcesses = []ProcessMetrics{{PID: 1, Command: "Safari"}, {PID: 2, Command: "Terminal"}}
+	searchMode, searchDraft, searchText, filteredProcesses = false, "", "", nil
+
+	handleProcessListEvents(ui.Event{ID: "/"})
+	handleProcessListEvents(ui.Event{ID: "s"})
+	if !searchMode || searchDraft != "s" || len(unifiedProcessList.Rows) != 3 {
+		t.Fatalf("draft search mode = %t, draft = %q, rows = %d; want active draft with unfiltered rows", searchMode, searchDraft, len(unifiedProcessList.Rows))
+	}
+
+	handleProcessListEvents(ui.Event{ID: "<Enter>"})
+	if searchMode || searchText != "s" || len(unifiedProcessList.Rows) != 2 || !strings.Contains(unifiedProcessList.Rows[1], "Safari") {
+		t.Fatalf("committed search mode = %t, text = %q, rows = %q", searchMode, searchText, unifiedProcessList.Rows)
+	}
+
+	handleProcessListEvents(ui.Event{ID: "<Escape>"})
+	if searchText != "" || len(unifiedProcessList.Rows) != 3 {
+		t.Fatalf("cleared search text = %q, rows = %d; want full list", searchText, len(unifiedProcessList.Rows))
+	}
 }
 
 func TestUnifiedProcessHeaderShowsSelectedSortColumn(t *testing.T) {
