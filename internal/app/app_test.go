@@ -204,12 +204,12 @@ func TestRenderUnifiedMemoryDRAMHistoryUsesFourNormalizedSeries(t *testing.T) {
 	})
 
 	currentConfig.DefaultLayout = LayoutUnified
-	UpdateCachedTerminalDimensions(20, 10)
+	UpdateCachedTerminalDimensions(6, 10)
 	memoryHistoryChart = NewPeakStepChart()
-	memoryUsedHistory = []float64{10, 20, 40}
-	swapUsedHistory = []float64{1, 2, 4}
-	dramReadHistory = []float64{2, 4, 8}
-	dramWriteHistory = []float64{3, 6, 12}
+	memoryUsedHistory = []float64{80, 20, 40}
+	swapUsedHistory = []float64{8, 2, 4}
+	dramReadHistory = []float64{20, 4, 8}
+	dramWriteHistory = []float64{24, 6, 12}
 
 	renderUnifiedMemoryDRAMHistory(
 		MemoryMetrics{Used: 40 * 1024 * 1024 * 1024, SwapUsed: 4 * 1024 * 1024 * 1024},
@@ -240,7 +240,7 @@ func TestRenderUnifiedMemoryDRAMHistoryUsesFourNormalizedSeries(t *testing.T) {
 	if got, want := memoryHistoryChart.LineColors[:2], []ui.Color{ui.ColorOrange, ui.ColorMagenta}; !slices.Equal(got, want) {
 		t.Fatalf("memory draw order colors = %v, want swap then memory %v", got, want)
 	}
-	if got, want := memoryHistoryChart.Title, memorySwapTitle()+"(M:40GB,S:4GB,R:8GB/s,W:12GB/s)"; got != want {
+	if got, want := memoryHistoryChart.Title, memorySwapTitle()+"(M:80GB,S:8GB,R:20GB/s,W:24GB/s)"; got != want {
 		t.Fatalf("narrow memory chart title = %q, want compact peaks %q", got, want)
 	}
 }
@@ -626,13 +626,16 @@ func TestSoCPowerHistoryDrawsTotalAndShowsOnlyItsPeakInTitle(t *testing.T) {
 	currentConfig.DefaultLayout = LayoutUnified
 	socPowerHistoryChart = NewPeakStepChart()
 	totalPowerHistory = make([]float64, 100)
-	totalPowerHistory[len(totalPowerHistory)-1] = 15
+	totalPowerHistory[len(totalPowerHistory)-6] = 15
 	updateSoCPowerHistory(CPUMetrics{CPUW: 4, GPUW: 3, DRAMW: 2, ANEW: 1, PackageW: 12})
 	if got, want := socPowerHistoryChart.DataLabels[0], "T 12.0W"; got != want {
 		t.Fatalf("total current label = %q, want %q", got, want)
 	}
 	if got, want := socPowerHistoryChart.Data[0][len(socPowerHistoryChart.Data[0])-1], 12.0; got != want {
 		t.Fatalf("total trace current value = %.1f, want %.1f", got, want)
+	}
+	if got, want := socPowerHistoryChart.PeakLabels[0], "T 12W"; got != want {
+		t.Fatalf("left peak label = %q, want visible peak %q", got, want)
 	}
 	if !strings.Contains(socPowerHistoryChart.Title, "Total 15.0W") || strings.Contains(socPowerHistoryChart.Title, "Total 12.0W /") {
 		t.Fatalf("power title = %q", socPowerHistoryChart.Title)
@@ -655,6 +658,27 @@ func TestReadWriteHistoryColors(t *testing.T) {
 	}
 	if got, want := readWriteHistoryColors(), []ui.Color{read, ui.ColorRed}; !slices.Equal(got, want) {
 		t.Fatalf("custom read/write colors = %v, want %v", got, want)
+	}
+}
+
+func TestRenderUnifiedIOChartUsesFullHistoryForPeakLabels(t *testing.T) {
+	origWidth, origHeight := GetCachedTerminalDimensions()
+	t.Cleanup(func() { UpdateCachedTerminalDimensions(origWidth, origHeight) })
+	UpdateCachedTerminalDimensions(6, 10)
+
+	chart := NewPeakStepChart()
+	first := []float64{1000, 10, 20}
+	second := []float64{2000, 30, 40}
+	renderUnifiedIOChart(chart, first, second, "I/O", "R", "W", "B", []ui.Color{ui.ColorCyan, ui.ColorRed}, map[string]string{"R": "Read", "W": "Write"})
+
+	if got, want := chart.Data, [][]float64{{10, 20}, {30, 40}}; !slices.Equal(got[0], want[0]) || !slices.Equal(got[1], want[1]) {
+		t.Fatalf("I/O visible data = %v, want %v", got, want)
+	}
+	if got, want := chart.PeakLabels, []string{"R " + formatRoundedBytes(20, "B") + "/s", "W " + formatRoundedBytes(40, "B") + "/s"}; !slices.Equal(got, want) {
+		t.Fatalf("I/O peak labels = %v, want visible peaks %v", got, want)
+	}
+	if want := "I/O (Read: " + formatRoundedBytes(1000, "B") + "/s, Write: " + formatRoundedBytes(2000, "B") + "/s)"; chart.Title != want {
+		t.Fatalf("I/O title = %q, want full-history peaks %q", chart.Title, want)
 	}
 }
 
