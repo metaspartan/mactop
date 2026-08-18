@@ -472,10 +472,10 @@ func getNetDiskMetrics() NetDiskMetrics {
 		if lastNetDiskTime.IsZero() {
 			lastNetStats = totalNet
 		} else {
-			metrics.InBytesPerSec = float64(totalNet.BytesRecv-lastNetStats.BytesRecv) / elapsed
-			metrics.OutBytesPerSec = float64(totalNet.BytesSent-lastNetStats.BytesSent) / elapsed
-			metrics.InPacketsPerSec = float64(totalNet.PacketsRecv-lastNetStats.PacketsRecv) / elapsed
-			metrics.OutPacketsPerSec = float64(totalNet.PacketsSent-lastNetStats.PacketsSent) / elapsed
+			metrics.InBytesPerSec = perSecondCounterDelta(totalNet.BytesRecv, lastNetStats.BytesRecv, elapsed)
+			metrics.OutBytesPerSec = perSecondCounterDelta(totalNet.BytesSent, lastNetStats.BytesSent, elapsed)
+			metrics.InPacketsPerSec = perSecondCounterDelta(totalNet.PacketsRecv, lastNetStats.PacketsRecv, elapsed)
+			metrics.OutPacketsPerSec = perSecondCounterDelta(totalNet.PacketsSent, lastNetStats.PacketsSent, elapsed)
 		}
 		lastNetStats = totalNet
 	}
@@ -492,16 +492,26 @@ func getNetDiskMetrics() NetDiskMetrics {
 		}
 
 		if !lastNetDiskTime.IsZero() {
-			metrics.ReadKBytesPerSec = float64(totalDisk.ReadBytes-lastDiskStats.ReadBytes) / elapsed / 1024
-			metrics.WriteKBytesPerSec = float64(totalDisk.WriteBytes-lastDiskStats.WriteBytes) / elapsed / 1024
-			metrics.ReadOpsPerSec = float64(totalDisk.ReadOps-lastDiskStats.ReadOps) / elapsed
-			metrics.WriteOpsPerSec = float64(totalDisk.WriteOps-lastDiskStats.WriteOps) / elapsed
+			metrics.ReadKBytesPerSec = perSecondCounterDelta(totalDisk.ReadBytes, lastDiskStats.ReadBytes, elapsed) / 1024
+			metrics.WriteKBytesPerSec = perSecondCounterDelta(totalDisk.WriteBytes, lastDiskStats.WriteBytes, elapsed) / 1024
+			metrics.ReadOpsPerSec = perSecondCounterDelta(totalDisk.ReadOps, lastDiskStats.ReadOps, elapsed)
+			metrics.WriteOpsPerSec = perSecondCounterDelta(totalDisk.WriteOps, lastDiskStats.WriteOps, elapsed)
 		}
 		lastDiskStats = totalDisk
 	}
 
 	lastNetDiskTime = now
 	return metrics
+}
+
+// perSecondCounterDelta treats a counter regression as a new baseline. This
+// occurs when an interface or device is replaced/reset; subtracting uint64s
+// directly would underflow into an impossible throughput.
+func perSecondCounterDelta(current, previous uint64, elapsed float64) float64 {
+	if elapsed <= 0 || current < previous {
+		return 0
+	}
+	return float64(current-previous) / elapsed
 }
 
 func collectNetDiskMetrics(done chan struct{}, netdiskMetricsChan chan NetDiskMetrics) {

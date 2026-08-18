@@ -110,25 +110,175 @@ func TestUnifiedHistoryTitleAddsVisiblePeaks(t *testing.T) {
 	}
 }
 
+func TestUnifiedTitleSpansDifferentiateValuesUnitsAndCapacity(t *testing.T) {
+	spans := unifiedTitleSpans("Memory: 12/32GB, Link: 2.5/5GbE", []titleMetricColor{
+		{Name: "Memory", Color: ui.ColorMagenta},
+		{Name: "Link", Color: ui.ColorYellow},
+	}, ui.ColorBlack)
+
+	find := func(text string) TitleSpan {
+		for _, span := range spans {
+			if span.Text == text {
+				return span
+			}
+		}
+		t.Fatalf("missing title span %q in %#v", text, spans)
+		return TitleSpan{}
+	}
+	if span := find("12"); span.Style.Fg != ui.ColorMagenta || span.Style.Modifier != ui.ModifierBold {
+		t.Fatalf("current value style = %+v, want bold magenta", span.Style)
+	}
+	if span := find("32"); span.Style.Fg != ui.ColorMagenta || span.Style.Modifier != ui.ModifierClear {
+		t.Fatalf("capacity style = %+v, want normal magenta", span.Style)
+	}
+	if span := find("GB, Link: "); span.Style.Fg != ui.ColorGrey || span.Style.Modifier != ui.ModifierClear {
+		t.Fatalf("unit/label style = %+v, want muted", span.Style)
+	}
+	if span := find("2.5"); span.Style.Fg != ui.ColorYellow || span.Style.Modifier != ui.ModifierBold {
+		t.Fatalf("decimal Link style = %+v, want bold yellow", span.Style)
+	}
+	if span := find("5"); span.Style.Fg != ui.ColorYellow || span.Style.Modifier != ui.ModifierClear {
+		t.Fatalf("Link capacity style = %+v, want normal yellow", span.Style)
+	}
+}
+
+func TestMemoryTitleMetricColorsStyleCompactLabels(t *testing.T) {
+	spans := unifiedTitleSpans("Memory/Swap (M: 12GB, S: 3GB, R: 10GB/s, W: 8GB/s)", memoryTitleMetricColors(), ui.ColorBlack)
+	styles := make(map[string]ui.Style)
+	for _, span := range spans {
+		styles[span.Text] = span.Style
+	}
+	for value, color := range map[string]ui.Color{
+		"12": ui.ColorMagenta,
+		"3":  ui.ColorOrange,
+		"10": ui.ColorCyan,
+		"8":  ui.ColorRed,
+	} {
+		style, ok := styles[value]
+		if !ok || style.Fg != color || style.Modifier != ui.ModifierBold {
+			t.Fatalf("compact memory value %q style = %+v, want bold color %v", value, style, color)
+		}
+	}
+}
+
+func TestPeakStepChartDrawsTitleSpansWithoutOverwritingBorder(t *testing.T) {
+	chart := NewPeakStepChart()
+	chart.Title = "Memory: 12/32GB"
+	chart.TitleSpans = unifiedTitleSpans(chart.Title, []titleMetricColor{{Name: "Memory", Color: ui.ColorMagenta}}, chart.TitleStyle.Bg)
+	chart.Data = [][]float64{{1, 2}}
+	chart.MaxVal = 2
+	chart.SetRect(0, 0, 24, 5)
+
+	buf := ui.NewBuffer(image.Rect(0, 0, 24, 5))
+	chart.Draw(buf)
+	if cell := buf.GetCell(image.Pt(10, 0)); cell.Rune != '1' || cell.Style.Fg != ui.ColorMagenta || cell.Style.Modifier != ui.ModifierBold {
+		t.Fatalf("current title cell = %+v, want bold magenta 1", cell)
+	}
+	if cell := buf.GetCell(image.Pt(13, 0)); cell.Rune != '3' || cell.Style.Fg != ui.ColorMagenta || cell.Style.Modifier != ui.ModifierClear {
+		t.Fatalf("capacity title cell = %+v, want normal magenta 3", cell)
+	}
+	if cell := buf.GetCell(image.Pt(15, 0)); cell.Rune != 'G' || cell.Style.Fg != ui.ColorGrey {
+		t.Fatalf("unit title cell = %+v, want muted G", cell)
+	}
+	if cell := buf.GetCell(image.Pt(23, 0)); cell.Rune == ' ' {
+		t.Fatalf("right border was overwritten: %+v", cell)
+	}
+}
+
+func TestSetUnifiedTitleSpansClearsAfterLayoutChange(t *testing.T) {
+	origLayout := currentConfig.DefaultLayout
+	t.Cleanup(func() { currentConfig.DefaultLayout = origLayout })
+	chart := NewPeakStepChart()
+	chart.Title = "CPU: 80%"
+	currentConfig.DefaultLayout = LayoutUnified
+	setUnifiedTitleSpans(chart, titleMetricColor{Name: "CPU", Color: ui.ColorRed})
+	if len(chart.TitleSpans) == 0 {
+		t.Fatal("unified chart must receive styled title spans")
+	}
+	currentConfig.DefaultLayout = LayoutHistorySoC
+	setUnifiedTitleSpans(chart, titleMetricColor{Name: "CPU", Color: ui.ColorRed})
+	if chart.TitleSpans != nil {
+		t.Fatalf("non-unified chart retained title spans: %#v", chart.TitleSpans)
+	}
+}
+
+func TestFormatTitleRoundsNumericValuesButPreservesLinkText(t *testing.T) {
+	origLayout := currentConfig.DefaultLayout
+	t.Cleanup(func() { currentConfig.DefaultLayout = origLayout })
+	currentConfig.DefaultLayout = LayoutUnified
+	if got, want := formatTitle("Power %.2fW, utilization %.1f%%", 12.6, 48.6), "Power 13W, utilization 49%"; got != want {
+		t.Fatalf("integer title = %q, want %q", got, want)
+	}
+	if got, want := formatTitle("Link: %s", "2.5Gbps"), "Link: 2.5Gbps"; got != want {
+		t.Fatalf("Link title = %q, want %q", got, want)
+	}
+}
+
+func TestFormatTitlePreservesNonUnifiedPrecision(t *testing.T) {
+	origLayout := currentConfig.DefaultLayout
+	t.Cleanup(func() { currentConfig.DefaultLayout = origLayout })
+	currentConfig.DefaultLayout = LayoutHistorySoC
+	if got, want := formatTitle("Power %.1fW", 12.6), "Power 12.6W"; got != want {
+		t.Fatalf("non-unified title = %q, want %q", got, want)
+	}
+}
+
+func TestFormatUnifiedPowerTitleUsesAdapterLimitWhenAvailable(t *testing.T) {
+	if got, want := formatUnifiedPowerTitle("SoC Power", 56.6, 67), "SoC Power | Total: 57/67W"; got != want {
+		t.Fatalf("power title with adapter = %q, want %q", got, want)
+	}
+	if got, want := formatUnifiedPowerTitle("SoC Power", 56.6, 0), "SoC Power | Total: 57W"; got != want {
+		t.Fatalf("power title without adapter = %q, want %q", got, want)
+	}
+}
+
+func TestFormatCPUFreqRetainsSingleDecimal(t *testing.T) {
+	origE, origP, origS := lastEFreq, lastPFreq, lastSFreq
+	t.Cleanup(func() { lastEFreq, lastPFreq, lastSFreq = origE, origP, origS })
+	lastEFreq, lastPFreq, lastSFreq = 0, 0, 0
+	if got := formatCPUFreq(CPUMetrics{EClusterFreqMHz: 3200}); !strings.Contains(got, "E3.2 GHz") {
+		t.Fatalf("single-core frequency title = %q, want one decimal", got)
+	}
+}
+
 func TestUnifiedMemoryHistoryTitleIsCompactOnNarrowTerminals(t *testing.T) {
 	origWidth, origHeight := GetCachedTerminalDimensions()
 	t.Cleanup(func() { UpdateCachedTerminalDimensions(origWidth, origHeight) })
 	peaks := []string{"S 3GB", "M 12GB", "R 10GB/s", "W 8GB/s"}
 
 	UpdateCachedTerminalDimensions(120, 30)
-	if got, want := unifiedMemoryHistoryTitle(peaks), memorySwapTitle()+"(Memory:12GB,Swap:3GB,DRAM Read:10GB/s,DRAM Write:8GB/s)"; got != want {
+	if got, want := unifiedMemoryHistoryTitle(peaks), memorySwapTitle()+" (Memory: 12GB, Swap: 3GB, DRAM Read: 10GB/s, DRAM Write: 8GB/s)"; got != want {
 		t.Fatalf("wide memory title = %q, want %q", got, want)
 	}
 
 	UpdateCachedTerminalDimensions(99, 30)
-	if got, want := unifiedMemoryHistoryTitle(peaks), memorySwapTitle()+"(M:12GB,S:3GB,R:10GB/s,W:8GB/s)"; got != want {
+	if got, want := unifiedMemoryHistoryTitle(peaks), memorySwapTitle()+" (M: 12GB, S: 3GB, R: 10GB/s, W: 8GB/s)"; got != want {
 		t.Fatalf("narrow memory title = %q, want compact %q", got, want)
 	}
 }
 
+func TestUnifiedMemoryHistoryTitleShowsCapacitiesOnAllTerminalWidths(t *testing.T) {
+	origWidth, origHeight := GetCachedTerminalDimensions()
+	t.Cleanup(func() { UpdateCachedTerminalDimensions(origWidth, origHeight) })
+	peaks := []string{"S 3GB", "M 12GB"}
+
+	UpdateCachedTerminalDimensions(120, 30)
+	if got, want := unifiedMemoryHistoryTitleWithCapacity(peaks, 32, 16), memorySwapTitle()+" (Memory: 12/32GB, Swap: 3/16GB)"; got != want {
+		t.Fatalf("wide memory title = %q, want %q", got, want)
+	}
+
+	UpdateCachedTerminalDimensions(99, 30)
+	if got, want := unifiedMemoryHistoryTitleWithCapacity(peaks, 32, 16), memorySwapTitle()+" (M: 12/32GB, S: 3/16GB)"; got != want {
+		t.Fatalf("narrow memory title = %q, want %q", got, want)
+	}
+}
+
 func TestCPUCoreWidgetTitleOmitsTemperature(t *testing.T) {
+	origLayout := currentConfig.DefaultLayout
+	t.Cleanup(func() { currentConfig.DefaultLayout = origLayout })
+	currentConfig.DefaultLayout = LayoutUnified
 	title := formatCPUCoreWidgetTitle(12, "(8P/4E)", 37.5, " @ P3.2 GHz")
-	if strings.Contains(title, "°") || !strings.Contains(title, "37.50%") {
+	if strings.Contains(title, "°") || !strings.Contains(title, "38%") {
 		t.Fatalf("CPU core title = %q; want utilization without temperature", title)
 	}
 }
@@ -175,6 +325,53 @@ func TestSeriesMaxUsesObservedSamples(t *testing.T) {
 	}
 	if got := seriesMax(nil); got != 0 {
 		t.Fatalf("empty series max = %.1f, want 0", got)
+	}
+}
+
+func TestHistoricalPeakNeverDeclines(t *testing.T) {
+	resetHistoricalPeaks()
+	t.Cleanup(resetHistoricalPeaks)
+
+	for _, metric := range []string{
+		"cpu-usage", "gpu-raw", "gpu-effective", "ane-usage",
+		"memory-used", "memory-swap", "dram-read", "dram-write", "dram-total",
+		"ane-read-bandwidth", "ane-write-bandwidth", "bandwidth-peak",
+		"power-total", "power-cpu", "power-gpu", "power-ane", "power-dram",
+		"temperature-C", "temperature-G", "temperature-M", "temperature-S",
+		"fan-rpm-0", "fan-rpm-1", "network-download", "network-upload", "network-link",
+		"disk-read", "disk-write", "disk-used", "ssd-read",
+	} {
+		recordHistoricalPeak(metric, 100)
+		recordHistoricalPeak(metric, 10)
+		if got := historicalPeak(metric, 5); got != 100 {
+			t.Fatalf("%s peak = %.1f, want 100.0", metric, got)
+		}
+	}
+}
+
+func TestPerSecondCounterDeltaHandlesCounterReset(t *testing.T) {
+	if got, want := perSecondCounterDelta(150, 100, 2), 25.0; got != want {
+		t.Fatalf("normal counter delta = %.1f, want %.1f", got, want)
+	}
+	if got := perSecondCounterDelta(10, 100, 1); got != 0 {
+		t.Fatalf("counter reset delta = %.1f, want 0", got)
+	}
+	if got := perSecondCounterDelta(100, 100, 0); got != 0 {
+		t.Fatalf("zero elapsed delta = %.1f, want 0", got)
+	}
+}
+
+func TestUnifiedProcessSummaryKeepsLifetimePeak(t *testing.T) {
+	origSummary, origPeak := latestUnifiedProcessSummary, processCountPeak
+	t.Cleanup(func() {
+		latestUnifiedProcessSummary, processCountPeak = origSummary, origPeak
+	})
+
+	processCountPeak = 0
+	updateUnifiedProcessSummary([]ProcessMetrics{{}, {}, {}})
+	updateUnifiedProcessSummary([]ProcessMetrics{{}})
+	if got, want := latestUnifiedProcessSummary, (unifiedProcessSummary{Total: 1, PeakTotal: 3}); got != want {
+		t.Fatalf("process summary = %+v, want %+v", got, want)
 	}
 }
 
@@ -240,7 +437,7 @@ func TestRenderUnifiedMemoryDRAMHistoryUsesFourNormalizedSeries(t *testing.T) {
 	if got, want := memoryHistoryChart.LineColors[:2], []ui.Color{ui.ColorOrange, ui.ColorMagenta}; !slices.Equal(got, want) {
 		t.Fatalf("memory draw order colors = %v, want swap then memory %v", got, want)
 	}
-	if got, want := memoryHistoryChart.Title, memorySwapTitle()+"(M:80GB,S:8GB,R:20GB/s,W:24GB/s)"; got != want {
+	if got, want := memoryHistoryChart.Title, memorySwapTitle()+" (M: 80GB, S: 8GB, R: 20GB/s, W: 24GB/s)"; got != want {
 		t.Fatalf("narrow memory chart title = %q, want compact peaks %q", got, want)
 	}
 }
@@ -397,11 +594,29 @@ func TestFormatDRAMBandwidthMarksNonDirectionalSources(t *testing.T) {
 }
 
 func TestUnifiedChartTitleLocalizesBaseAndUsesEnglishLegend(t *testing.T) {
-	if got := unifiedChartTitle("TUI_UnifiedNetworkHistory", "Download / Upload"); !strings.HasSuffix(got, " (Download / Upload)") || strings.Contains(got, "下行") {
+	if got := unifiedChartTitle("TUI_UnifiedNetworkHistory", "D/U"); !strings.HasSuffix(got, " (D/U)") || strings.Contains(got, "下行") {
 		t.Fatalf("unified chart title has incorrect legend: %q", got)
 	}
 	if got := unifiedChartTitle("TUI_Temperatures", ""); strings.Contains(got, "(") {
 		t.Fatalf("non-legend title unexpectedly contains legend: %q", got)
+	}
+}
+
+func TestUnifiedNetworkHistoryTitleUsesCompactLegend(t *testing.T) {
+	if got := unifiedNetworkHistoryTitle(); !strings.HasSuffix(got, " (D/U)") {
+		t.Fatalf("network title = %q, want compact legend", got)
+	}
+}
+
+func TestUnifiedMemoryTitleOmitsSwap(t *testing.T) {
+	if got, want := memorySwapTitle(), i18n.T("Info_Memory"); got != want {
+		t.Fatalf("memory title = %q, want %q", got, want)
+	}
+}
+
+func TestUnifiedDiskHistoryTitleOmitsIO(t *testing.T) {
+	if got := unifiedChartTitle("TUI_UnifiedDiskHistory", "R/W"); strings.Contains(got, "I/O") {
+		t.Fatalf("disk title = %q, must omit I/O", got)
 	}
 }
 
@@ -474,7 +689,7 @@ func TestUnifiedLayoutPlacesCorrelatedHistoriesInLeftFourRows(t *testing.T) {
 	unifiedComputeHistoryChart, memoryHistoryChart, socPowerHistoryChart = NewPeakStepChart(), NewPeakStepChart(), NewPeakStepChart()
 	unifiedNetworkHistoryChart, unifiedDiskHistoryChart = NewPeakStepChart(), NewPeakStepChart()
 	cpuCoreWidget = &CPUCoreWidget{Block: ui.NewBlock()}
-	unifiedTemperatureHistoryChart, unifiedProcessList = NewPeakStepChart(), w.NewList()
+	unifiedTemperatureHistoryChart, unifiedProcessList = NewPeakStepChart(), NewStyledList()
 	setUnifiedLayoutGridForWidth(120)
 
 	itemFor := func(widget any) *ui.GridItem {
@@ -529,7 +744,7 @@ func TestUnifiedLayoutHidesSidebarOnNarrowTerminal(t *testing.T) {
 	unifiedComputeHistoryChart, memoryHistoryChart, socPowerHistoryChart = NewPeakStepChart(), NewPeakStepChart(), NewPeakStepChart()
 	unifiedNetworkHistoryChart, unifiedDiskHistoryChart = NewPeakStepChart(), NewPeakStepChart()
 	cpuCoreWidget = &CPUCoreWidget{Block: ui.NewBlock()}
-	unifiedTemperatureHistoryChart, unifiedProcessList = NewPeakStepChart(), w.NewList()
+	unifiedTemperatureHistoryChart, unifiedProcessList = NewPeakStepChart(), NewStyledList()
 	setUnifiedLayoutGridForWidth(99)
 
 	if got, want := len(grid.Items), 4; got != want {
@@ -560,7 +775,7 @@ func TestUnifiedTemperatureDisplayBoundsRoundToTens(t *testing.T) {
 }
 
 func TestUnifiedTemperatureChartColorsPreserveFanLane(t *testing.T) {
-	if got, want := unifiedTemperatureChartColors(2), []ui.Color{ui.ColorSilver, ui.ColorGrey, ui.ColorCyan, ui.ColorMagenta, ui.ColorYellow, ui.ColorRed}; !slices.Equal(got, want) {
+	if got, want := unifiedTemperatureChartColors(2), []ui.Color{ui.ColorSilver, ui.ColorGreen, ui.ColorCyan, ui.ColorMagenta, ui.ColorYellow, ui.ColorRed}; !slices.Equal(got, want) {
 		t.Fatalf("temperature colors with fan = %v, want %v", got, want)
 	}
 }
@@ -572,16 +787,19 @@ func TestUpdateUnifiedTemperatureHistoryRendersComponentsAndFan(t *testing.T) {
 	origFanDuty, origFanRPM := fanDutyHistory, fanRPMHistory
 	origFanIDs, origFanNames := fanHistoryIDs, fanHistoryNames
 	origWidth, origHeight := GetCachedTerminalDimensions()
+	origLayout := currentConfig.DefaultLayout
 	t.Cleanup(func() {
 		unifiedTemperatureHistoryChart = origChart
 		cpuTempHistory, gpuTempHistory = origCPU, origGPU
 		memoryTempHistory, ssdTempHistory = origMemory, origSSD
 		fanDutyHistory, fanRPMHistory = origFanDuty, origFanRPM
 		fanHistoryIDs, fanHistoryNames = origFanIDs, origFanNames
+		currentConfig.DefaultLayout = origLayout
 		UpdateCachedTerminalDimensions(origWidth, origHeight)
 	})
 
 	UpdateCachedTerminalDimensions(30, 20)
+	currentConfig.DefaultLayout = LayoutUnified
 	unifiedTemperatureHistoryChart = NewPeakStepChart()
 	cpuTempHistory, gpuTempHistory = make([]float64, 10), make([]float64, 10)
 	memoryTempHistory, ssdTempHistory = make([]float64, 10), make([]float64, 10)
@@ -595,14 +813,23 @@ func TestUpdateUnifiedTemperatureHistoryRendersComponentsAndFan(t *testing.T) {
 			{Key: "Tm0", Name: "Memory", Value: 45},
 			{Key: "Ts0", Name: "SSD", Value: 41},
 		},
-		Fans: []FanInfo{{ID: 1, Name: "Left", ActualRPM: 1200, MaxRPM: 2400}, {ID: 2, Name: "Right", ActualRPM: 1800, MaxRPM: 3600}},
+		Fans: []FanInfo{{ID: 1, Name: "Left", ActualRPM: 1200, MaxRPM: 2400}, {ID: 2, Name: "Fan Two", ActualRPM: 1800, MaxRPM: 3600}},
 	})
 
-	if got, want := unifiedTemperatureHistoryChart.DataLabels, []string{"L 1.2k", "R 1.8k", "S 41°C", "M 45°C", "G 49°C", "C 52°C"}; !slices.Equal(got, want) {
+	if got, want := unifiedTemperatureHistoryChart.DataLabels, []string{"L 1.2k", "F2 1.8k", "S 41°C", "M 45°C", "G 49°C", "C 52°C"}; !slices.Equal(got, want) {
 		t.Fatalf("temperature labels = %v, want %v", got, want)
 	}
-	if got, want := unifiedTemperatureHistoryChart.LineColors, []ui.Color{ui.ColorSilver, ui.ColorGrey, ui.ColorCyan, ui.ColorMagenta, ui.ColorYellow, ui.ColorRed}; !slices.Equal(got, want) {
+	if got, want := unifiedTemperatureHistoryChart.LineColors, []ui.Color{ui.ColorSilver, ui.ColorGreen, ui.ColorCyan, ui.ColorMagenta, ui.ColorYellow, ui.ColorRed}; !slices.Equal(got, want) {
 		t.Fatalf("temperature colors = %v, want %v", got, want)
+	}
+	foundF2 := false
+	for _, span := range unifiedTemperatureHistoryChart.TitleSpans {
+		if span.Text == "2" && span.Style.Fg == ui.ColorGreen && span.Style.Modifier == ui.ModifierBold {
+			foundF2 = true
+		}
+	}
+	if !foundF2 {
+		t.Fatalf("F2 title value must be bold green: %#v", unifiedTemperatureHistoryChart.TitleSpans)
 	}
 	if got := unifiedTemperatureHistoryChart.Data[0][len(unifiedTemperatureHistoryChart.Data[0])-1]; got != 50 {
 		t.Fatalf("left fan duty = %.1f, want 50", got)
@@ -615,15 +842,18 @@ func TestUpdateUnifiedTemperatureHistoryRendersComponentsAndFan(t *testing.T) {
 func TestSoCPowerHistoryDrawsTotalAndShowsOnlyItsPeakInTitle(t *testing.T) {
 	origChart, origHistory := socPowerHistoryChart, totalPowerHistory
 	origConfig := currentConfig
+	origAdapterWatts := getExternalPowerAdapterWatts
 	origWidth, origHeight := GetCachedTerminalDimensions()
 	t.Cleanup(func() {
 		socPowerHistoryChart, totalPowerHistory = origChart, origHistory
 		currentConfig = origConfig
+		getExternalPowerAdapterWatts = origAdapterWatts
 		UpdateCachedTerminalDimensions(origWidth, origHeight)
 	})
 
 	UpdateCachedTerminalDimensions(10, 20)
 	currentConfig.DefaultLayout = LayoutUnified
+	getExternalPowerAdapterWatts = func() int { return 0 }
 	socPowerHistoryChart = NewPeakStepChart()
 	totalPowerHistory = make([]float64, 100)
 	totalPowerHistory[len(totalPowerHistory)-6] = 15
@@ -637,7 +867,7 @@ func TestSoCPowerHistoryDrawsTotalAndShowsOnlyItsPeakInTitle(t *testing.T) {
 	if got, want := socPowerHistoryChart.PeakLabels[0], "T 12W"; got != want {
 		t.Fatalf("left peak label = %q, want visible peak %q", got, want)
 	}
-	if !strings.Contains(socPowerHistoryChart.Title, "Total 15.0W") || strings.Contains(socPowerHistoryChart.Title, "Total 12.0W /") {
+	if !strings.Contains(socPowerHistoryChart.Title, "Total: 15W") || strings.Contains(socPowerHistoryChart.Title, "Total: 12W/") {
 		t.Fatalf("power title = %q", socPowerHistoryChart.Title)
 	}
 }
@@ -669,7 +899,7 @@ func TestRenderUnifiedIOChartUsesFullHistoryForPeakLabels(t *testing.T) {
 	chart := NewPeakStepChart()
 	first := []float64{1000, 10, 20}
 	second := []float64{2000, 30, 40}
-	renderUnifiedIOChart(chart, first, second, "I/O", "R", "W", "B", []ui.Color{ui.ColorCyan, ui.ColorRed}, map[string]string{"R": "Read", "W": "Write"})
+	renderUnifiedIOChart(chart, first, second, "I/O", "R", "W", "", "", "B", []ui.Color{ui.ColorCyan, ui.ColorRed}, map[string]string{"R": "Read", "W": "Write"}, nil)
 
 	if got, want := chart.Data, [][]float64{{10, 20}, {30, 40}}; !slices.Equal(got[0], want[0]) || !slices.Equal(got[1], want[1]) {
 		t.Fatalf("I/O visible data = %v, want %v", got, want)
@@ -679,6 +909,154 @@ func TestRenderUnifiedIOChartUsesFullHistoryForPeakLabels(t *testing.T) {
 	}
 	if want := "I/O (Read: " + formatRoundedBytes(1000, "B") + "/s, Write: " + formatRoundedBytes(2000, "B") + "/s)"; chart.Title != want {
 		t.Fatalf("I/O title = %q, want full-history peaks %q", chart.Title, want)
+	}
+}
+
+func TestRenderUnifiedDiskHistoryAddsOccupiedLineOnNarrowAndWideTerminals(t *testing.T) {
+	origWidth, origHeight := GetCachedTerminalDimensions()
+	origLayout := currentConfig.DefaultLayout
+	t.Cleanup(func() {
+		UpdateCachedTerminalDimensions(origWidth, origHeight)
+		currentConfig.DefaultLayout = origLayout
+	})
+	resetHistoricalPeaks()
+	t.Cleanup(resetHistoricalPeaks)
+
+	read := []float64{10 * 1024 * 1024, 20 * 1024 * 1024}
+	write := []float64{5 * 1024 * 1024, 15 * 1024 * 1024}
+	used := []float64{600 * 1e9, 400 * 1e9}
+
+	UpdateCachedTerminalDimensions(120, 30)
+	currentConfig.DefaultLayout = LayoutUnified
+	wideChart := NewPeakStepChart()
+	renderUnifiedDiskHistory(wideChart, read, write, used, 1e12, "Disk", "auto")
+	if got, want := len(wideChart.Data), 3; got != want {
+		t.Fatalf("wide disk series = %d, want %d", got, want)
+	}
+	if got, want := wideChart.Data[0][1], 40.0; got != want {
+		t.Fatalf("occupied percent = %.1f, want %.1f", got, want)
+	}
+	if got, want := wideChart.DataLabels[0], "U 400GB"; got != want {
+		t.Fatalf("occupied current label = %q, want %q", got, want)
+	}
+	if got, want := wideChart.SeriesGroups, []string{"occupied", "throughput", "throughput"}; !slices.Equal(got, want) {
+		t.Fatalf("wide disk draw order = %v, want %v", got, want)
+	}
+	if !strings.Contains(wideChart.Title, "U: 400/1TB 40%") {
+		t.Fatalf("wide disk title = %q", wideChart.Title)
+	}
+	styles := make(map[string]ui.Style)
+	for _, span := range wideChart.TitleSpans {
+		styles[span.Text] = span.Style
+	}
+	if style := styles["20"]; style.Fg != ui.ColorCyan || style.Modifier != ui.ModifierBold {
+		t.Fatalf("R title value style = %+v, want bold cyan", style)
+	}
+	if style := styles["15"]; style.Fg != ui.ColorRed || style.Modifier != ui.ModifierBold {
+		t.Fatalf("W title value style = %+v, want bold red", style)
+	}
+
+	UpdateCachedTerminalDimensions(99, 30)
+	renderUnifiedDiskHistory(wideChart, read, write, used, 1e12, "Disk", "auto")
+	if got, want := len(wideChart.Data), 3; got != want {
+		t.Fatalf("narrow disk series = %d, want %d", got, want)
+	}
+	if !strings.Contains(wideChart.Title, "U: 400/1TB 40%") {
+		t.Fatalf("narrow disk title must retain occupancy: %q", wideChart.Title)
+	}
+	if got, want := wideChart.SeriesGroups, []string{"occupied", "throughput", "throughput"}; !slices.Equal(got, want) {
+		t.Fatalf("narrow disk draw order = %v, want %v", got, want)
+	}
+}
+
+func TestRenderUnifiedDiskHistoryRoundsOccupiedLine(t *testing.T) {
+	origWidth, origHeight := GetCachedTerminalDimensions()
+	t.Cleanup(func() { UpdateCachedTerminalDimensions(origWidth, origHeight) })
+	UpdateCachedTerminalDimensions(120, 30)
+
+	chart := NewPeakStepChart()
+	renderUnifiedDiskHistory(chart, []float64{1}, []float64{1}, []float64{405.5}, 1000, "Disk", "B")
+	if got, want := chart.Data[0][0], 41.0; got != want {
+		t.Fatalf("occupied chart value = %.1f, want integer %.1f", got, want)
+	}
+}
+
+func TestRenderUnifiedNetworkHistoryAddsLinkLineOnNarrowAndWideTerminals(t *testing.T) {
+	origWidth, origHeight := GetCachedTerminalDimensions()
+	t.Cleanup(func() { UpdateCachedTerminalDimensions(origWidth, origHeight) })
+	resetHistoricalPeaks()
+	t.Cleanup(resetHistoricalPeaks)
+
+	download := []float64{20 * 1024 * 1024, 40 * 1024 * 1024}
+	upload := []float64{10 * 1024 * 1024, 30 * 1024 * 1024}
+	link := []float64{1000, 2500}
+	recordHistoricalPeak("network-download", download[1])
+	recordHistoricalPeak("network-upload", upload[1])
+	recordHistoricalPeak("network-link", link[1])
+
+	UpdateCachedTerminalDimensions(120, 30)
+	chart := NewPeakStepChart()
+	renderUnifiedNetworkHistory(chart, download, upload, link, "2.5Gbps", "5GbE", "Network", "auto")
+	if got, want := len(chart.Data), 3; got != want {
+		t.Fatalf("wide network series = %d, want %d", got, want)
+	}
+	if got, want := chart.SeriesGroups, []string{"link", "throughput", "throughput"}; !slices.Equal(got, want) {
+		t.Fatalf("wide network draw order = %v, want %v", got, want)
+	}
+	if got, want := chart.LineColors[0], ui.ColorMagenta; got != want {
+		t.Fatalf("link color = %v, want occupied color %v", got, want)
+	}
+	if got, want := chart.DataLabels[0], "L 2.5Gbps"; got != want {
+		t.Fatalf("link label = %q, want %q", got, want)
+	}
+	if !strings.Contains(chart.Title, "Link: 2.5/5GbE") {
+		t.Fatalf("wide network title = %q", chart.Title)
+	}
+	if !strings.Contains(chart.Title, "D: 40MB/s") || !strings.Contains(chart.Title, "U: 30MB/s") || strings.Contains(chart.Title, "Download:") || strings.Contains(chart.Title, "Upload:") {
+		t.Fatalf("wide network title must abbreviate traffic directions: %q", chart.Title)
+	}
+
+	UpdateCachedTerminalDimensions(99, 30)
+	renderUnifiedNetworkHistory(chart, download, upload, link, "2.5Gbps", "5GbE", "Network", "auto")
+	if got, want := len(chart.Data), 3; got != want {
+		t.Fatalf("narrow network series = %d, want %d", got, want)
+	}
+	if !strings.Contains(chart.Title, "Link: 2.5/5GbE") {
+		t.Fatalf("narrow network title must retain Link: %q", chart.Title)
+	}
+	if !strings.Contains(chart.Title, "D: 40MB/s") || !strings.Contains(chart.Title, "U: 30MB/s") || strings.Contains(chart.Title, "Download:") || strings.Contains(chart.Title, "Upload:") {
+		t.Fatalf("narrow network title must abbreviate traffic directions: %q", chart.Title)
+	}
+	if got, want := chart.SeriesGroups, []string{"link", "throughput", "throughput"}; !slices.Equal(got, want) {
+		t.Fatalf("narrow network draw order = %v, want %v", got, want)
+	}
+}
+
+func TestGetBestLinkCapacityString(t *testing.T) {
+	ethernet := []EthernetLinkInfo{{Name: "en0", LinkUp: true, LinkSpeedMbps: 1000, SupportedSpeedMbps: 2500}}
+	if got, want := getBestLinkCapacityString(ethernet, &WiFiLinkInfo{IsConnected: true, TxRateMbps: 866}), "1GbE"; got != want {
+		t.Fatalf("best Ethernet capacity = %q, want %q", got, want)
+	}
+	if got, want := getBestLinkCapacityString(nil, &WiFiLinkInfo{IsConnected: true, TxRateMbps: 2400}), "2.4Gbps"; got != want {
+		t.Fatalf("Wi-Fi current rate = %q, want %q", got, want)
+	}
+	if got := getBestLinkCapacityString(nil, nil); got != "" {
+		t.Fatalf("unavailable link capacity = %q, want empty", got)
+	}
+	if current, currentText, maximumText := getBestLinkCapacity(ethernet, nil); current != 1000 || currentText != "1GbE" || maximumText != "2.5GbE" {
+		t.Fatalf("Ethernet link capability = (%d, %q, %q), want (1000, %q, %q)", current, currentText, maximumText, "1GbE", "2.5GbE")
+	}
+	if _, _, maximumText := getBestLinkCapacity([]EthernetLinkInfo{{Name: "en0", LinkUp: true, LinkSpeedMbps: 1000}}, nil); maximumText != "" {
+		t.Fatalf("unknown Ethernet capability = %q, want empty", maximumText)
+	}
+}
+
+func TestFormatCurrentAndMaximumOmitsCurrentUnit(t *testing.T) {
+	if got, want := formatCurrentAndMaximum("400GB", "1TB"), "400/1TB"; got != want {
+		t.Fatalf("disk current/capacity = %q, want %q", got, want)
+	}
+	if got, want := formatCurrentAndMaximum("2.5Gbps", "5GbE"), "2.5/5GbE"; got != want {
+		t.Fatalf("link current/capacity = %q, want %q", got, want)
 	}
 }
 
@@ -907,7 +1285,7 @@ func TestUnifiedProcessListUsesValidUnselectedRow(t *testing.T) {
 }
 
 func TestFormatUnifiedProcessSummary(t *testing.T) {
-	if got, want := formatUnifiedProcessSummary(summarizeUnifiedProcesses([]ProcessMetrics{{}, {}, {}})), "Processes: 3 total"; got != want {
+	if got, want := formatUnifiedProcessSummary(summarizeUnifiedProcesses([]ProcessMetrics{{}, {}, {}})), "Total: 3/3"; got != want {
 		t.Fatalf("process summary = %q, want %q", got, want)
 	}
 }
@@ -919,17 +1297,17 @@ func TestUnifiedProcessListTitleUsesSummaryOutsideSearch(t *testing.T) {
 		searchMode, searchText = origSearchMode, origSearchText
 	})
 
-	unifiedProcessList = w.NewList()
-	latestUnifiedProcessSummary = unifiedProcessSummary{Total: 980}
+	unifiedProcessList = NewStyledList()
+	latestUnifiedProcessSummary = unifiedProcessSummary{Total: 980, PeakTotal: 1000}
 	searchMode, searchText = false, ""
 	updateUnifiedProcessList([]ProcessMetrics{{PID: 1}})
-	if got, want := unifiedProcessList.Title, i18n.T("TUI_ProcessList")+" Processes: 980 total | / Search"; got != want {
+	if got, want := unifiedProcessList.Title, i18n.T("TUI_ProcessList")+" Total: 980/1000 | / for search"; got != want {
 		t.Fatalf("unified process title = %q, want %q", got, want)
 	}
 
 	searchText = "Safari"
 	updateUnifiedProcessList([]ProcessMetrics{{PID: 1}})
-	if strings.Contains(unifiedProcessList.Title, "Processes: 980 total") {
+	if strings.Contains(unifiedProcessList.Title, "Total: 980/1000") {
 		t.Fatalf("search title %q must not include process summary", unifiedProcessList.Title)
 	}
 }
@@ -948,7 +1326,7 @@ func TestUnifiedProcessSearchAppliesOnEnter(t *testing.T) {
 
 	currentConfig.DefaultLayout = LayoutUnified
 	UpdateCachedTerminalDimensions(180, 30)
-	processList, unifiedProcessList = w.NewList(), w.NewList()
+	processList, unifiedProcessList = w.NewList(), NewStyledList()
 	lastProcesses = []ProcessMetrics{{PID: 1, Command: "Safari"}, {PID: 2, Command: "Terminal"}}
 	searchMode, searchDraft, searchText, filteredProcesses = false, "", "", nil
 

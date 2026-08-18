@@ -18,13 +18,29 @@ package app
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <IOKit/IOKitLib.h>
+#include <IOKit/ps/IOPowerSources.h>
 #include <CoreFoundation/CoreFoundation.h>
+
+static int get_external_power_adapter_watts(void) {
+    CFDictionaryRef details = IOPSCopyExternalPowerAdapterDetails();
+    if (details == NULL) {
+        return 0;
+    }
+    CFNumberRef watts_number = (CFNumberRef)CFDictionaryGetValue(details, CFSTR("Watts"));
+    int watts = 0;
+    if (watts_number != NULL && CFGetTypeID(watts_number) == CFNumberGetTypeID()) {
+        CFNumberGetValue(watts_number, kCFNumberIntType, &watts);
+    }
+    CFRelease(details);
+    return watts > 0 ? watts : 0;
+}
 
 // Network link info structure for Ethernet interfaces
 typedef struct {
     char name[32];           // Interface name (en0, en1, etc.)
     int link_up;             // 1 if link is up, 0 if disconnected
     uint64_t link_speed_mbps; // Negotiated speed in Mbps (0 if unknown)
+    uint64_t supported_link_speed_mbps; // Highest supported speed in Mbps
     char media_type[32];     // Human-readable media type string
 } net_link_info_t;
 
@@ -88,6 +104,44 @@ static void ifm_subtype_to_string(int subtype, char *buf, size_t bufsize) {
 #endif
         default:            snprintf(buf, bufsize, "unknown"); break;
     }
+}
+
+// max_supported_ethernet_mbps reads the interface's supported media list. It
+// is distinct from ifm_active, which reports only the currently negotiated
+// link speed.
+static uint64_t max_supported_ethernet_mbps(int sock, const char *ifname) {
+    struct ifmediareq ifmr;
+    memset(&ifmr, 0, sizeof(ifmr));
+    strncpy(ifmr.ifm_name, ifname, sizeof(ifmr.ifm_name) - 1);
+    if (ioctl(sock, SIOCGIFMEDIA, &ifmr) < 0 || ifmr.ifm_count <= 0) {
+        return 0;
+    }
+
+    int media_count = ifmr.ifm_count;
+    int *media_list = calloc((size_t)media_count, sizeof(*media_list));
+    if (media_list == NULL) {
+        return 0;
+    }
+    ifmr.ifm_ulist = media_list;
+    ifmr.ifm_count = media_count;
+    if (ioctl(sock, SIOCGIFMEDIA, &ifmr) < 0) {
+        free(media_list);
+        return 0;
+    }
+
+    uint64_t max_mbps = 0;
+    int returned_count = ifmr.ifm_count < media_count ? ifmr.ifm_count : media_count;
+    for (int i = 0; i < returned_count; i++) {
+        if (IFM_TYPE(media_list[i]) != IFM_ETHER) {
+            continue;
+        }
+        uint64_t mbps = ifm_subtype_to_mbps(IFM_SUBTYPE(media_list[i]));
+        if (mbps > max_mbps) {
+            max_mbps = mbps;
+        }
+    }
+    free(media_list);
+    return max_mbps;
 }
 
 // Get Ethernet link info for all non-loopback interfaces
@@ -159,6 +213,10 @@ int get_ethernet_link_info(net_link_info_t *infos, int max_infos) {
         } else {
             infos[count].link_speed_mbps = 0;
             snprintf(infos[count].media_type, sizeof(infos[count].media_type), "disconnected");
+        }
+        infos[count].supported_link_speed_mbps = max_supported_ethernet_mbps(sock, ifa->ifa_name);
+        if (infos[count].supported_link_speed_mbps < infos[count].link_speed_mbps) {
+            infos[count].supported_link_speed_mbps = infos[count].link_speed_mbps;
         }
 
         count++;
@@ -1316,6 +1374,12 @@ func GetGPUCoreCountFast() int {
 	return int(C.get_gpu_core_count())
 }
 
+// GetExternalPowerAdapterWatts returns the attached adapter's rated wattage.
+// It is zero when macOS has no external adapter data to report.
+func GetExternalPowerAdapterWatts() int {
+	return int(C.get_external_power_adapter_watts())
+}
+
 // GetMaxGPUFrequency returns the maximum GPU frequency in MHz from voltage-states9
 func GetMaxGPUFrequency() int {
 	return int(C.get_max_gpu_freq())
@@ -1432,10 +1496,11 @@ func GetStorageDevicesIOKit() []StorageDeviceInfo {
 
 // EthernetLinkInfo represents Ethernet interface link information
 type EthernetLinkInfo struct {
-	Name          string // Interface name (en0, en1, etc.)
-	LinkUp        bool   // True if link is up
-	LinkSpeedMbps uint64 // Negotiated speed in Mbps
-	MediaType     string // Raw media type string (e.g., "1000baseT")
+	Name               string // Interface name (en0, en1, etc.)
+	LinkUp             bool   // True if link is up
+	LinkSpeedMbps      uint64 // Negotiated speed in Mbps
+	SupportedSpeedMbps uint64 // Highest advertised interface media speed
+	MediaType          string // Raw media type string (e.g., "1000baseT")
 }
 
 // GetEthernetLinkInfo returns link information for all Ethernet interfaces
@@ -1450,10 +1515,11 @@ func GetEthernetLinkInfo() []EthernetLinkInfo {
 	result := make([]EthernetLinkInfo, int(count))
 	for i := 0; i < int(count); i++ {
 		result[i] = EthernetLinkInfo{
-			Name:          C.GoString(&infos[i].name[0]),
-			LinkUp:        infos[i].link_up != 0,
-			LinkSpeedMbps: uint64(infos[i].link_speed_mbps),
-			MediaType:     C.GoString(&infos[i].media_type[0]),
+			Name:               C.GoString(&infos[i].name[0]),
+			LinkUp:             infos[i].link_up != 0,
+			LinkSpeedMbps:      uint64(infos[i].link_speed_mbps),
+			SupportedSpeedMbps: uint64(infos[i].supported_link_speed_mbps),
+			MediaType:          C.GoString(&infos[i].media_type[0]),
 		}
 	}
 	return result

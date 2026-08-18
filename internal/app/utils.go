@@ -173,6 +173,14 @@ func formatBytesWithPrecision(val float64, unitType string, precision int) strin
 // decimal — an "8TB" drive is 8 × 10^12 bytes, not 8 × 2^40 — so disk usage
 // should use this rather than formatBytes (which is 1024-based).
 func formatBytesDecimal(val float64, unitType string) string {
+	return formatBytesDecimalWithPrecision(val, unitType, 1)
+}
+
+func formatRoundedBytesDecimal(val float64, unitType string) string {
+	return formatBytesDecimalWithPrecision(val, unitType, 0)
+}
+
+func formatBytesDecimalWithPrecision(val float64, unitType string, precision int) string {
 	units := []string{"B", "KB", "MB", "GB", "TB"}
 
 	targetUnit := strings.ToLower(unitType)
@@ -204,7 +212,7 @@ func formatBytesDecimal(val float64, unitType string) string {
 		suffix = units[i]
 	}
 
-	return fmt.Sprintf("%.1f%s", value, suffix)
+	return fmt.Sprintf("%.*f%s", precision, value, suffix)
 }
 
 func formatTemp(celsius float64) string {

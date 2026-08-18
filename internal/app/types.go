@@ -125,6 +125,37 @@ type PeakStepChart struct {
 	ShowPeakLabels    bool
 	CurrentLabelOrder []int    // Optional draw priority for right-side current labels.
 	SeriesGroups      []string // Optional unit groups; equal groups sort labels by value.
+	TitleSpans        []TitleSpan
+}
+
+// TitleSpan allows a title's explanatory text and its metric values to use
+// separate terminal styles. gotui block titles have only one title style.
+type TitleSpan struct {
+	Text  string
+	Style ui.Style
+}
+
+// StyledList is the list equivalent of PeakStepChart's title span support.
+// It is used only by the unified process list.
+type StyledList struct {
+	*w.List
+	TitleSpans []TitleSpan
+}
+
+func NewStyledList() *StyledList {
+	return &StyledList{List: w.NewList()}
+}
+
+func (sl *StyledList) Draw(buf *ui.Buffer) {
+	if len(sl.TitleSpans) == 0 {
+		sl.List.Draw(buf)
+		return
+	}
+	title := sl.Title
+	sl.Title = ""
+	sl.List.Draw(buf)
+	sl.Title = title
+	drawTitleSpans(buf, &sl.Block, sl.TitleSpans)
 }
 
 func NewPeakStepChart() *PeakStepChart {
@@ -139,14 +170,148 @@ func (sc *PeakStepChart) Draw(buf *ui.Buffer) {
 	if sc.ShowRightAxis {
 		sc.DataLabels = make([]string, len(sc.Data))
 	}
+	title := sc.Title
+	if len(sc.TitleSpans) > 0 {
+		sc.Title = ""
+	}
 	sc.StepChart.Draw(buf)
+	sc.Title = title
 	sc.DataLabels = labels
+	if len(sc.TitleSpans) > 0 {
+		drawTitleSpans(buf, &sc.Block, sc.TitleSpans)
+	}
 	if !sc.ShowPeakLabels || len(sc.PeakLabels) == 0 {
 		sc.drawCurrentLabels(buf, labels)
 		return
 	}
 	sc.drawPeakLabels(buf)
 	sc.drawCurrentLabels(buf, labels)
+}
+
+// drawTitleSpans mirrors gotui's left/center/right placement while bounding
+// the title to the block border. Per-span truncation avoids a partial wide
+// rune and leaves corners/right titles untouched.
+func drawTitleSpans(buf *ui.Buffer, block *ui.Block, spans []TitleSpan) {
+	if len(spans) == 0 || block.Dx() <= 4 {
+		return
+	}
+	title := titleSpanText(spans)
+	titleWidth := runewidth.StringWidth(title)
+	x := block.Min.X + 2
+	switch block.TitleAlignment {
+	case ui.AlignCenter:
+		x = block.Min.X + (block.Dx()-titleWidth)/2
+	case ui.AlignRight:
+		x = block.Max.X - titleWidth - 2
+	}
+	x = max(block.Min.X+1, x)
+	limit := block.Max.X - 2
+	for _, span := range spans {
+		if x >= limit || span.Text == "" {
+			break
+		}
+		text := runewidth.Truncate(span.Text, max(0, limit-x), "")
+		if text == "" {
+			break
+		}
+		buf.SetString(text, span.Style, image.Pt(x, block.Min.Y))
+		x += runewidth.StringWidth(text)
+	}
+}
+
+func titleSpanText(spans []TitleSpan) string {
+	var title strings.Builder
+	for _, span := range spans {
+		title.WriteString(span.Text)
+	}
+	return title.String()
+}
+
+type titleMetricColor struct {
+	Name  string
+	Color ui.Color
+}
+
+// unifiedTitleSpans dims labels, punctuation, and units, while emphasizing
+// observed values. A numeric value immediately after '/' is a capacity and is
+// deliberately not bold; later values (such as disk usage percent) remain
+// emphasized.
+func unifiedTitleSpans(title string, metrics []titleMetricColor, background ui.Color) []TitleSpan {
+	if title == "" || len(metrics) == 0 {
+		return nil
+	}
+	type metricMatch struct {
+		start  int
+		anchor string
+		color  ui.Color
+	}
+	matches := make([]metricMatch, 0, len(metrics))
+	for _, metric := range metrics {
+		anchor := metric.Name + ": "
+		if start := strings.Index(title, anchor); start >= 0 {
+			matches = append(matches, metricMatch{start: start, anchor: anchor, color: metric.Color})
+		}
+	}
+	if len(matches) == 0 {
+		return nil
+	}
+	sort.Slice(matches, func(i, j int) bool { return matches[i].start < matches[j].start })
+	muted := ui.NewStyle(ui.ColorGrey, background)
+	spans := make([]TitleSpan, 0, len(matches)*4+1)
+	offset := 0
+	for i, match := range matches {
+		if match.start < offset {
+			continue
+		}
+		appendTitleSpan(&spans, title[offset:match.start+len(match.anchor)], muted)
+		valueEnd := len(title)
+		if i+1 < len(matches) {
+			valueEnd = matches[i+1].start
+		}
+		if end := strings.IndexAny(title[match.start+len(match.anchor):valueEnd], ",)"); end >= 0 {
+			valueEnd = match.start + len(match.anchor) + end
+		}
+		appendTitleValueSpans(&spans, title[match.start+len(match.anchor):valueEnd], match.color, background)
+		offset = valueEnd
+	}
+	appendTitleSpan(&spans, title[offset:], muted)
+	return spans
+}
+
+func appendTitleValueSpans(spans *[]TitleSpan, value string, color ui.Color, background ui.Color) {
+	muted := ui.NewStyle(ui.ColorGrey, background)
+	for i := 0; i < len(value); {
+		if value[i] < '0' || value[i] > '9' {
+			start := i
+			for i < len(value) && (value[i] < '0' || value[i] > '9') {
+				i++
+			}
+			appendTitleSpan(spans, value[start:i], muted)
+			continue
+		}
+		start := i
+		for i < len(value) && ((value[i] >= '0' && value[i] <= '9') || value[i] == '.') {
+			i++
+		}
+		capacity := start > 0 && value[start-1] == '/'
+		modifier := ui.ModifierClear
+		if !capacity {
+			modifier = ui.ModifierBold
+		}
+		appendTitleSpan(spans, value[start:i], ui.NewStyle(color, background, modifier))
+	}
+}
+
+func appendTitleSpan(spans *[]TitleSpan, text string, style ui.Style) {
+	if text == "" {
+		return
+	}
+	last := len(*spans) - 1
+	if last >= 0 && (*spans)[last].Style == style {
+		(*spans)[last].Text += text
+		return
+	}
+	*spans = append(*spans, TitleSpan{Text: text, Style: style})
 }
 
 type chartLabelPlacement struct {

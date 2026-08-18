@@ -33,7 +33,8 @@ var (
 	tbInfoParagraph                                             *w.Paragraph
 	fanStatusPanel, fanTempPanel, fanControlPanel               *w.Paragraph
 	grid                                                        *ui.Grid
-	processList, unifiedProcessList                             *w.List
+	processList                                                 *w.List
+	unifiedProcessList                                          *StyledList
 	// Search state
 	searchMode        bool
 	searchDraft       string
@@ -101,6 +102,10 @@ var (
 
 	// Decaying-peak histories for the four SoC usage charts in history_soc layout
 	cpuPeakHistory, gpuPeakHistory, anePeakHistory, bwPeakHistory []float64
+	// Historical peaks are retained independently from the fixed-size chart
+	// buffers, so a displayed peak lasts for the lifetime of this process.
+	historicalPeaks      = make(map[string]float64)
+	historicalPeaksMutex sync.RWMutex
 
 	// Frequency-adjusted effective GPU load history (for history_soc layout only).
 	// Each sample is recorded with the GPU frequency active at the time it arrived.
@@ -113,7 +118,9 @@ var (
 	// External-I/O histories used by the unified dashboard. Values remain in
 	// bytes/s so each chart can retain an independent, adaptive scale.
 	networkDownHistory, networkUpHistory []float64
+	networkLinkHistory                   []float64
 	diskReadHistory, diskWriteHistory    []float64
+	diskUsedHistory                      []float64
 
 	cpuCoreWidget                 *CPUCoreWidget
 	powerValues                   = make([]float64, 35)

@@ -92,10 +92,14 @@ var prevProcessTimes = make(map[int]ProcessTimeState)
 var prevProcessTimesMutex sync.Mutex
 
 type unifiedProcessSummary struct {
-	Total int
+	Total     int
+	PeakTotal int
 }
 
-var latestUnifiedProcessSummary unifiedProcessSummary
+var (
+	latestUnifiedProcessSummary unifiedProcessSummary
+	processCountPeak            int
+)
 
 var timebaseInfo C.mach_timebase_info_data_t
 var timebaseOnce sync.Once
@@ -248,8 +252,16 @@ func summarizeUnifiedProcesses(processes []ProcessMetrics) unifiedProcessSummary
 	return unifiedProcessSummary{Total: len(processes)}
 }
 
+func updateUnifiedProcessSummary(processes []ProcessMetrics) {
+	summary := summarizeUnifiedProcesses(processes)
+	processCountPeak = max(processCountPeak, summary.Total)
+	summary.PeakTotal = processCountPeak
+	latestUnifiedProcessSummary = summary
+}
+
 func formatUnifiedProcessSummary(summary unifiedProcessSummary) string {
-	return fmt.Sprintf("Processes: %d total", summary.Total)
+	peak := max(summary.PeakTotal, summary.Total)
+	return fmt.Sprintf("Total: %d/%d", summary.Total, peak)
 }
 
 func processStateString(stat C.char) string {
@@ -338,7 +350,7 @@ func getProcessList(systemGpuPercent float64) ([]ProcessMetrics, error) {
 	for i := range processes {
 		processes[i].Activity = calculateProcessActivity(processes[i], totalMem)
 	}
-	latestUnifiedProcessSummary = summarizeUnifiedProcesses(processes)
+	updateUnifiedProcessSummary(processes)
 
 	sort.Slice(processes, func(i, j int) bool {
 		return processes[i].CPU > processes[j].CPU
@@ -681,12 +693,18 @@ func updateUnifiedProcessList(processes []ProcessMetrics) {
 
 	if searchMode || searchText != "" {
 		unifiedProcessList.Title, unifiedProcessList.TitleStyle = getProcessListTitle()
+		unifiedProcessList.TitleSpans = nil
 	} else {
 		summary := latestUnifiedProcessSummary
 		if summary.Total == 0 && len(processes) > 0 {
 			summary = summarizeUnifiedProcesses(processes)
 		}
-		unifiedProcessList.Title = fmt.Sprintf("%s %s | / Search", i18n.T("TUI_ProcessList"), formatUnifiedProcessSummary(summary))
+		unifiedProcessList.Title = fmt.Sprintf("%s %s | / for search", i18n.T("TUI_ProcessList"), formatUnifiedProcessSummary(summary))
+		if currentConfig.DefaultLayout == LayoutUnified {
+			unifiedProcessList.TitleSpans = unifiedTitleSpans(unifiedProcessList.Title, []titleMetricColor{{Name: "Total", Color: unifiedProcessList.TextStyle.Fg}}, unifiedProcessList.TitleStyle.Bg)
+		} else {
+			unifiedProcessList.TitleSpans = nil
+		}
 	}
 	unifiedProcessList.Rows = rows
 }
