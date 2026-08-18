@@ -1306,8 +1306,8 @@ func updateMemoryHistory(memoryMetrics MemoryMetrics) {
 		memoryHistoryChart.ShowPeakLabels = currentConfig.DefaultLayout == LayoutUnified
 		memoryHistoryChart.SeriesGroups = []string{"capacity", "capacity"}
 		memoryHistoryChart.PeakLabels = []string{
-			fmt.Sprintf("M %.1fGB", historicalPeak("memory-used", seriesMax(visibleMem))),
-			fmt.Sprintf("S %.1fGB", historicalPeak("memory-swap", seriesMax(visibleSwap))),
+			fmt.Sprintf("M %.1fGB", seriesMax(visibleMem)),
+			fmt.Sprintf("S %.1fGB", seriesMax(visibleSwap)),
 		}
 		memoryHistoryChart.CurrentLabelOrder = []int{0, 1}
 		memoryHistoryChart.Title = i18n.T("TUI_MemorySwapHistory")
@@ -1786,10 +1786,10 @@ func updateSoCPowerHistory(cpuMetrics CPUMetrics) {
 			fmt.Sprintf("D %.1fW", cpuMetrics.DRAMW),
 		}
 		peakLabels := []string{
-			fmt.Sprintf("T %.0fW", historicalPeak("power-total", seriesMax(visTotal))),
-			fmt.Sprintf("C %.0fW", historicalPeak("power-cpu", seriesMax(visCPU))),
-			fmt.Sprintf("G %.0fW", historicalPeak("power-gpu", seriesMax(visGPU))),
-			fmt.Sprintf("D %.0fW", historicalPeak("power-dram", seriesMax(visDRAM))),
+			fmt.Sprintf("T %.0fW", seriesMax(visTotal)),
+			fmt.Sprintf("C %.0fW", seriesMax(visCPU)),
+			fmt.Sprintf("G %.0fW", seriesMax(visGPU)),
+			fmt.Sprintf("D %.0fW", seriesMax(visDRAM)),
 		}
 		historyPeakLabels := []string{
 			fmt.Sprintf("T %.0fW", historicalPeak("power-total", seriesMax(totalPowerHistory))),
@@ -1800,7 +1800,7 @@ func updateSoCPowerHistory(cpuMetrics CPUMetrics) {
 		if !aneDead {
 			socPowerHistoryChart.Data = append(socPowerHistoryChart.Data, visANE)
 			labels = append(labels, fmt.Sprintf("A %.1fW", cpuMetrics.ANEW))
-			peakLabels = append(peakLabels, fmt.Sprintf("A %.0fW", historicalPeak("power-ane", seriesMax(visANE))))
+			peakLabels = append(peakLabels, fmt.Sprintf("A %.0fW", seriesMax(visANE)))
 			historyPeakLabels = append(historyPeakLabels, fmt.Sprintf("A %.0fW", historicalPeak("power-ane", seriesMax(anePowerHistory))))
 		}
 		socPowerHistoryChart.DataLabels = labels
@@ -1948,9 +1948,9 @@ func renderUnifiedComputeHistory() {
 	}
 	unifiedComputeHistoryChart.ShowPeakLabels = true
 	unifiedComputeHistoryChart.PeakLabels = []string{
-		fmt.Sprintf("A %.0f%%", historicalPeak("ane-usage", seriesMax(ane))),
-		fmt.Sprintf("G %.0f%%", historicalPeak("gpu-effective", seriesMax(gpu))),
-		fmt.Sprintf("C %.0f%%", historicalPeak("cpu-usage", seriesMax(cpu))),
+		fmt.Sprintf("A %.0f%%", seriesMax(ane)),
+		fmt.Sprintf("G %.0f%%", seriesMax(gpu)),
+		fmt.Sprintf("C %.0f%%", seriesMax(cpu)),
 	}
 	unifiedComputeHistoryChart.Title = unifiedHistoryTitle(unifiedComputeHistoryTitle(), []string{
 		fmt.Sprintf("CPU: %.0f%%", historicalPeak("cpu-usage", seriesMax(cpuUsageHistory))),
@@ -2061,7 +2061,7 @@ func renderUnifiedMemoryDRAMHistory(memoryMetrics MemoryMetrics, cpuMetrics CPUM
 			fmt.Sprintf("S %.1fGB", float64(memoryMetrics.SwapUsed)/1024/1024/1024),
 			fmt.Sprintf("M %.1fGB", float64(memoryMetrics.Used)/1024/1024/1024),
 		}
-		memoryHistoryChart.PeakLabels = []string{fmt.Sprintf("S %.0fGB", historicalPeak("memory-swap", seriesMax(swap))), fmt.Sprintf("M %.0fGB", historicalPeak("memory-used", seriesMax(memory)))}
+		memoryHistoryChart.PeakLabels = []string{fmt.Sprintf("S %.0fGB", seriesMax(swap)), fmt.Sprintf("M %.0fGB", seriesMax(memory))}
 		memoryHistoryChart.ShowPeakLabels = true
 		memoryHistoryChart.SeriesGroups = []string{"capacity", "capacity"}
 		memoryHistoryChart.CurrentLabelOrder = []int{1, 0}
@@ -2085,9 +2085,9 @@ func renderUnifiedMemoryDRAMHistory(memoryMetrics MemoryMetrics, cpuMetrics CPUM
 		memoryHistoryChart.ShowPeakLabels = true
 		memoryHistoryChart.SeriesGroups = []string{"capacity", "capacity", "bandwidth"}
 		memoryHistoryChart.PeakLabels = []string{
-			fmt.Sprintf("S %.0fGB", historicalPeak("memory-swap", seriesMax(swap))),
-			fmt.Sprintf("M %.0fGB", historicalPeak("memory-used", seriesMax(memory))),
-			fmt.Sprintf("%s%.0fGB/s", prefix, historicalPeak("dram-total", seriesMax(total))),
+			fmt.Sprintf("S %.0fGB", seriesMax(swap)),
+			fmt.Sprintf("M %.0fGB", seriesMax(memory)),
+			fmt.Sprintf("%s%.0fGB/s", prefix, seriesMax(total)),
 		}
 		// Draw bandwidth first so the capacity pair retains the visible right
 		// column when a compact chart cannot fit every current-value label.
@@ -2112,10 +2112,10 @@ func renderUnifiedMemoryDRAMHistory(memoryMetrics MemoryMetrics, cpuMetrics CPUM
 	memoryHistoryChart.ShowPeakLabels = true
 	memoryHistoryChart.SeriesGroups = []string{"capacity", "capacity", "bandwidth", "bandwidth"}
 	memoryHistoryChart.PeakLabels = []string{
-		fmt.Sprintf("S %.0fGB", historicalPeak("memory-swap", seriesMax(swap))),
-		fmt.Sprintf("M %.0fGB", historicalPeak("memory-used", seriesMax(memory))),
-		fmt.Sprintf("R %.0fGB/s", historicalPeak("dram-read", seriesMax(read))),
-		fmt.Sprintf("W %.0fGB/s", historicalPeak("dram-write", seriesMax(write))),
+		fmt.Sprintf("S %.0fGB", seriesMax(swap)),
+		fmt.Sprintf("M %.0fGB", seriesMax(memory)),
+		fmt.Sprintf("R %.0fGB/s", seriesMax(read)),
+		fmt.Sprintf("W %.0fGB/s", seriesMax(write)),
 	}
 	// Capacity labels are the highest priority: M/S must remain vertically
 	// readable even when R/W has to yield on a short chart.
@@ -2169,9 +2169,8 @@ func updateUnifiedTemperatureHistory(cpuMetrics CPUMetrics) {
 		}
 		series = append(series, scaleTemperatureSeries(visible, tempMin, tempMax))
 		labels = append(labels, prefix+" "+formatTemp(current))
-		peak := historicalPeak("temperature-"+prefix, seriesMax(history))
-		peaks = append(peaks, prefix+" "+formatTemp(peak))
-		historyPeaks = append(historyPeaks, prefix+" "+formatTemp(peak))
+		peaks = append(peaks, prefix+" "+formatTemp(seriesMax(visible)))
+		historyPeaks = append(historyPeaks, prefix+" "+formatTemp(historicalPeak("temperature-"+prefix, seriesMax(history))))
 		colors = append(colors, color)
 		groups = append(groups, "temperature")
 	}
@@ -2184,11 +2183,12 @@ func updateUnifiedTemperatureHistory(cpuMetrics CPUMetrics) {
 	for i := len(fans) - 1; i >= 0; i-- {
 		fan := fans[i]
 		visibleDuty := fanDutyHistory[fan.slot][len(fanDutyHistory[fan.slot])-visibleWidth:]
+		visibleRPM := fanRPMHistory[fan.slot][len(fanRPMHistory[fan.slot])-visibleWidth:]
 		series = append([][]float64{visibleDuty}, series...)
 		labels = append([]string{fmt.Sprintf("%s %.1fk", fan.label, float64(fan.rpm)/1000)}, labels...)
-		peak := historicalPeak(fmt.Sprintf("fan-rpm-%d", fan.slot), seriesMax(fanRPMHistory[fan.slot]))
-		peaks = append([]string{fmt.Sprintf("%s %.0fk", fan.label, peak/1000)}, peaks...)
-		historyPeaks = append([]string{fmt.Sprintf("%s %.0fk", fan.label, peak/1000)}, historyPeaks...)
+		peaks = append([]string{fmt.Sprintf("%s %.0fk", fan.label, seriesMax(visibleRPM)/1000)}, peaks...)
+		historyPeak := historicalPeak(fmt.Sprintf("fan-rpm-%d", fan.slot), seriesMax(fanRPMHistory[fan.slot]))
+		historyPeaks = append([]string{fmt.Sprintf("%s %.0fk", fan.label, historyPeak/1000)}, historyPeaks...)
 		colors = append([]ui.Color{fan.color}, colors...)
 		groups = append([]string{"fan"}, groups...)
 	}
@@ -2413,7 +2413,7 @@ func renderUnifiedNetworkHistory(chart *PeakStepChart, download, upload, link []
 	visibleLink := link[len(link)-visibleWidth:]
 	trafficSeries := normalizeHistoryGroup(visibleDownload, visibleUpload)
 	linkSeries := normalizeHistorySeries(visibleLink)
-	linkPeak := historicalPeak("network-link", seriesMax(link))
+	linkPeak := seriesMax(visibleLink)
 
 	// PeakStepChart draws in data order: Link sits below Upload, below Download.
 	chart.Data = [][]float64{linkSeries, trafficSeries[1], trafficSeries[0]}
@@ -2426,8 +2426,8 @@ func renderUnifiedNetworkHistory(chart *PeakStepChart, download, upload, link []
 	chart.ShowPeakLabels = true
 	chart.PeakLabels = []string{
 		"L " + formatNetworkRate(uint64(math.Round(linkPeak))),
-		"U " + formatRoundedBytes(historicalPeak("network-upload", seriesMax(visibleUpload)), unitType) + "/s",
-		"D " + formatRoundedBytes(historicalPeak("network-download", seriesMax(visibleDownload)), unitType) + "/s",
+		"U " + formatRoundedBytes(seriesMax(visibleUpload), unitType) + "/s",
+		"D " + formatRoundedBytes(seriesMax(visibleDownload), unitType) + "/s",
 	}
 	chart.SeriesGroups = []string{"link", "throughput", "throughput"}
 	chart.CurrentLabelOrder = []int{2, 1, 0}
@@ -2478,8 +2478,8 @@ func renderUnifiedIOChart(chart *PeakStepChart, first, second []float64, title, 
 	}
 	chart.ShowPeakLabels = true
 	chart.PeakLabels = []string{
-		firstLabel + " " + formatRoundedBytes(historicalPeak(firstPeakKey, seriesMax(firstVisible)), unitType) + "/s",
-		secondLabel + " " + formatRoundedBytes(historicalPeak(secondPeakKey, seriesMax(secondVisible)), unitType) + "/s",
+		firstLabel + " " + formatRoundedBytes(seriesMax(firstVisible), unitType) + "/s",
+		secondLabel + " " + formatRoundedBytes(seriesMax(secondVisible), unitType) + "/s",
 	}
 	historyPeakLabels := []string{
 		firstLabel + " " + formatRoundedBytes(historicalPeak(firstPeakKey, seriesMax(first)), unitType) + "/s",
@@ -2521,7 +2521,7 @@ func renderUnifiedDiskHistory(chart *PeakStepChart, read, write, used []float64,
 	occupiedSeries := roundHistorySeries(normalizeHistorySeriesToMax(visibleUsed, totalBytes))
 	currentUsed := visibleUsed[len(visibleUsed)-1]
 	currentPercent := currentUsed / totalBytes * 100
-	peakUsed := historicalPeak("disk-used", seriesMax(used))
+	peakUsed := seriesMax(visibleUsed)
 
 	// PeakStepChart draws in data order: Occupied sits below Read, below Write.
 	chart.Data = [][]float64{occupiedSeries, throughputSeries[0], throughputSeries[1]}
@@ -2534,8 +2534,8 @@ func renderUnifiedDiskHistory(chart *PeakStepChart, read, write, used []float64,
 	chart.ShowPeakLabels = true
 	chart.PeakLabels = []string{
 		"U " + formatRoundedBytesDecimal(peakUsed, unitType),
-		"R " + formatRoundedBytes(historicalPeak("disk-read", seriesMax(visibleRead)), unitType) + "/s",
-		"W " + formatRoundedBytes(historicalPeak("disk-write", seriesMax(visibleWrite)), unitType) + "/s",
+		"R " + formatRoundedBytes(seriesMax(visibleRead), unitType) + "/s",
+		"W " + formatRoundedBytes(seriesMax(visibleWrite), unitType) + "/s",
 	}
 	chart.SeriesGroups = []string{"occupied", "throughput", "throughput"}
 	chart.CurrentLabelOrder = []int{1, 2, 0}

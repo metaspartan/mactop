@@ -402,11 +402,17 @@ func TestRenderUnifiedMemoryDRAMHistoryUsesFourNormalizedSeries(t *testing.T) {
 
 	currentConfig.DefaultLayout = LayoutUnified
 	UpdateCachedTerminalDimensions(6, 10)
+	resetHistoricalPeaks()
+	t.Cleanup(resetHistoricalPeaks)
 	memoryHistoryChart = NewPeakStepChart()
 	memoryUsedHistory = []float64{80, 20, 40}
 	swapUsedHistory = []float64{8, 2, 4}
 	dramReadHistory = []float64{20, 4, 8}
 	dramWriteHistory = []float64{24, 6, 12}
+	recordHistoricalPeak("memory-used", 99)
+	recordHistoricalPeak("memory-swap", 19)
+	recordHistoricalPeak("dram-read", 29)
+	recordHistoricalPeak("dram-write", 39)
 
 	renderUnifiedMemoryDRAMHistory(
 		MemoryMetrics{Used: 40 * 1024 * 1024 * 1024, SwapUsed: 4 * 1024 * 1024 * 1024},
@@ -437,7 +443,7 @@ func TestRenderUnifiedMemoryDRAMHistoryUsesFourNormalizedSeries(t *testing.T) {
 	if got, want := memoryHistoryChart.LineColors[:2], []ui.Color{ui.ColorOrange, ui.ColorMagenta}; !slices.Equal(got, want) {
 		t.Fatalf("memory draw order colors = %v, want swap then memory %v", got, want)
 	}
-	if got, want := memoryHistoryChart.Title, memorySwapTitle()+" (M: 80GB, S: 8GB, R: 20GB/s, W: 24GB/s)"; got != want {
+	if got, want := memoryHistoryChart.Title, memorySwapTitle()+" (M: 99GB, S: 19GB, R: 29GB/s, W: 39GB/s)"; got != want {
 		t.Fatalf("narrow memory chart title = %q, want compact peaks %q", got, want)
 	}
 }
@@ -806,6 +812,10 @@ func TestUpdateUnifiedTemperatureHistoryRendersComponentsAndFan(t *testing.T) {
 	fanDutyHistory = [2][]float64{make([]float64, 10), make([]float64, 10)}
 	fanRPMHistory = [2][]float64{make([]float64, 10), make([]float64, 10)}
 	fanHistoryIDs, fanHistoryNames = [2]int{}, [2]string{}
+	resetHistoricalPeaks()
+	t.Cleanup(resetHistoricalPeaks)
+	recordHistoricalPeak("temperature-C", 90)
+	recordHistoricalPeak("fan-rpm-0", 3600)
 	updateUnifiedTemperatureHistory(CPUMetrics{
 		CPUTemp: 52,
 		GPUTemp: 49,
@@ -837,6 +847,12 @@ func TestUpdateUnifiedTemperatureHistoryRendersComponentsAndFan(t *testing.T) {
 	if got := unifiedTemperatureHistoryChart.Data[5][len(unifiedTemperatureHistoryChart.Data[5])-1]; got != 70 {
 		t.Fatalf("CPU scaled temperature = %.1f, want 70", got)
 	}
+	if got, want := unifiedTemperatureHistoryChart.PeakLabels, []string{"L 1k", "F2 2k", "S 41°C", "M 45°C", "G 49°C", "C 52°C"}; !slices.Equal(got, want) {
+		t.Fatalf("temperature peak labels = %v, want visible peaks %v", got, want)
+	}
+	if !strings.Contains(unifiedTemperatureHistoryChart.Title, "CPU: 90°C") || !strings.Contains(unifiedTemperatureHistoryChart.Title, "Fan Left: 4k") {
+		t.Fatalf("temperature title = %q, want retained peaks", unifiedTemperatureHistoryChart.Title)
+	}
 }
 
 func TestSoCPowerHistoryDrawsTotalAndShowsOnlyItsPeakInTitle(t *testing.T) {
@@ -857,6 +873,9 @@ func TestSoCPowerHistoryDrawsTotalAndShowsOnlyItsPeakInTitle(t *testing.T) {
 	socPowerHistoryChart = NewPeakStepChart()
 	totalPowerHistory = make([]float64, 100)
 	totalPowerHistory[len(totalPowerHistory)-6] = 15
+	resetHistoricalPeaks()
+	t.Cleanup(resetHistoricalPeaks)
+	recordHistoricalPeak("power-total", 15)
 	updateSoCPowerHistory(CPUMetrics{CPUW: 4, GPUW: 3, DRAMW: 2, ANEW: 1, PackageW: 12})
 	if got, want := socPowerHistoryChart.DataLabels[0], "T 12.0W"; got != want {
 		t.Fatalf("total current label = %q, want %q", got, want)
@@ -891,15 +910,19 @@ func TestReadWriteHistoryColors(t *testing.T) {
 	}
 }
 
-func TestRenderUnifiedIOChartUsesFullHistoryForPeakLabels(t *testing.T) {
+func TestRenderUnifiedIOChartUsesVisiblePeakLabelsAndRetainedTitlePeaks(t *testing.T) {
 	origWidth, origHeight := GetCachedTerminalDimensions()
 	t.Cleanup(func() { UpdateCachedTerminalDimensions(origWidth, origHeight) })
+	resetHistoricalPeaks()
+	t.Cleanup(resetHistoricalPeaks)
 	UpdateCachedTerminalDimensions(6, 10)
 
 	chart := NewPeakStepChart()
 	first := []float64{1000, 10, 20}
 	second := []float64{2000, 30, 40}
-	renderUnifiedIOChart(chart, first, second, "I/O", "R", "W", "", "", "B", []ui.Color{ui.ColorCyan, ui.ColorRed}, map[string]string{"R": "Read", "W": "Write"}, nil)
+	recordHistoricalPeak("disk-read", 4000)
+	recordHistoricalPeak("disk-write", 8000)
+	renderUnifiedIOChart(chart, first, second, "I/O", "R", "W", "disk-read", "disk-write", "B", []ui.Color{ui.ColorCyan, ui.ColorRed}, map[string]string{"R": "Read", "W": "Write"}, nil)
 
 	if got, want := chart.Data, [][]float64{{10, 20}, {30, 40}}; !slices.Equal(got[0], want[0]) || !slices.Equal(got[1], want[1]) {
 		t.Fatalf("I/O visible data = %v, want %v", got, want)
@@ -907,8 +930,40 @@ func TestRenderUnifiedIOChartUsesFullHistoryForPeakLabels(t *testing.T) {
 	if got, want := chart.PeakLabels, []string{"R " + formatRoundedBytes(20, "B") + "/s", "W " + formatRoundedBytes(40, "B") + "/s"}; !slices.Equal(got, want) {
 		t.Fatalf("I/O peak labels = %v, want visible peaks %v", got, want)
 	}
-	if want := "I/O (Read: " + formatRoundedBytes(1000, "B") + "/s, Write: " + formatRoundedBytes(2000, "B") + "/s)"; chart.Title != want {
+	if want := "I/O (Read: " + formatRoundedBytes(4000, "B") + "/s, Write: " + formatRoundedBytes(8000, "B") + "/s)"; chart.Title != want {
 		t.Fatalf("I/O title = %q, want full-history peaks %q", chart.Title, want)
+	}
+}
+
+func TestUnifiedNetworkAndDiskPeakLabelsUseVisibleWindow(t *testing.T) {
+	origWidth, origHeight := GetCachedTerminalDimensions()
+	t.Cleanup(func() { UpdateCachedTerminalDimensions(origWidth, origHeight) })
+	resetHistoricalPeaks()
+	t.Cleanup(resetHistoricalPeaks)
+	UpdateCachedTerminalDimensions(6, 10)
+
+	recordHistoricalPeak("network-link", 1000)
+	recordHistoricalPeak("network-download", 4000)
+	recordHistoricalPeak("network-upload", 8000)
+	network := NewPeakStepChart()
+	renderUnifiedNetworkHistory(network, []float64{1000, 10, 20}, []float64{2000, 30, 40}, []float64{1000, 100, 200}, "200Mbps", "", "Network", "B")
+	if got, want := network.PeakLabels, []string{"L 200Mbps", "U 40B/s", "D 20B/s"}; !slices.Equal(got, want) {
+		t.Fatalf("network peak labels = %v, want visible peaks %v", got, want)
+	}
+	if want := "Network (D: 4KB/s, U: 8KB/s, Link: 200Mbps)"; network.Title != want {
+		t.Fatalf("network title = %q, want retained peaks %q", network.Title, want)
+	}
+
+	recordHistoricalPeak("disk-used", 9000)
+	recordHistoricalPeak("disk-read", 4000)
+	recordHistoricalPeak("disk-write", 8000)
+	disk := NewPeakStepChart()
+	renderUnifiedDiskHistory(disk, []float64{1000, 10, 20}, []float64{2000, 30, 40}, []float64{900, 100, 200}, 1000, "Disk", "B")
+	if got, want := disk.PeakLabels, []string{"U 200B", "R 20B/s", "W 40B/s"}; !slices.Equal(got, want) {
+		t.Fatalf("disk peak labels = %v, want visible peaks %v", got, want)
+	}
+	if !strings.Contains(disk.Title, "R: 4KB/s") || !strings.Contains(disk.Title, "W: 8KB/s") {
+		t.Fatalf("disk title = %q, want retained throughput peaks", disk.Title)
 	}
 }
 
@@ -1103,6 +1158,37 @@ func TestRenderUnifiedComputeHistoryDrawsCPUAboveGPUAboveANE(t *testing.T) {
 	}
 	if got := unifiedComputeHistoryChart.Title; !strings.Contains(got, "(CPU: 20%, GPU: 40%, ANE: 60%)") || strings.Contains(got, "°") {
 		t.Fatalf("compute title = %q", got)
+	}
+}
+
+func TestUnifiedComputePeakLabelsUseVisibleWindow(t *testing.T) {
+	origChart, origCPU, origGPU, origANE := unifiedComputeHistoryChart, cpuUsageHistory, gpuEffectiveHistory, aneUsageHistory
+	origMetrics := lastCPUMetrics
+	origWidth, origHeight := GetCachedTerminalDimensions()
+	t.Cleanup(func() {
+		unifiedComputeHistoryChart, cpuUsageHistory, gpuEffectiveHistory, aneUsageHistory = origChart, origCPU, origGPU, origANE
+		lastCPUMetrics = origMetrics
+		UpdateCachedTerminalDimensions(origWidth, origHeight)
+	})
+	resetHistoricalPeaks()
+	t.Cleanup(resetHistoricalPeaks)
+
+	UpdateCachedTerminalDimensions(6, 20)
+	unifiedComputeHistoryChart = NewPeakStepChart()
+	cpuUsageHistory = []float64{90, 10, 20}
+	gpuEffectiveHistory = []float64{80, 30, 40}
+	aneUsageHistory = []float64{70, 50, 60}
+	lastCPUMetrics = CPUMetrics{AvgUsage: 20}
+	recordHistoricalPeak("cpu-usage", 95)
+	recordHistoricalPeak("gpu-effective", 85)
+	recordHistoricalPeak("ane-usage", 75)
+
+	renderUnifiedComputeHistory()
+	if got, want := unifiedComputeHistoryChart.PeakLabels, []string{"A 60%", "G 40%", "C 20%"}; !slices.Equal(got, want) {
+		t.Fatalf("compute peak labels = %v, want visible peaks %v", got, want)
+	}
+	if !strings.Contains(unifiedComputeHistoryChart.Title, "CPU: 95%") || !strings.Contains(unifiedComputeHistoryChart.Title, "GPU: 85%") || !strings.Contains(unifiedComputeHistoryChart.Title, "ANE: 75%") {
+		t.Fatalf("compute title = %q, want retained peaks", unifiedComputeHistoryChart.Title)
 	}
 }
 
