@@ -125,8 +125,8 @@ func TestUnifiedTitleSpansDifferentiateValuesUnitsAndCapacity(t *testing.T) {
 		t.Fatalf("missing title span %q in %#v", text, spans)
 		return TitleSpan{}
 	}
-	if span := find("12"); span.Style.Fg != ui.ColorMagenta || span.Style.Modifier != ui.ModifierBold {
-		t.Fatalf("current value style = %+v, want bold magenta", span.Style)
+	if span := find("12"); span.Style.Fg != ui.ColorMagenta || span.Style.Modifier != ui.ModifierClear {
+		t.Fatalf("current value style = %+v, want normal magenta", span.Style)
 	}
 	if span := find("32"); span.Style.Fg != ui.ColorMagenta || span.Style.Modifier != ui.ModifierClear {
 		t.Fatalf("capacity style = %+v, want normal magenta", span.Style)
@@ -134,8 +134,8 @@ func TestUnifiedTitleSpansDifferentiateValuesUnitsAndCapacity(t *testing.T) {
 	if span := find("GB, Link: "); span.Style.Fg != ui.ColorGrey || span.Style.Modifier != ui.ModifierClear {
 		t.Fatalf("unit/label style = %+v, want muted", span.Style)
 	}
-	if span := find("2.5"); span.Style.Fg != ui.ColorYellow || span.Style.Modifier != ui.ModifierBold {
-		t.Fatalf("decimal Link style = %+v, want bold yellow", span.Style)
+	if span := find("2.5"); span.Style.Fg != ui.ColorYellow || span.Style.Modifier != ui.ModifierClear {
+		t.Fatalf("decimal Link style = %+v, want normal yellow", span.Style)
 	}
 	if span := find("5"); span.Style.Fg != ui.ColorYellow || span.Style.Modifier != ui.ModifierClear {
 		t.Fatalf("Link capacity style = %+v, want normal yellow", span.Style)
@@ -155,10 +155,24 @@ func TestMemoryTitleMetricColorsStyleCompactLabels(t *testing.T) {
 		"8":  ui.ColorRed,
 	} {
 		style, ok := styles[value]
-		if !ok || style.Fg != color || style.Modifier != ui.ModifierBold {
-			t.Fatalf("compact memory value %q style = %+v, want bold color %v", value, style, color)
+		if !ok || style.Fg != color || style.Modifier != ui.ModifierClear {
+			t.Fatalf("compact memory value %q style = %+v, want normal color %v", value, style, color)
 		}
 	}
+}
+
+func TestUnifiedTitleSpansSkipsShortAnchorInsideLongMetricName(t *testing.T) {
+	title := "Memory/Swap (M: 12GB, S: 3GB, DRAM: 10GB/s)"
+	spans := unifiedTitleSpans(title, memoryTitleMetricColors(), ui.ColorBlack)
+	if got := titleSpanText(spans); got != title {
+		t.Fatalf("title spans = %q, want %q", got, title)
+	}
+	for _, span := range spans {
+		if span.Text == "10" && span.Style.Fg == ui.ColorCyan {
+			return
+		}
+	}
+	t.Fatalf("DRAM value lost its cyan style: %#v", spans)
 }
 
 func TestPeakStepChartDrawsTitleSpansWithoutOverwritingBorder(t *testing.T) {
@@ -171,8 +185,8 @@ func TestPeakStepChartDrawsTitleSpansWithoutOverwritingBorder(t *testing.T) {
 
 	buf := ui.NewBuffer(image.Rect(0, 0, 24, 5))
 	chart.Draw(buf)
-	if cell := buf.GetCell(image.Pt(10, 0)); cell.Rune != '1' || cell.Style.Fg != ui.ColorMagenta || cell.Style.Modifier != ui.ModifierBold {
-		t.Fatalf("current title cell = %+v, want bold magenta 1", cell)
+	if cell := buf.GetCell(image.Pt(10, 0)); cell.Rune != '1' || cell.Style.Fg != ui.ColorMagenta || cell.Style.Modifier != ui.ModifierClear {
+		t.Fatalf("current title cell = %+v, want normal magenta 1", cell)
 	}
 	if cell := buf.GetCell(image.Pt(13, 0)); cell.Rune != '3' || cell.Style.Fg != ui.ColorMagenta || cell.Style.Modifier != ui.ModifierClear {
 		t.Fatalf("capacity title cell = %+v, want normal magenta 3", cell)
@@ -834,12 +848,12 @@ func TestUpdateUnifiedTemperatureHistoryRendersComponentsAndFan(t *testing.T) {
 	}
 	foundF2 := false
 	for _, span := range unifiedTemperatureHistoryChart.TitleSpans {
-		if span.Text == "2" && span.Style.Fg == ui.ColorGreen && span.Style.Modifier == ui.ModifierBold {
+		if span.Text == "2" && span.Style.Fg == ui.ColorGreen && span.Style.Modifier == ui.ModifierClear {
 			foundF2 = true
 		}
 	}
 	if !foundF2 {
-		t.Fatalf("F2 title value must be bold green: %#v", unifiedTemperatureHistoryChart.TitleSpans)
+		t.Fatalf("F2 title value must be normal green: %#v", unifiedTemperatureHistoryChart.TitleSpans)
 	}
 	if got := unifiedTemperatureHistoryChart.Data[0][len(unifiedTemperatureHistoryChart.Data[0])-1]; got != 50 {
 		t.Fatalf("left fan duty = %.1f, want 50", got)
@@ -1004,11 +1018,11 @@ func TestRenderUnifiedDiskHistoryAddsOccupiedLineOnNarrowAndWideTerminals(t *tes
 	for _, span := range wideChart.TitleSpans {
 		styles[span.Text] = span.Style
 	}
-	if style := styles["20"]; style.Fg != ui.ColorCyan || style.Modifier != ui.ModifierBold {
-		t.Fatalf("R title value style = %+v, want bold cyan", style)
+	if style := styles["20"]; style.Fg != ui.ColorCyan || style.Modifier != ui.ModifierClear {
+		t.Fatalf("R title value style = %+v, want normal cyan", style)
 	}
-	if style := styles["15"]; style.Fg != ui.ColorRed || style.Modifier != ui.ModifierBold {
-		t.Fatalf("W title value style = %+v, want bold red", style)
+	if style := styles["15"]; style.Fg != ui.ColorRed || style.Modifier != ui.ModifierClear {
+		t.Fatalf("W title value style = %+v, want normal red", style)
 	}
 
 	UpdateCachedTerminalDimensions(99, 30)
@@ -1103,6 +1117,36 @@ func TestGetBestLinkCapacityString(t *testing.T) {
 	}
 	if _, _, maximumText := getBestLinkCapacity([]EthernetLinkInfo{{Name: "en0", LinkUp: true, LinkSpeedMbps: 1000}}, nil); maximumText != "" {
 		t.Fatalf("unknown Ethernet capability = %q, want empty", maximumText)
+	}
+	if current, currentText, maximumText := getBestLinkCapacity([]EthernetLinkInfo{{Name: "en0", LinkUp: true, LinkSpeedMbps: 5000, SupportedSpeedMbps: 2500}}, nil); current != 5000 || currentText != "5GbE" || maximumText != "5GbE" {
+		t.Fatalf("Ethernet capability below current rate = (%d, %q, %q), want (5000, %q, %q)", current, currentText, maximumText, "5GbE", "5GbE")
+	}
+}
+
+func TestNetworkLinkHistoryResetsWhenSourceOrCapabilityChanges(t *testing.T) {
+	origHistory, origSource := networkLinkHistory, networkLinkHistorySource
+	t.Cleanup(func() {
+		networkLinkHistory, networkLinkHistorySource = origHistory, origSource
+	})
+
+	networkLinkHistory = make([]float64, 3)
+	networkLinkHistorySource = ""
+	appendNetworkLinkHistory("ethernet:en0:5000", 5000)
+	appendNetworkLinkHistory("ethernet:en0:5000", 2500)
+	if got, want := networkLinkHistory, []float64{0, 5000, 2500}; !slices.Equal(got, want) {
+		t.Fatalf("same-source link history = %v, want %v", got, want)
+	}
+
+	appendNetworkLinkHistory("ethernet:en1:2500", 1000)
+	if got, want := networkLinkHistory, []float64{0, 0, 1000}; !slices.Equal(got, want) {
+		t.Fatalf("changed-source link history = %v, want reset %v", got, want)
+	}
+
+	if got, want := linkHistorySource([]EthernetLinkInfo{{Name: "en1", LinkUp: true, LinkSpeedMbps: 1000, SupportedSpeedMbps: 2500}}, nil), "ethernet:en1:2500"; got != want {
+		t.Fatalf("Ethernet history source = %q, want %q", got, want)
+	}
+	if got, want := linkHistorySource(nil, &WiFiLinkInfo{InterfaceName: "en0", IsConnected: true, TxRateMbps: 1200}), "wifi:en0"; got != want {
+		t.Fatalf("Wi-Fi history source = %q, want %q", got, want)
 	}
 }
 

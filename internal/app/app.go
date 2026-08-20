@@ -2362,7 +2362,7 @@ func updateUnifiedIOHistory(metrics NetDiskMetrics, volumes []VolumeInfo) {
 	recordHistoricalPeak("disk-used", diskUsedBytes)
 	shiftAndAppend(networkDownHistory, metrics.InBytesPerSec)
 	shiftAndAppend(networkUpHistory, metrics.OutBytesPerSec)
-	shiftAndAppend(networkLinkHistory, float64(linkMbps))
+	appendNetworkLinkHistory(linkHistorySource(ethInfo, wifiInfo), linkMbps)
 	shiftAndAppend(diskReadHistory, metrics.ReadKBytesPerSec*1024)
 	shiftAndAppend(diskWriteHistory, metrics.WriteKBytesPerSec*1024)
 	shiftAndAppend(diskUsedHistory, diskUsedBytes)
@@ -2454,6 +2454,17 @@ func shiftAndAppend(history []float64, value float64) {
 	}
 	copy(history, history[1:])
 	history[len(history)-1] = value
+}
+
+// appendNetworkLinkHistory keeps Link samples comparable with the capability
+// displayed in the network title. A different active interface or Ethernet
+// capability starts a new history instead of carrying a prior link's rate.
+func appendNetworkLinkHistory(source string, linkMbps uint64) {
+	if source != networkLinkHistorySource {
+		clear(networkLinkHistory)
+		networkLinkHistorySource = source
+	}
+	shiftAndAppend(networkLinkHistory, float64(linkMbps))
 }
 
 func renderUnifiedIOChart(chart *PeakStepChart, first, second []float64, title, firstLabel, secondLabel, firstPeakKey, secondPeakKey, unitType string, colors []ui.Color, names map[string]string, extraHistoryLabels []string) {
@@ -2881,9 +2892,25 @@ func getBestLinkCapacity(ethInfo []EthernetLinkInfo, wifiInfo *WiFiLinkInfo) (ui
 	}
 	maximumText := ""
 	if bestEthernet.SupportedSpeedMbps > 0 {
-		maximumText = FormatLinkSpeed(bestEthernet.SupportedSpeedMbps)
+		maximumText = FormatLinkSpeed(max(bestEthernet.SupportedSpeedMbps, bestEthernet.LinkSpeedMbps))
 	}
 	return bestEthernet.LinkSpeedMbps, FormatLinkSpeed(bestEthernet.LinkSpeedMbps), maximumText
+}
+
+func linkHistorySource(ethInfo []EthernetLinkInfo, wifiInfo *WiFiLinkInfo) string {
+	var bestEthernet EthernetLinkInfo
+	for _, eth := range ethInfo {
+		if eth.LinkUp && eth.LinkSpeedMbps > bestEthernet.LinkSpeedMbps {
+			bestEthernet = eth
+		}
+	}
+	if wifiInfo != nil && wifiInfo.IsConnected && wifiInfo.TxRateMbps > int(bestEthernet.LinkSpeedMbps) {
+		return "wifi:" + wifiInfo.InterfaceName
+	}
+	if bestEthernet.LinkSpeedMbps == 0 {
+		return "none"
+	}
+	return fmt.Sprintf("ethernet:%s:%d", bestEthernet.Name, max(bestEthernet.SupportedSpeedMbps, bestEthernet.LinkSpeedMbps))
 }
 
 func getBestLinkCapacityString(ethInfo []EthernetLinkInfo, wifiInfo *WiFiLinkInfo) string {

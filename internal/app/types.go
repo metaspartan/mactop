@@ -232,10 +232,9 @@ type titleMetricColor struct {
 	Color ui.Color
 }
 
-// unifiedTitleSpans dims labels, punctuation, and units, while emphasizing
-// observed values. A numeric value immediately after '/' is a capacity and is
-// deliberately not bold; later values (such as disk usage percent) remain
-// emphasized.
+// unifiedTitleSpans dims labels, punctuation, and units. Metric values retain
+// their line colors but use normal weight so unified-dashboard titles remain
+// compact and visually consistent.
 func unifiedTitleSpans(title string, metrics []titleMetricColor, background ui.Color) []TitleSpan {
 	if title == "" || len(metrics) == 0 {
 		return nil
@@ -264,14 +263,20 @@ func unifiedTitleSpans(title string, metrics []titleMetricColor, background ui.C
 			continue
 		}
 		appendTitleSpan(&spans, title[offset:match.start+len(match.anchor)], muted)
+		valueStart := match.start + len(match.anchor)
 		valueEnd := len(title)
-		if i+1 < len(matches) {
-			valueEnd = matches[i+1].start
+		for _, next := range matches[i+1:] {
+			// Short metric names can occur inside a longer anchor, such as M:
+			// inside DRAM:. Only a later, non-overlapping anchor bounds this value.
+			if next.start >= valueStart {
+				valueEnd = next.start
+				break
+			}
 		}
-		if end := strings.IndexAny(title[match.start+len(match.anchor):valueEnd], ",)"); end >= 0 {
-			valueEnd = match.start + len(match.anchor) + end
+		if end := strings.IndexAny(title[valueStart:valueEnd], ",)"); end >= 0 {
+			valueEnd = valueStart + end
 		}
-		appendTitleValueSpans(&spans, title[match.start+len(match.anchor):valueEnd], match.color, background)
+		appendTitleValueSpans(&spans, title[valueStart:valueEnd], match.color, background)
 		offset = valueEnd
 	}
 	appendTitleSpan(&spans, title[offset:], muted)
@@ -293,12 +298,7 @@ func appendTitleValueSpans(spans *[]TitleSpan, value string, color ui.Color, bac
 		for i < len(value) && ((value[i] >= '0' && value[i] <= '9') || value[i] == '.') {
 			i++
 		}
-		capacity := start > 0 && value[start-1] == '/'
-		modifier := ui.ModifierClear
-		if !capacity {
-			modifier = ui.ModifierBold
-		}
-		appendTitleSpan(spans, value[start:i], ui.NewStyle(color, background, modifier))
+		appendTitleSpan(spans, value[start:i], ui.NewStyle(color, background, ui.ModifierClear))
 	}
 }
 

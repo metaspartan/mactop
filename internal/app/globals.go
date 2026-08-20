@@ -119,6 +119,7 @@ var (
 	// bytes/s so each chart can retain an independent, adaptive scale.
 	networkDownHistory, networkUpHistory []float64
 	networkLinkHistory                   []float64
+	networkLinkHistorySource             string
 	diskReadHistory, diskWriteHistory    []float64
 	diskUsedHistory                      []float64
 
