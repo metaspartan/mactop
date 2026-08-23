@@ -190,7 +190,7 @@ Tần suất cập nhật: %dms
 ----Tùy chọn khởi động----
 --help, -h: Hiển thị trợ giúp
 --version, -v: Hiển thị phiên bản
---interval, -i: Tần suất cập nhật (ms). Mặc định: 1000.
+--interval, -i: Đặt khoảng cập nhật CPU/GPU và công suất (ms). Nhiệt độ CPU/GPU, quạt và danh sách tiến trình cập nhật tối đa mỗi 2 giây. Mặc định: 1000.
 --prometheus, -p: Cổng Prometheus metrics
 --headless: Chạy không giao diện (xuất stdout)
 --format: Định dạng xuất (json, yaml, xml, csv, toon)
@@ -254,7 +254,7 @@ Cách dùng: mactop [tùy chọn]
 Tùy chọn:
   -h, --help              Hiển thị trợ giúp này
   -v, --version           Hiển thị phiên bản mactop
-  -i, --interval <ms>     Đặt tần suất cập nhật bằng mili giây (mặc định: 1000)
+  -i, --interval <ms>     Khoảng CPU/GPU và công suất; nhiệt độ, quạt và tiến trình tối đa mỗi 2 giây (mặc định: 1000)
   --foreground <màu>      Đặt màu chữ UI (tên hoặc hex, vd. green, #9580FF)
   --bg <màu>              Đặt màu nền UI (tên hoặc hex, vd. mocha-base, #22212C)
   -p, --prometheus <cổng> Chạy máy chủ Prometheus trên cổng chỉ định (vd. :9090)

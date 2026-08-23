@@ -190,7 +190,7 @@ Interval Pembaruan: %dms
 ----Opsi Mulai----
 --help, -h: Tampilkan menu bantuan
 --version, -v: Tampilkan versi
---interval, -i: Interval pembaruan (ms). Default: 1000.
+--interval, -i: Atur interval CPU/GPU dan daya (ms). Suhu CPU/GPU, kipas, dan daftar proses diperbarui paling cepat setiap 2 detik. Default: 1000.
 --prometheus, -p: Port Prometheus metrics
 --headless: Mode tanpa tampilan (output ke stdout)
 --format: Format output (json, yaml, xml, csv, toon)
@@ -254,7 +254,7 @@ Penggunaan: mactop [opsi]
 Opsi:
   -h, --help              Tampilkan pesan bantuan ini
   -v, --version           Tampilkan versi mactop
-  -i, --interval <ms>     Atur interval pembaruan dalam milidetik (default: 1000)
+  -i, --interval <ms>     Interval CPU/GPU dan daya; suhu, kipas, dan proses paling cepat setiap 2 detik (default: 1000)
   --foreground <warna>    Atur warna depan UI (nama atau hex, cth. green, #9580FF)
   --bg <warna>            Atur warna latar UI (nama atau hex, cth. mocha-base, #22212C)
   -p, --prometheus <port> Jalankan server Prometheus metrics pada port yang ditentukan (cth. :9090)

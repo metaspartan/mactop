@@ -190,7 +190,7 @@ Verversingsinterval: %dms
 ----Startopties----
 --help, -h: Hulpmenu tonen
 --version, -v: Versie tonen
---interval, -i: Verversingsinterval (ms). Standaard: 1000.
+--interval, -i: Stel het interval voor CPU/GPU en vermogen in (ms). CPU/GPU-temperaturen, ventilatoren en processen worden maximaal elke 2 s bijgewerkt. Standaard: 1000.
 --prometheus, -p: Prometheus-metrieken poort
 --headless: Zonder interface draaien (stdout)
 --format: Uitvoerformaat (json, yaml, xml, csv, toon)
@@ -254,7 +254,7 @@ Gebruik: mactop [opties]
 Opties:
   -h, --help              Dit hulpbericht tonen
   -v, --version           De versie van mactop tonen
-  -i, --interval <ms>     Verversingsinterval instellen in milliseconden (standaard: 1000)
+  -i, --interval <ms>     Interval voor CPU/GPU en vermogen; temperatuur, ventilatoren en processen maximaal elke 2 s (standaard: 1000)
   --foreground <kleur>    UI-voorgrondkleur instellen (naam of hex, bijv. green, #9580FF)
   --bg <kleur>            UI-achtergrondkleur instellen (naam of hex, bijv. mocha-base, #22212C)
   -p, --prometheus <poort> Prometheus-metrieken server starten op opgegeven poort (bijv. :9090)

@@ -50,7 +50,7 @@ The unified dashboard is built for the moments when a single percentage is not e
 - **Persistent Settings**: Remembers your Layout and Theme choice across restarts
 - Customizable UI color (green, red, blue, skyblue, magenta, yellow, gold, silver, white, lime, orange, violet, pink, and more) (`c` to cycle colors)
 - Customizable background color (`b` to cycle colors)
-- Customizable update interval (default is 1000ms) (`-` or `=` to speed up, `+` to slow down)
+- Customizable CPU/GPU usage and power update interval (default is 1000ms) (`-` or `=` to speed up, `+` to slow down); temperatures, fans, and process lists refresh at most every 2 seconds
 - Process list matching htop format (VIRT in GB, CPU normalized by core count)
 - **Process Management**: Kill processes directly from the UI (F9) with safe confirmation.
 - **Process Filter**: Press `/` to enter a process-name search, type a query, then press `Enter` to apply it (`Esc` clears it). Works in both the full process table and the compact list in the `unified` layout.
@@ -155,7 +155,7 @@ mactop --headless --format toon
 - `--format`: Output format for headless mode (json, yaml, xml, toon). Default is json.
 - `--count`: Number of samples to collect in headless mode (0 = infinite).
 - `--pretty`: Pretty print JSON output in headless mode.
-- `--interval` or `-i`: Set the update interval in milliseconds. Default is 1000.
+- `--interval` or `-i`: Set the CPU/GPU usage and power update interval in milliseconds. CPU/GPU temperatures, fans, and process lists refresh at most every 2 seconds. Default is 1000.
 - `--foreground`: Set the UI foreground color. Accepts named colors (green, red, blue, etc.) or hex colors (#9580FF).
 - `--bg` or `--background`: Set the UI background color. Accepts named colors (mocha-base, etc.) or hex colors (#22212C).
 - `--prometheus` or `-p`: Set and enable the local Prometheus metrics server on the given port. Default is disabled. (e.g. -p 2112 to enable Prometheus metrics on port 2112)

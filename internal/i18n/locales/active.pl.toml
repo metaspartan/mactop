@@ -190,7 +190,7 @@ Interwał odświeżania: %dms
 ----Opcje uruchomienia----
 --help, -h: Pokaż to menu pomocy
 --version, -v: Pokaż wersję
---interval, -i: Interwał odświeżania (ms). Domyślnie: 1000.
+--interval, -i: Ustaw interwał CPU/GPU i mocy (ms). Temperatury CPU/GPU, wentylatory i lista procesów odświeżają się najwyżej co 2 s. Domyślnie: 1000.
 --prometheus, -p: Port metryk Prometheus
 --headless: Tryb bez interfejsu (wyjście na stdout)
 --format: Format wyjścia (json, yaml, xml, csv, toon)
@@ -254,7 +254,7 @@ Użycie: mactop [opcje]
 Opcje:
   -h, --help              Pokaż ten komunikat pomocy
   -v, --version           Pokaż wersję mactop
-  -i, --interval <ms>     Ustaw interwał odświeżania w milisekundach (domyślnie: 1000)
+  -i, --interval <ms>     Interwał CPU/GPU i mocy; temperatura, wentylatory i procesy najwyżej co 2 s (domyślnie: 1000)
   --foreground <kolor>    Ustaw kolor pierwszego planu UI (nazwa lub hex, np. green, #9580FF)
   --bg <kolor>            Ustaw kolor tła UI (nazwa lub hex, np. mocha-base, #22212C)
   -p, --prometheus <port> Uruchom serwer metryk Prometheus na podanym porcie (np. :9090)

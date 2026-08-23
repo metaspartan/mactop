@@ -190,7 +190,7 @@ Intervalo: %dms
 ----Linha de Comando----
 --help, -h: Mostrar ajuda
 --version, -v: Versão
---interval, -i: Ms p/ atualizar (1000)
+--interval, -i: Define o intervalo de CPU/GPU e energia (ms). Temperaturas CPU/GPU, ventoinhas e processos atualizam no máximo a cada 2 s. Predefinição: 1000.
 --prometheus, -p: Ativar métricas Prometheus
 --headless: Modo script
 --format: (json, yaml, etc.)
@@ -253,7 +253,7 @@ Uso: mactop [opções]
 Opções:
   -h, --help              Mostrar esta ajuda
   -v, --version           Mostrar a versão do mactop
-  -i, --interval <ms>     Definir o intervalo de atualização em milissegundos (predefinição: 1000)
+  -i, --interval <ms>     Intervalo CPU/GPU e energia; temperatura, ventoinhas e processos no máximo a cada 2 s (predefinição: 1000)
   --foreground <color>    Definir a cor principal da UI (nome ou hex, ex.: green, #9580FF)
   --bg <color>            Definir a cor de fundo da UI (nome ou hex, ex.: mocha-base, #22212C)
   -p, --prometheus <port> Executar o servidor de métricas Prometheus na porta indicada (ex.: :9090)

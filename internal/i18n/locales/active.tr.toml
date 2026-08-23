@@ -190,7 +190,7 @@ Güncelleme Aralığı: %dms
 ----Başlatma Seçenekleri----
 --help, -h: Bu yardım menüsünü göster
 --version, -v: Sürümü göster
---interval, -i: Güncelleme aralığını ayarla (ms). Varsayılan: 1000.
+--interval, -i: CPU/GPU kullanımı ve güç aralığını ayarla (ms). CPU/GPU sıcaklıkları, fanlar ve süreç listesi en fazla 2 saniyede bir güncellenir. Varsayılan: 1000.
 --prometheus, -p: Prometheus metrikleri portu
 --headless: Arayüzsüz mod (stdout'a çıktı)
 --format: Çıktı formatı (json, yaml, xml, csv, toon)
@@ -254,7 +254,7 @@ Kullanım: mactop [seçenekler]
 Seçenekler:
   -h, --help              Bu yardım mesajını göster
   -v, --version           mactop sürümünü göster
-  -i, --interval <ms>     Güncelleme aralığını milisaniye olarak ayarla (varsayılan: 1000)
+  -i, --interval <ms>     CPU/GPU kullanımı ve güç aralığı; sıcaklık, fan ve süreçler en fazla 2 saniyede bir (varsayılan: 1000)
   --foreground <renk>     UI ön plan rengini ayarla (isim veya hex, ör. green, #9580FF)
   --bg <renk>             UI arka plan rengini ayarla (isim veya hex, ör. mocha-base, #22212C)
   -p, --prometheus <port> Belirtilen portta Prometheus sunucusu başlat (ör. :9090)

@@ -190,7 +190,7 @@ Intervalo de actualización: %dms
 ----Opciones de Inicio (Start Flags)----
 --help, -h: Mostrar este menú de ayuda
 --version, -v: Mostrar la versión de mactop
---interval, -i: Fija los ms de actualización. Por defecto es 1000.
+--interval, -i: Fija el intervalo de CPU/GPU y potencia en ms. Temperaturas CPU/GPU, ventiladores y procesos se actualizan como máximo cada 2 s. Por defecto es 1000.
 --prometheus, -p: Puerto para Métricas Prometheus. Por defecto es ninguno.
 --headless: Modo consola (sin TUI, output en stdout)
 --format: Formato para el modo consola (json, yaml, xml, csv, toon). Por defecto es json.
@@ -254,7 +254,7 @@ Uso: mactop [opciones]
 Opciones:
   -h, --help              Mostrar esta ayuda
   -v, --version           Mostrar la versión de mactop
-  -i, --interval <ms>     Fijar el intervalo de actualización en milisegundos (por defecto: 1000)
+  -i, --interval <ms>     Intervalo de CPU/GPU y potencia; temperatura, ventiladores y procesos cada 2 s como máximo (por defecto: 1000)
   --foreground <color>    Fijar el color de primer plano de la UI (nombre o hex, p. ej. green, #9580FF)
   --bg <color>            Fijar el color de fondo de la UI (nombre o hex, p. ej. mocha-base, #22212C)
   -p, --prometheus <port> Ejecutar el servidor de métricas Prometheus en el puerto indicado (p. ej. :9090)

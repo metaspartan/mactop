@@ -190,7 +190,7 @@ Prometheusメトリクス: %s
 ----起動オプション----
 --help, -h: ヘルプ表示
 --version, -v: バージョン表示
---interval, -i: 更新間隔(ms)。デフォルト1000。
+--interval, -i: CPU/GPU 使用率と電力の更新間隔(ms)。CPU/GPU 温度、ファン、プロセス一覧は最短でも 2 秒ごとに更新。デフォルト1000。
 --prometheus, -p: Prometheusメトリクスポート設定 (--prometheus=9090)
 --headless: UIなしのヘッドレスモード (stdoutへ出力)
 --format: ヘッドレスの出力形式 (json, yaml, xml, csv, toon)
@@ -254,7 +254,7 @@ CLI_HelpText = """
 オプション:
   -h, --help              このヘルプを表示
   -v, --version           mactop のバージョンを表示
-  -i, --interval <ms>     更新間隔をミリ秒で指定 (デフォルト: 1000)
+  -i, --interval <ms>     CPU/GPU 使用率と電力の間隔を指定。温度、ファン、プロセスは最短 2 秒ごと (デフォルト: 1000)
   --foreground <color>    UI の前景色を指定 (名前または hex。例: green, #9580FF)
   --bg <color>            UI の背景色を指定 (名前または hex。例: mocha-base, #22212C)
   -p, --prometheus <port> 指定ポートで Prometheus メトリクスサーバーを起動 (例: :9090)

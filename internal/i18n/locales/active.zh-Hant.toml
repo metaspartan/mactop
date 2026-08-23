@@ -190,7 +190,7 @@ Prometheus 指標: %s
 ----啟動參數----
 --help, -h: 顯示此說明選單
 --version, -v: 顯示 mactop 版本
---interval, -i: 設定更新間隔（毫秒），預設為 1000。
+--interval, -i: 設定 CPU/GPU 使用率和功耗的更新間隔（毫秒）；CPU/GPU 溫度、風扇和程序清單最快每 2 秒更新一次。預設為 1000。
 --prometheus, -p: 設定並啟用 Prometheus 指標連接埠（例如 --prometheus=9090）
 --headless: 以 headless 模式執行 (無 TUI，輸出至 stdout)
 --format: headless 模式輸出格式 (json, yaml, xml, csv, toon)，預設為 json。
@@ -254,7 +254,7 @@ CLI_HelpText = """
 選項:
   -h, --help              顯示此說明訊息
   -v, --version           顯示 mactop 版本
-  -i, --interval <ms>     設定更新間隔（毫秒，預設：1000）
+  -i, --interval <ms>     設定 CPU/GPU 使用率和功耗間隔；溫度、風扇和程序最快每 2 秒更新（預設：1000）
   --foreground <color>    設定 UI 前景色（名稱或十六進位，例如 green, #9580FF）
   --bg <color>            設定 UI 背景色（名稱或十六進位，例如 mocha-base, #22212C）
   -p, --prometheus <port> 在指定連接埠啟動 Prometheus 指標伺服器（例如 :9090）
