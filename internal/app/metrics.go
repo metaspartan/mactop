@@ -605,6 +605,7 @@ func collectMetrics(done chan struct{}, cpumetricsChan chan CPUMetrics, gpumetri
 		} else {
 			gpuMetrics.EffectiveLoad = gpuMetrics.ActivePercent
 		}
+		unifiedPeaks.record(time.Now(), cpuMetrics.AvgUsage, gpuMetrics.EffectiveLoad, aneUtilizationPercent(cpuMetrics))
 
 		tbNetStats := GetThunderboltNetStats()
 		publishPrometheusMetrics(prometheusMetricsSnapshot{
@@ -657,12 +658,24 @@ func updatePrometheusSensors(fans []FanInfo, sensors []TempSensor) {
 	}
 }
 
+const processRefreshInterval = 2 * time.Second
+
+func processRefreshDue(last, now time.Time) bool {
+	return last.IsZero() || !now.Before(last.Add(processRefreshInterval))
+}
+
 func collectProcessMetrics(done chan struct{}, processMetricsChan chan []ProcessMetrics, triggerChan chan struct{}) {
+	var lastRefresh time.Time
 	for {
 		select {
 		case <-done:
 			return
 		case <-triggerChan:
+			now := time.Now()
+			if !processRefreshDue(lastRefresh, now) {
+				continue
+			}
+			lastRefresh = now
 			renderMutex.Lock()
 			sysPct := lastGPUMetrics.ActivePercent
 			renderMutex.Unlock()

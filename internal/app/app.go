@@ -340,6 +340,10 @@ func unifiedComputeHistoryTitle() string {
 	return unifiedChartTitle("TUI_UnifiedComputeHistory", "CPU / GPU / ANE")
 }
 
+func unifiedComputeWindowedPeakTitle(peaks unifiedWindowPeaks) string {
+	return fmt.Sprintf("Compute (C 5m/1h/all: %.0f/%.0f/%.0f%%, G: %.0f/%.0f/%.0f%%, A: %.0f/%.0f/%.0f%%)", peaks.cpu5m, peaks.cpu1h, peaks.cpuAll, peaks.gpu5m, peaks.gpu1h, peaks.gpuAll, peaks.ane5m, peaks.ane1h, peaks.aneAll)
+}
+
 func unifiedNetworkHistoryTitle() string {
 	return unifiedChartTitle("TUI_UnifiedNetworkHistory", "D/U")
 }
@@ -1952,16 +1956,12 @@ func renderUnifiedComputeHistory() {
 		fmt.Sprintf("G %.0f%%", seriesMax(gpu)),
 		fmt.Sprintf("C %.0f%%", seriesMax(cpu)),
 	}
-	unifiedComputeHistoryChart.Title = unifiedHistoryTitle(unifiedComputeHistoryTitle(), []string{
-		fmt.Sprintf("CPU: %.0f%%", historicalPeak("cpu-usage", seriesMax(cpuUsageHistory))),
-		fmt.Sprintf("GPU: %.0f%%", historicalPeak("gpu-effective", seriesMax(gpuEffectiveHistory))),
-		fmt.Sprintf("ANE: %.0f%%", historicalPeak("ane-usage", seriesMax(aneVisibleSeries(len(aneUsageHistory), aneBWLabelMode(lastCPUMetrics))))),
-	})
+	unifiedComputeHistoryChart.Title = unifiedComputeWindowedPeakTitle(unifiedPeaks.peaks(time.Now()))
 	unifiedComputeHistoryChart.LineColors = unifiedComputeHistoryColors()
 	setUnifiedTitleSpans(unifiedComputeHistoryChart,
-		titleMetricColor{Name: "CPU", Color: ui.ColorRed},
-		titleMetricColor{Name: "GPU", Color: ui.ColorYellow},
-		titleMetricColor{Name: "ANE", Color: ui.ColorGreen},
+		titleMetricColor{Name: "C 5m/1h/all", Color: ui.ColorRed},
+		titleMetricColor{Name: "G", Color: ui.ColorYellow},
+		titleMetricColor{Name: "A", Color: ui.ColorGreen},
 	)
 }
 

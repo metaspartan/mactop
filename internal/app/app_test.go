@@ -1183,9 +1183,11 @@ func TestSoCPowerHistoryColorsMatchUnifiedComputeComponents(t *testing.T) {
 func TestRenderUnifiedComputeHistoryDrawsCPUAboveGPUAboveANE(t *testing.T) {
 	origChart, origCPU, origGPU, origANE := unifiedComputeHistoryChart, cpuUsageHistory, gpuEffectiveHistory, aneUsageHistory
 	origMetrics := lastCPUMetrics
+	origUnifiedPeaks := unifiedPeaks
 	t.Cleanup(func() {
 		unifiedComputeHistoryChart, cpuUsageHistory, gpuEffectiveHistory, aneUsageHistory = origChart, origCPU, origGPU, origANE
 		lastCPUMetrics = origMetrics
+		unifiedPeaks = origUnifiedPeaks
 	})
 
 	unifiedComputeHistoryChart = NewPeakStepChart()
@@ -1193,6 +1195,8 @@ func TestRenderUnifiedComputeHistoryDrawsCPUAboveGPUAboveANE(t *testing.T) {
 	gpuEffectiveHistory = []float64{30, 40}
 	aneUsageHistory = []float64{50, 60}
 	lastCPUMetrics = CPUMetrics{AvgUsage: 20}
+	unifiedPeaks = newUnifiedPeakTracker(4)
+	unifiedPeaks.record(time.Now(), 20, 40, 60)
 	UpdateCachedTerminalDimensions(9, 20) // (9 * 2 / 3) - 4 == 2 samples
 
 	renderUnifiedComputeHistory()
@@ -1200,7 +1204,7 @@ func TestRenderUnifiedComputeHistoryDrawsCPUAboveGPUAboveANE(t *testing.T) {
 	if !slices.Equal(got[0], aneUsageHistory) || !slices.Equal(got[1], gpuEffectiveHistory) || !slices.Equal(got[2], cpuUsageHistory) {
 		t.Fatalf("compute draw order = %v, want ANE/GPU/CPU", got)
 	}
-	if got := unifiedComputeHistoryChart.Title; !strings.Contains(got, "(CPU: 20%, GPU: 40%, ANE: 60%)") || strings.Contains(got, "°") {
+	if got, want := unifiedComputeHistoryChart.Title, "Compute (C 5m/1h/all: 20/20/20%, G: 40/40/40%, A: 60/60/60%)"; got != want {
 		t.Fatalf("compute title = %q", got)
 	}
 }
@@ -1208,10 +1212,12 @@ func TestRenderUnifiedComputeHistoryDrawsCPUAboveGPUAboveANE(t *testing.T) {
 func TestUnifiedComputePeakLabelsUseVisibleWindow(t *testing.T) {
 	origChart, origCPU, origGPU, origANE := unifiedComputeHistoryChart, cpuUsageHistory, gpuEffectiveHistory, aneUsageHistory
 	origMetrics := lastCPUMetrics
+	origUnifiedPeaks := unifiedPeaks
 	origWidth, origHeight := GetCachedTerminalDimensions()
 	t.Cleanup(func() {
 		unifiedComputeHistoryChart, cpuUsageHistory, gpuEffectiveHistory, aneUsageHistory = origChart, origCPU, origGPU, origANE
 		lastCPUMetrics = origMetrics
+		unifiedPeaks = origUnifiedPeaks
 		UpdateCachedTerminalDimensions(origWidth, origHeight)
 	})
 	resetHistoricalPeaks()
@@ -1226,13 +1232,15 @@ func TestUnifiedComputePeakLabelsUseVisibleWindow(t *testing.T) {
 	recordHistoricalPeak("cpu-usage", 95)
 	recordHistoricalPeak("gpu-effective", 85)
 	recordHistoricalPeak("ane-usage", 75)
+	unifiedPeaks = newUnifiedPeakTracker(4)
+	unifiedPeaks.record(time.Now(), 20, 40, 60)
 
 	renderUnifiedComputeHistory()
 	if got, want := unifiedComputeHistoryChart.PeakLabels, []string{"A 60%", "G 40%", "C 20%"}; !slices.Equal(got, want) {
 		t.Fatalf("compute peak labels = %v, want visible peaks %v", got, want)
 	}
-	if !strings.Contains(unifiedComputeHistoryChart.Title, "CPU: 95%") || !strings.Contains(unifiedComputeHistoryChart.Title, "GPU: 85%") || !strings.Contains(unifiedComputeHistoryChart.Title, "ANE: 75%") {
-		t.Fatalf("compute title = %q, want retained peaks", unifiedComputeHistoryChart.Title)
+	if got, want := unifiedComputeHistoryChart.Title, "Compute (C 5m/1h/all: 20/20/20%, G: 40/40/40%, A: 60/60/60%)"; got != want {
+		t.Fatalf("compute title = %q, want windowed peaks %q", got, want)
 	}
 }
 

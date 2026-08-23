@@ -202,6 +202,7 @@ static int g_all_temp_sensor_count = 0;
 static int g_expected_ecores = 0;
 static int g_expected_pcores = 0;
 static int g_expected_scores = 0;
+static void invalidateSlowSensorCache(void);
 // Set when AMC/DCS direct counters can be trusted. When true, a zero DCS sample
 // is valid and must not be replaced with the power estimate.
 static int g_direct_dram_bw_available = 0;
@@ -1481,6 +1482,16 @@ typedef struct {
   temp_sensor_t temps[512];
 } PowerMetrics;
 
+// Temperature/HID and fan reads each involve several IPC calls. Preserve the
+// last complete snapshot between fast IOReport power samples.
+static PowerMetrics g_slow_sensor_cache = {0};
+static uint64_t g_slow_sensor_cache_time_ns = 0;
+static const uint64_t SLOW_SENSOR_CACHE_TTL_NS = 2000000000ULL; // 2s
+
+static void invalidateSlowSensorCache(void) {
+  __atomic_store_n(&g_slow_sensor_cache_time_ns, 0, __ATOMIC_RELEASE);
+}
+
 static int cfStringMatch(CFStringRef str, const char *match) {
   if (str == NULL || match == NULL)
     return 0;
@@ -2143,7 +2154,9 @@ int setFanForceTest(int enabled) {
   if (!g_smcConn)
     return -1;
   float val = enabled ? 1.0f : 0.0f;
-  return (SMCSetFloat(g_smcConn, "Ftst", val) == kIOReturnSuccess) ? 0 : -1;
+  int result = (SMCSetFloat(g_smcConn, "Ftst", val) == kIOReturnSuccess) ? 0 : -1;
+  if (result == 0) invalidateSlowSensorCache();
+  return result;
 }
 
 int setFanMode(int fanIndex, int mode) {
@@ -2152,7 +2165,9 @@ int setFanMode(int fanIndex, int mode) {
   char key[5];
   snprintf(key, sizeof(key), "F%dMd", fanIndex);
   float val = (float)mode;
-  return (SMCSetFloat(g_smcConn, key, val) == kIOReturnSuccess) ? 0 : -1;
+  int result = (SMCSetFloat(g_smcConn, key, val) == kIOReturnSuccess) ? 0 : -1;
+  if (result == 0) invalidateSlowSensorCache();
+  return result;
 }
 
 int setFanTarget(int fanIndex, int rpm) {
@@ -2174,7 +2189,9 @@ int setFanTarget(int fanIndex, int rpm) {
 
   snprintf(key, sizeof(key), "F%dTg", fanIndex);
   float val = (float)rpm;
-  return (SMCSetFloat(g_smcConn, key, val) == kIOReturnSuccess) ? 0 : -1;
+  int result = (SMCSetFloat(g_smcConn, key, val) == kIOReturnSuccess) ? 0 : -1;
+  if (result == 0) invalidateSlowSensorCache();
+  return result;
 }
 
 int resetFansToAuto() {
@@ -3314,6 +3331,17 @@ PowerMetrics samplePowerMetrics(int durationMs) {
     metrics.systemPower = SMCGetFloatValue(g_smcConn, "PSTR");
   }
 
+  static mach_timebase_info_data_t sensor_tb = {0, 0};
+  if (sensor_tb.denom == 0) mach_timebase_info(&sensor_tb);
+  uint64_t sensorNowNs = mach_absolute_time() * sensor_tb.numer / sensor_tb.denom;
+  uint64_t slowSensorCacheTimeNs =
+      __atomic_load_n(&g_slow_sensor_cache_time_ns, __ATOMIC_ACQUIRE);
+  int refreshSlowSensors =
+      slowSensorCacheTimeNs == 0 ||
+      sensorNowNs - slowSensorCacheTimeNs >= SLOW_SENSOR_CACHE_TTL_NS;
+
+  if (refreshSlowSensors) {
+
   // Read fan data
   metrics.fanCount = readFanInfo(metrics.fans, 8);
 
@@ -3407,7 +3435,7 @@ PowerMetrics samplePowerMetrics(int durationMs) {
   // Tiered caching: slow-changing sensors (Ambient, Board, SSD, VRM, etc.)
   // are only read from SMC every 5th tick to reduce IPC overhead.
   static int smcTempTick = 0;
-  int refreshSlowSensors = (smcTempTick % 5 == 0);  // Refresh every 5th tick
+  int refreshSlowSMC = (smcTempTick % 5 == 0);  // Refresh every 5th slow snapshot
   smcTempTick++;
 
   for (int i = 0; i < g_all_temp_sensor_count && validSensorCount < 512; i++) {
@@ -3428,7 +3456,7 @@ PowerMetrics samplePowerMetrics(int durationMs) {
     int isSlowSensor = !isCoreKey;  // Ambient, Board, SSD, VRM, etc.
 
     float v;
-    if (isSlowSensor && !refreshSlowSensors && g_all_temp_sensors[i].value > 0.0f) {
+    if (isSlowSensor && !refreshSlowSMC && g_all_temp_sensors[i].value > 0.0f) {
       // Use cached value for slow-changing sensors between refreshes
       v = g_all_temp_sensors[i].value;  // Last known value
     } else if (g_smcConn) {
@@ -3452,7 +3480,7 @@ PowerMetrics samplePowerMetrics(int durationMs) {
 
   // Step 5: Append NVMe SMART temperatures.
   // Uses the same slow-sensor tick as SMC environmental sensors.
-  if (refreshSlowSensors) {
+  if (refreshSlowSMC) {
     readNVMeSMARTTemps();
   }
   for (int i = 0; i < g_nvme_temp_count && validSensorCount < 512; i++) {
@@ -3460,6 +3488,24 @@ PowerMetrics samplePowerMetrics(int durationMs) {
   }
 
   metrics.tempSensorCount = validSensorCount;
+
+  g_slow_sensor_cache.socTemp = metrics.socTemp;
+  g_slow_sensor_cache.cpuTemp = metrics.cpuTemp;
+  g_slow_sensor_cache.gpuTemp = metrics.gpuTemp;
+  g_slow_sensor_cache.fanCount = metrics.fanCount;
+  memcpy(g_slow_sensor_cache.fans, metrics.fans, sizeof(metrics.fans));
+  g_slow_sensor_cache.tempSensorCount = metrics.tempSensorCount;
+  memcpy(g_slow_sensor_cache.temps, metrics.temps, sizeof(metrics.temps));
+  __atomic_store_n(&g_slow_sensor_cache_time_ns, sensorNowNs, __ATOMIC_RELEASE);
+  } else {
+    metrics.socTemp = g_slow_sensor_cache.socTemp;
+    metrics.cpuTemp = g_slow_sensor_cache.cpuTemp;
+    metrics.gpuTemp = g_slow_sensor_cache.gpuTemp;
+    metrics.fanCount = g_slow_sensor_cache.fanCount;
+    memcpy(metrics.fans, g_slow_sensor_cache.fans, sizeof(metrics.fans));
+    metrics.tempSensorCount = g_slow_sensor_cache.tempSensorCount;
+    memcpy(metrics.temps, g_slow_sensor_cache.temps, sizeof(metrics.temps));
+  }
 
   CFRelease(delta);
 
@@ -3481,6 +3527,7 @@ void cleanupIOReport() {
   g_bg_calibration_started = 0;
   g_dramPowerFloorW = 0.0;
   g_dram_power_calibrated = 0;
+  invalidateSlowSensorCache();
   if (g_smcConn) {
     SMCClose(g_smcConn);
     g_smcConn = 0;

@@ -106,6 +106,7 @@ var (
 	// buffers, so a displayed peak lasts for the lifetime of this process.
 	historicalPeaks      = make(map[string]float64)
 	historicalPeaksMutex sync.RWMutex
+	unifiedPeaks         = newUnifiedPeakTracker(unifiedPeakSampleCapacity)
 
 	// Frequency-adjusted effective GPU load history (for history_soc layout only).
 	// Each sample is recorded with the GPU frequency active at the time it arrived.
