@@ -44,6 +44,10 @@ TUI_MemorySwapHistory = "היסטוריית זיכרון/Swap"
 TUI_CPUUsageHistory = "היסטוריית שימוש CPU"
 TUI_SoCPowerHistory = "SoC היסטוריית הספק (CPU / GPU / ANE / DRAM)"
 TUI_SSDReadHistory = "קריאת SSD (GB/s)"
+TUI_UnifiedComputeHistory = "Compute (CPU / GPU / ANE)"
+TUI_UnifiedDRAMHistory = "DRAM Bandwidth (Read / Write)"
+TUI_UnifiedNetworkHistory = "Network (Down / Up)"
+TUI_UnifiedDiskHistory = "Disk (Read / Write)"
 Metrics_SoCPowerDetail = "SoC: סה״כ %.1fW | ANE %s | CPU %.1fW | GPU %.1fW | DRAM %.1fW"
 Metrics_SoCPowerDetailNoANE = "SoC: סה״כ %.1fW | CPU %.1fW | GPU %.1fW | DRAM %.1fW"
 Metrics_SSDReadDetail = "קריאת SSD %.2f GB/s (שיא %.2f)"
@@ -57,6 +61,10 @@ Metrics_ANEHistoryPeak = "ANE %.1f%% (שיא %.1f%%, %.2fW)"
 Metrics_ANEHistoryPeakBW = "ANE %.1f%% (שיא %.1f%%, %.2f GB/s)"
 Metrics_BandwidthHistoryPeak = "DRAM R:%.1f W:%.1f  ANE R:%.1f W:%.1f GB/s (שיא %.1f)"
 Metrics_GPUHistoryEff = "GPU אפקטיבי %.0f%% @ %dMHz (גולמי %.0f%%, שיא גולמי %.0f%%)"
+Metrics_UnifiedComputeDetail = "Compute: CPU %.0f%% | GPU %.0f%% @ %dMHz | ANE %.0f%%"
+Metrics_UnifiedDRAMDetail = "DRAM: R %.1f W %.1f GB/s (Total %.1f)"
+Metrics_UnifiedNetworkDetail = "Network: Down %s/s Up %s/s"
+Metrics_UnifiedDiskDetail = "Disk I/O: R %s/s W %s/s"
 TUI_ConfirmKill = " אישור "
 TUI_ConfirmKillBody = "אישור סיום תהליך"
 TUI_ConfirmYes = "כן"
@@ -120,6 +128,7 @@ Process_PID = "PID"
 Process_USER = "משתמש"
 Process_VIRT = "וירטואלי"
 Process_RES = "פיזי"
+Process_FOOT = "FOOT"
 Process_CPU = "CPU"
 Process_GPU = "GPU"
 Process_MEM = "זיכרון"
@@ -181,7 +190,7 @@ mactop הוא כלי ניטור קוד פתוח עבור Apple Silicon שנכת�
 ----אפשרויות הפעלה----
 --help, -h: הצג תפריט עזרה
 --version, -v: הצג גרסה
---interval, -i: מרווח עדכון (ms). ברירת מחדל: 1000.
+--interval, -i: הגדר מרווח CPU/GPU והספק (ms). טמפרטורות CPU/GPU, מאווררים ורשימת התהליכים מתעדכנים לכל היותר כל 2 שניות. ברירת מחדל: 1000.
 --prometheus, -p: פורט מדדי Prometheus
 --headless: הפעלה ללא ממשק (פלט ל-stdout)
 --format: פורמט פלט (json, yaml, xml, csv, toon)
@@ -245,7 +254,7 @@ CLI_HelpText = """
 אפשרויות:
   -h, --help              הצג הודעת עזרה זו
   -v, --version           הצג גרסת mactop
-  -i, --interval <ms>     הגדר מרווח עדכון באלפיות שנייה (ברירת מחדל: 1000)
+  -i, --interval <ms>     מרווח CPU/GPU והספק; טמפרטורה, מאווררים ותהליכים לכל היותר כל 2 שניות (ברירת מחדל: 1000)
   --foreground <צבע>      הגדר צבע קדמי UI (שם או hex, לדוגמה green, #9580FF)
   --bg <צבע>              הגדר צבע רקע UI (שם או hex, לדוגמה mocha-base, #22212C)
   -p, --prometheus <פורט> הפעל שרת מדדי Prometheus בפורט שצוין (לדוגמה :9090)

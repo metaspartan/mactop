@@ -44,6 +44,10 @@ TUI_MemorySwapHistory = "메모리/스왑 기록"
 TUI_CPUUsageHistory = "CPU 사용 기록"
 TUI_SoCPowerHistory = "SoC 전력 기록 (CPU / GPU / ANE / DRAM)"
 TUI_SSDReadHistory = "SSD 읽기 (GB/s)"
+TUI_UnifiedComputeHistory = "Compute (CPU / GPU / ANE)"
+TUI_UnifiedDRAMHistory = "DRAM Bandwidth (Read / Write)"
+TUI_UnifiedNetworkHistory = "Network (Down / Up)"
+TUI_UnifiedDiskHistory = "Disk (Read / Write)"
 Metrics_SoCPowerDetail = "SoC: 총합 %.1fW | ANE %s | CPU %.1fW | GPU %.1fW | DRAM %.1fW"
 Metrics_SoCPowerDetailNoANE = "SoC: 총합 %.1fW | CPU %.1fW | GPU %.1fW | DRAM %.1fW"
 Metrics_SSDReadDetail = "SSD 읽기 %.2f GB/s (최고 %.2f)"
@@ -57,6 +61,10 @@ Metrics_ANEHistoryPeak = "ANE %.1f%% (최고 %.1f%%, %.2fW)"
 Metrics_ANEHistoryPeakBW = "ANE %.1f%% (최고 %.1f%%, %.2f GB/s)"
 Metrics_BandwidthHistoryPeak = "DRAM R:%.1f W:%.1f  ANE R:%.1f W:%.1f GB/s (최고 %.1f)"
 Metrics_GPUHistoryEff = "GPU 유효 %.0f%% @ %dMHz (원시 %.0f%%, 원시 최고 %.0f%%)"
+Metrics_UnifiedComputeDetail = "Compute: CPU %.0f%% | GPU %.0f%% @ %dMHz | ANE %.0f%%"
+Metrics_UnifiedDRAMDetail = "DRAM: R %.1f W %.1f GB/s (Total %.1f)"
+Metrics_UnifiedNetworkDetail = "Network: Down %s/s Up %s/s"
+Metrics_UnifiedDiskDetail = "Disk I/O: R %s/s W %s/s"
 TUI_ConfirmKill = " 확인 "
 TUI_ConfirmKillBody = "프로세스 종료 확인"
 TUI_ConfirmYes = "예"
@@ -120,6 +128,7 @@ Process_PID = "PID"
 Process_USER = "사용자"
 Process_VIRT = "가상"
 Process_RES = "물리"
+Process_FOOT = "FOOT"
 Process_CPU = "CPU"
 Process_GPU = "GPU"
 Process_MEM = "메모리"
@@ -182,7 +191,7 @@ Prometheus 메트릭: %s
 ----시작 플래그----
 --help, -h: 이 도움말 메뉴 표시
 --version, -v: mactop 버전 표시
---interval, -i: 업데이트 간격(밀리초) 설정. 기본값은 1000.
+--interval, -i: CPU/GPU 사용률과 전력의 업데이트 간격(밀리초) 설정. CPU/GPU 온도, 팬 및 프로세스 목록은 최대 2초마다 갱신됩니다. 기본값은 1000.
 --prometheus, -p: Prometheus 메트릭 포트 설정 및 활성화. (예: --prometheus=9090)
 --headless: 헤드리스 모드로 실행 (TUI 없이 stdout으로 출력)
 --format: 헤드리스 모드 출력 형식 (json, yaml, xml, csv, toon). 기본값은 json.
@@ -245,7 +254,7 @@ CLI_HelpText = """
 옵션:
   -h, --help              이 도움말 표시
   -v, --version           mactop 버전 표시
-  -i, --interval <ms>     업데이트 간격을 밀리초 단위로 설정 (기본값: 1000)
+  -i, --interval <ms>     CPU/GPU 사용률과 전력 간격 설정; 온도, 팬, 프로세스는 최대 2초마다 갱신 (기본값: 1000)
   --foreground <color>    UI 전경색 설정 (이름 또는 hex, 예: green, #9580FF)
   --bg <color>            UI 배경색 설정 (이름 또는 hex, 예: mocha-base, #22212C)
   -p, --prometheus <port> 지정한 포트에서 Prometheus 메트릭 서버 실행 (예: :9090)

@@ -34,8 +34,10 @@ var (
 	fanStatusPanel, fanTempPanel, fanControlPanel               *w.Paragraph
 	grid                                                        *ui.Grid
 	processList                                                 *w.List
+	unifiedProcessList                                          *StyledList
 	// Search state
 	searchMode        bool
+	searchDraft       string
 	searchText        string
 	filteredProcesses []ProcessMetrics
 	isFrozen          bool
@@ -50,18 +52,26 @@ var (
 	tbNetSparklineGroup                 *w.SparklineGroup
 
 	// StepChart widgets for History layout
-	gpuHistoryChart, powerHistoryChart, memoryHistoryChart, cpuHistoryChart *w.StepChart
-	memBWHistoryChart                                                       *w.StepChart
-	aneHistoryChart, bandwidthHistoryChart                                  *w.StepChart
-	socPowerHistoryChart                                                    *w.StepChart // Multi-line power for history_soc (CPU/GPU/ANE/DRAM)
-	ssdReadHistoryChart                                                     *w.StepChart // Combined SSD read bandwidth history (GB/s)
-	memoryUsedHistory                                                       = make([]float64, 100)
-	swapUsedHistory                                                         = make([]float64, 100)
-	cpuUsageHistory                                                         = make([]float64, 100)
-	powerUsageHistory                                                       = make([]float64, 100)
-	memBWReadHistory                                                        = make([]float64, 100)
-	memBWWriteHistory                                                       = make([]float64, 100)
-	maxMemBWSeen                                                            float64
+	gpuHistoryChart, powerHistoryChart, cpuHistoryChart *w.StepChart
+	memoryHistoryChart                                  *PeakStepChart
+	memBWHistoryChart                                   *w.StepChart
+	aneHistoryChart, bandwidthHistoryChart              *w.StepChart
+	socPowerHistoryChart                                *PeakStepChart // Multi-line power for history_soc (CPU/GPU/ANE/DRAM)
+	ssdReadHistoryChart                                 *w.StepChart   // Combined SSD read bandwidth history (GB/s)
+	unifiedComputeHistoryChart                          *PeakStepChart
+	unifiedNetworkHistoryChart, unifiedDiskHistoryChart *PeakStepChart
+	unifiedTemperatureHistoryChart                      *PeakStepChart
+	memoryUsedHistory                                   = make([]float64, 100)
+	swapUsedHistory                                     = make([]float64, 100)
+	memoryHistorySeeded                                 bool
+	cpuUsageHistory                                     = make([]float64, 100)
+	powerUsageHistory                                   = make([]float64, 100)
+	memBWReadHistory                                    = make([]float64, 100)
+	memBWWriteHistory                                   = make([]float64, 100)
+	memBWTotalHistory                                   = make([]float64, 100)
+	memBWHistoryCount                                   int
+	lastMemBWSource                                     DRAMBandwidthSource
+	maxMemBWSeen                                        float64
 	// ANE estimate state shared between the sampler goroutine (latch writes in
 	// sampleSocMetrics) and the UI/menubar/overlay goroutines (reads + adaptive
 	// max updates in aneUtilizationPercent) — atomics to avoid a data race.
@@ -71,6 +81,9 @@ var (
 	aneUsageHistory     = make([]float64, 100)
 	dramReadHistory     = make([]float64, 100)
 	dramWriteHistory    = make([]float64, 100)
+	dramTotalHistory    = make([]float64, 100)
+	dramBWHistoryCount  int
+	lastDRAMBWSource    DRAMBandwidthSource
 	aneReadBwHistory    = make([]float64, 100)
 	aneWriteBwHistory   = make([]float64, 100)
 
@@ -78,11 +91,26 @@ var (
 	// jump (e.g. the 'a' ANE/BW history shortcut), so the key toggles back.
 	previousLayout string
 
-	// Per-component power histories for the SoC history layout (history_soc)
-	cpuPowerHistory, gpuPowerHistory, anePowerHistory, dramPowerHistory = make([]float64, 100), make([]float64, 100), make([]float64, 100), make([]float64, 100)
+	// Per-component power histories for the SoC history layout (history_soc).
+	cpuPowerHistory, gpuPowerHistory, anePowerHistory, dramPowerHistory, totalPowerHistory = make([]float64, 100), make([]float64, 100), make([]float64, 100), make([]float64, 100), make([]float64, 100)
+	// Battery charge history is rendered only as a self-normalized series in the
+	// Layout 21 power chart, keeping its percentage scale separate from watts.
+	batteryPercentHistory       = make([]float64, 100)
+	batteryPercentHistorySeeded bool
+	// Unified dashboard thermal histories. Fans use individual full-height duty
+	// traces, while their labels retain the physical RPM readings.
+	cpuTempHistory, gpuTempHistory, memoryTempHistory, ssdTempHistory = make([]float64, 100), make([]float64, 100), make([]float64, 100), make([]float64, 100)
+	fanDutyHistory, fanRPMHistory                                     [2][]float64
+	fanHistoryIDs                                                     [2]int
+	fanHistoryNames                                                   [2]string
 
 	// Decaying-peak histories for the four SoC usage charts in history_soc layout
 	cpuPeakHistory, gpuPeakHistory, anePeakHistory, bwPeakHistory []float64
+	// Historical peaks are retained independently from the fixed-size chart
+	// buffers, so a displayed peak lasts for the lifetime of this process.
+	historicalPeaks      = make(map[string]float64)
+	historicalPeaksMutex sync.RWMutex
+	unifiedPeaks         = newUnifiedPeakTracker(unifiedPeakSampleCapacity)
 
 	// Frequency-adjusted effective GPU load history (for history_soc layout only).
 	// Each sample is recorded with the GPU frequency active at the time it arrived.
@@ -91,6 +119,14 @@ var (
 
 	// Additional histories for the split bottom section in history_soc
 	ssdReadHistory []float64 // SSD read bandwidth history in GB/s
+
+	// External-I/O histories used by the unified dashboard. Values remain in
+	// bytes/s so each chart can retain an independent, adaptive scale.
+	networkDownHistory, networkUpHistory []float64
+	networkLinkHistory                   []float64
+	networkLinkHistorySource             string
+	diskReadHistory, diskWriteHistory    []float64
+	diskUsedHistory                      []float64
 
 	cpuCoreWidget                 *CPUCoreWidget
 	powerValues                   = make([]float64, 35)
@@ -106,8 +142,11 @@ var (
 	lastCPUTimes                  []CPUUsage
 	firstRun                      = true
 	sortReverse                   = false
-	columns                       = []string{"PID", "USER", "VIRT", "RES", "CPU", "GPU", "MEM", "TIME", "CMD"}
-	selectedColumn                = 4
+	columns                       = []string{"PID", "USER", "VIRT", "RES", "FOOT", "CPU", "GPU", "MEM", "TIME", "CMD"}
+	selectedColumn                = 5
+	unifiedProcessColumns         = []string{"PID", "ACT", "CPU", "GPU", "RSS", "FOOT", "CMD"}
+	unifiedProcessSelectedColumn  = 1
+	unifiedProcessSortReverse     = false
 	maxPowerSeen                  = 0.1
 	gpuValues                     = make([]float64, 100)
 
@@ -319,6 +358,13 @@ var (
 			Help: "DRAM bandwidth in GB/s",
 		},
 		[]string{"direction"},
+	)
+	dramBandwidthSource = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "mactop_dram_bandwidth_source",
+			Help: "DRAM bandwidth source state (one active source has value 1)",
+		},
+		[]string{"source"},
 	)
 
 	// Per-core CPU usage metrics

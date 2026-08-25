@@ -44,6 +44,10 @@ TUI_MemorySwapHistory = "Bellek/Swap Geçmişi"
 TUI_CPUUsageHistory = "CPU Kullanım Geçmişi"
 TUI_SoCPowerHistory = "SoC Güç Geçmişi (CPU / GPU / ANE / DRAM)"
 TUI_SSDReadHistory = "SSD Okuma (GB/s)"
+TUI_UnifiedComputeHistory = "Compute (CPU / GPU / ANE)"
+TUI_UnifiedDRAMHistory = "DRAM Bandwidth (Read / Write)"
+TUI_UnifiedNetworkHistory = "Network (Down / Up)"
+TUI_UnifiedDiskHistory = "Disk (Read / Write)"
 Metrics_SoCPowerDetail = "SoC: Toplam %.1fW | ANE %s | CPU %.1fW | GPU %.1fW | DRAM %.1fW"
 Metrics_SoCPowerDetailNoANE = "SoC: Toplam %.1fW | CPU %.1fW | GPU %.1fW | DRAM %.1fW"
 Metrics_SSDReadDetail = "SSD Okuma %.2f GB/s (Tepe %.2f)"
@@ -57,6 +61,10 @@ Metrics_ANEHistoryPeak = "ANE %.1f%% (Tepe %.1f%%, %.2fW)"
 Metrics_ANEHistoryPeakBW = "ANE %.1f%% (Tepe %.1f%%, %.2f GB/s)"
 Metrics_BandwidthHistoryPeak = "DRAM R:%.1f W:%.1f  ANE R:%.1f W:%.1f GB/s (Tepe %.1f)"
 Metrics_GPUHistoryEff = "GPU Etkin %.0f%% @ %dMHz (Ham %.0f%%, Ham Tepe %.0f%%)"
+Metrics_UnifiedComputeDetail = "Compute: CPU %.0f%% | GPU %.0f%% @ %dMHz | ANE %.0f%%"
+Metrics_UnifiedDRAMDetail = "DRAM: R %.1f W %.1f GB/s (Total %.1f)"
+Metrics_UnifiedNetworkDetail = "Network: Down %s/s Up %s/s"
+Metrics_UnifiedDiskDetail = "Disk I/O: R %s/s W %s/s"
 TUI_ConfirmKill = " ONAYLA "
 TUI_ConfirmKillBody = "SONLANDIRMAYI ONAYLA"
 TUI_ConfirmYes = "Evet"
@@ -120,6 +128,7 @@ Process_PID = "PID"
 Process_USER = "KULLANICI"
 Process_VIRT = "SANAL"
 Process_RES = "FİZİK"
+Process_FOOT = "FOOT"
 Process_CPU = "CPU"
 Process_GPU = "GPU"
 Process_MEM = "BEL"
@@ -181,7 +190,7 @@ Güncelleme Aralığı: %dms
 ----Başlatma Seçenekleri----
 --help, -h: Bu yardım menüsünü göster
 --version, -v: Sürümü göster
---interval, -i: Güncelleme aralığını ayarla (ms). Varsayılan: 1000.
+--interval, -i: CPU/GPU kullanımı ve güç aralığını ayarla (ms). CPU/GPU sıcaklıkları, fanlar ve süreç listesi en fazla 2 saniyede bir güncellenir. Varsayılan: 1000.
 --prometheus, -p: Prometheus metrikleri portu
 --headless: Arayüzsüz mod (stdout'a çıktı)
 --format: Çıktı formatı (json, yaml, xml, csv, toon)
@@ -245,7 +254,7 @@ Kullanım: mactop [seçenekler]
 Seçenekler:
   -h, --help              Bu yardım mesajını göster
   -v, --version           mactop sürümünü göster
-  -i, --interval <ms>     Güncelleme aralığını milisaniye olarak ayarla (varsayılan: 1000)
+  -i, --interval <ms>     CPU/GPU kullanımı ve güç aralığı; sıcaklık, fan ve süreçler en fazla 2 saniyede bir (varsayılan: 1000)
   --foreground <renk>     UI ön plan rengini ayarla (isim veya hex, ör. green, #9580FF)
   --bg <renk>             UI arka plan rengini ayarla (isim veya hex, ör. mocha-base, #22212C)
   -p, --prometheus <port> Belirtilen portta Prometheus sunucusu başlat (ör. :9090)

@@ -184,6 +184,10 @@ func handleKeyboardEvent(e ui.Event, done chan struct{}) {
 
 	if showHelp {
 		switch key {
+		case "<Escape>":
+			renderMutex.Unlock()
+			toggleHelpMenu()
+			return
 		case "j", "<Down>":
 			helpScrollOffset++
 			updateHelpText()
@@ -218,6 +222,8 @@ func handleKeyboardEvent(e ui.Event, done chan struct{}) {
 	switch key {
 	case "q", "<C-c>", "r", "p", "c", "C", "l", "L", "h", "?", "i", "b", "B", "f", "F":
 		handleModeKeys(key, done)
+	case "<Escape>":
+		handleEscapeKey()
 	case "-", "_", "+", "=":
 		if !handleFanControlKeys(key) {
 			handleIntervalKeys(key)
@@ -234,6 +240,17 @@ func handleKeyboardEvent(e ui.Event, done chan struct{}) {
 		handleInfoFanScroll(1)
 	case "k", "<Up>":
 		handleInfoFanScroll(-1)
+	}
+}
+
+func handleEscapeKey() {
+	switch currentConfig.DefaultLayout {
+	case LayoutInfo:
+		toggleInfoLayout()
+	case LayoutFan:
+		toggleFanLayout()
+	case LayoutHistorySoC:
+		handleLayoutSwitchTo(LayoutHistorySoC)
 	}
 }
 

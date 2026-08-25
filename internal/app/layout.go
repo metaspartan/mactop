@@ -29,9 +29,10 @@ const (
 	LayoutHistorySoC      = "history_soc"  // StepChart history: CPU, GPU, ANE, DRAM Bandwidth
 	LayoutFan             = "fan"          // Fan control and temperature sensors
 	LayoutGPUMemory       = "gpu_memory"   // GPU + Memory focused with memory bandwidth chart
+	LayoutUnified         = "unified"      // Comprehensive compute, memory, I/O, and power dashboard
 )
 
-var layoutOrder = []string{LayoutDefault, LayoutAlternative, LayoutAlternativeFull, LayoutVertical, LayoutCompact, LayoutDashboard, LayoutGaugesOnly, LayoutGPUFocus, LayoutCPUFocus, LayoutGPUMemory, LayoutNetworkIO, LayoutSmall, LayoutTiny, LayoutMicro, LayoutNano, LayoutPico, LayoutHistory, LayoutHistoryFull, LayoutHistorySoC, LayoutFan}
+var layoutOrder = []string{LayoutDefault, LayoutAlternative, LayoutAlternativeFull, LayoutVertical, LayoutCompact, LayoutDashboard, LayoutGaugesOnly, LayoutGPUFocus, LayoutCPUFocus, LayoutGPUMemory, LayoutNetworkIO, LayoutSmall, LayoutTiny, LayoutMicro, LayoutNano, LayoutPico, LayoutHistory, LayoutHistoryFull, LayoutHistorySoC, LayoutFan, LayoutUnified}
 
 func setupGrid() {
 	totalLayouts = len(layoutOrder)
@@ -110,6 +111,10 @@ func applyLayout(layoutName string) {
 }
 
 func setLayoutGrid(layoutName string) {
+	if cpuCoreWidget != nil {
+		cpuCoreWidget.groupByType = layoutName == LayoutUnified
+	}
+
 	switch layoutName {
 	case LayoutAlternative:
 		grid.Set(
@@ -289,6 +294,8 @@ func setLayoutGrid(layoutName string) {
 		setHistoryLikeLayoutGrid(layoutName)
 	case LayoutHistorySoC:
 		setHistorySoCLayoutGrid()
+	case LayoutUnified:
+		setUnifiedLayoutGrid()
 	default: // LayoutDefault
 		grid.Set(
 			ui.NewRow(1.0/4,
@@ -506,6 +513,42 @@ func setHistorySoCLayoutGrid() {
 
 	// Force orange for memory graph specifically in history_soc
 	if currentConfig.DefaultLayout == LayoutHistorySoC && memoryHistoryChart != nil {
-		memoryHistoryChart.LineColors = []ui.Color{ui.ColorOrange, ui.ColorMagenta}
+		memoryHistoryChart.LineColors = []ui.Color{ui.ColorMagenta, ui.ColorOrange}
 	}
+}
+
+func setUnifiedLayoutGrid() {
+	termWidth, _ := ui.TerminalDimensions()
+	setUnifiedLayoutGridForWidth(termWidth)
+}
+
+func setUnifiedLayoutGridForWidth(termWidth int) {
+	if !unifiedShowsSidebar(termWidth) {
+		grid.Set(
+			ui.NewRow(1.0/4, unifiedComputeHistoryChart),
+			ui.NewRow(1.0/4, memoryHistoryChart),
+			ui.NewRow(1.0/4, unifiedNetworkHistoryChart),
+			ui.NewRow(1.0/4, unifiedDiskHistoryChart),
+		)
+		return
+	}
+
+	// Both columns share four row boundaries. This keeps each right-side panel
+	// aligned with its related left-side history.
+	grid.Set(
+		ui.NewRow(1.0,
+			ui.NewCol(2.0/3,
+				ui.NewRow(1.0/4, unifiedComputeHistoryChart),
+				ui.NewRow(1.0/4, memoryHistoryChart),
+				ui.NewRow(1.0/4, socPowerHistoryChart),
+				ui.NewRow(1.0/4, unifiedTemperatureHistoryChart),
+			),
+			ui.NewCol(1.0/3,
+				ui.NewRow(1.0/4, cpuCoreWidget),
+				ui.NewRow(1.0/4, unifiedProcessList),
+				ui.NewRow(1.0/4, unifiedNetworkHistoryChart),
+				ui.NewRow(1.0/4, unifiedDiskHistoryChart),
+			),
+		),
+	)
 }

@@ -44,6 +44,10 @@ TUI_MemorySwapHistory = "内存/交换历史"
 TUI_CPUUsageHistory = "CPU 使用历史"
 TUI_SoCPowerHistory = "SoC 功耗历史 (CPU / GPU / ANE / DRAM)"
 TUI_SSDReadHistory = "SSD 读取 (GB/s)"
+TUI_UnifiedComputeHistory = "计算 (CPU / GPU / ANE)"
+TUI_UnifiedDRAMHistory = "DRAM 带宽 (读取 / 写入)"
+TUI_UnifiedNetworkHistory = "网络 (下行 / 上行)"
+TUI_UnifiedDiskHistory = "磁盘 (读取 / 写入)"
 Metrics_SoCPowerDetail = "SoC: 总计 %.1fW | ANE %s | CPU %.1fW | GPU %.1fW | DRAM %.1fW"
 Metrics_SoCPowerDetailNoANE = "SoC: 总计 %.1fW | CPU %.1fW | GPU %.1fW | DRAM %.1fW"
 Metrics_SSDReadDetail = "SSD 读取 %.2f GB/s (峰值 %.2f)"
@@ -57,6 +61,10 @@ Metrics_ANEHistoryPeak = "ANE %.1f%% (峰值 %.1f%%, %.2fW)"
 Metrics_ANEHistoryPeakBW = "ANE %.1f%% (峰值 %.1f%%, %.2f GB/s)"
 Metrics_BandwidthHistoryPeak = "DRAM R:%.1f W:%.1f  ANE R:%.1f W:%.1f GB/s (峰值 %.1f)"
 Metrics_GPUHistoryEff = "GPU 有效 %.0f%% @ %dMHz (原始 %.0f%%, 原始峰值 %.0f%%)"
+Metrics_UnifiedComputeDetail = "计算: CPU %.0f%% | GPU %.0f%% @ %dMHz | ANE %.0f%%"
+Metrics_UnifiedDRAMDetail = "DRAM: 读 %.1f 写 %.1f GB/s (总计 %.1f)"
+Metrics_UnifiedNetworkDetail = "网络: 下行 %s/s 上行 %s/s"
+Metrics_UnifiedDiskDetail = "磁盘 I/O: 读 %s/s 写 %s/s"
 TUI_ConfirmKill = " 确认结束 "
 TUI_ConfirmKillBody = "确认终止"
 TUI_ConfirmYes = "是"
@@ -119,7 +127,8 @@ Metrics_MemGauge = "内存: %.2f GB / %.2f GB (交换: %.2f/%.2f GB) 带宽: %.1
 Process_PID = "PID"
 Process_USER = "用户"
 Process_VIRT = "虚拟"
-Process_RES = "物理"
+Process_RES = "RSS"
+Process_FOOT = "足迹"
 Process_CPU = "CPU"
 Process_GPU = "GPU"
 Process_MEM = "内存"
@@ -167,22 +176,25 @@ Prometheus 指标: %s
 - c / Shift + C: 切换 UI 颜色主题 正向 / 反向
 - b / Shift + B: 切换 UI 背景色 正向 / 反向
 - p: 开启/关闭派对模式 (色彩循环)
-- l / Shift + L: 在 19 种可用布局中切换 正向 / 反向
+- l / Shift + L: 在布局中切换 正向 / 反向
 - i: 切换信息面板布局
 - Shift + F: 切换风扇控制与散热状态面板
 - F9: 结束选中的进程 (需要 y/n 确认)
 - f: 冻结进程列表
 - /: 搜索进程列表
 - g/G: 跳转到列表顶部/底部
+- 统一进程列表 ACT: 0-9 活跃度；界面显示为四舍五入整数，但按内部小数排序。它综合 CPU、按比例估算的 GPU 时间、内存 page-in 与 RSS/物理足迹占用，以及进程自身磁盘 I/O。网络未纳入，因为没有按进程采集的可信数据。
+
 - + 或 -: 调整刷新间隔速度 (快/慢)
 - h 或 ?: 显示/隐藏此帮助菜单
+- Esc: 返回主界面
 - j/k 或 ↓/↑: 滚动帮助文本
 - q 或 <C-c>: 退出应用
 
 ----启动参数----
 --help, -h: 显示此帮助菜单
 --version, -v: 显示 mactop 的版本号
---interval, -i: 设置刷新间隔（毫秒），默认为 1000。
+--interval, -i: 设置 CPU/GPU 使用率和功耗的刷新间隔（毫秒）；CPU/GPU 温度、风扇和进程列表最快每 2 秒更新一次。默认为 1000。
 --prometheus, -p: 设置并启用 Prometheus 指标端口（例如 --prometheus=9090）
 --headless: 无 UI 模式运行 (直接输出到 stdout)
 --format: 无 UI 模式的输出格式 (json, yaml, xml, csv, toon)，默认为 json。
@@ -246,7 +258,7 @@ CLI_HelpText = """
 选项:
   -h, --help              显示此帮助信息
   -v, --version           显示 mactop 版本
-  -i, --interval <ms>     设置刷新间隔（毫秒，默认：1000）
+  -i, --interval <ms>     设置 CPU/GPU 使用率和功耗间隔；温度、风扇和进程最快每 2 秒更新（默认：1000）
   --foreground <color>    设置 UI 前景色（名称或十六进制，例如 green, #9580FF）
   --bg <color>            设置 UI 背景色（名称或十六进制，例如 mocha-base, #22212C）
   -p, --prometheus <port> 在指定端口启动 Prometheus 指标服务器（例如 :9090）

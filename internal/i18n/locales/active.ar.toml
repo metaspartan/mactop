@@ -44,6 +44,10 @@ TUI_MemorySwapHistory = "سجل الذاكرة/Swap"
 TUI_CPUUsageHistory = "سجل استخدام CPU"
 TUI_SoCPowerHistory = "SoC سجل الطاقة (CPU / GPU / ANE / DRAM)"
 TUI_SSDReadHistory = "قراءة SSD (GB/s)"
+TUI_UnifiedComputeHistory = "Compute (CPU / GPU / ANE)"
+TUI_UnifiedDRAMHistory = "DRAM Bandwidth (Read / Write)"
+TUI_UnifiedNetworkHistory = "Network (Down / Up)"
+TUI_UnifiedDiskHistory = "Disk (Read / Write)"
 Metrics_SoCPowerDetail = "SoC: الإجمالي %.1fW | ANE %s | CPU %.1fW | GPU %.1fW | DRAM %.1fW"
 Metrics_SoCPowerDetailNoANE = "SoC: الإجمالي %.1fW | CPU %.1fW | GPU %.1fW | DRAM %.1fW"
 Metrics_SSDReadDetail = "قراءة SSD %.2f GB/s (الذروة %.2f)"
@@ -57,6 +61,10 @@ Metrics_ANEHistoryPeak = "ANE %.1f%% (الذروة %.1f%%, %.2fW)"
 Metrics_ANEHistoryPeakBW = "ANE %.1f%% (الذروة %.1f%%, %.2f GB/s)"
 Metrics_BandwidthHistoryPeak = "DRAM R:%.1f W:%.1f  ANE R:%.1f W:%.1f GB/s (الذروة %.1f)"
 Metrics_GPUHistoryEff = "GPU فعّال %.0f%% @ %dMHz (خام %.0f%%, ذروة الخام %.0f%%)"
+Metrics_UnifiedComputeDetail = "Compute: CPU %.0f%% | GPU %.0f%% @ %dMHz | ANE %.0f%%"
+Metrics_UnifiedDRAMDetail = "DRAM: R %.1f W %.1f GB/s (Total %.1f)"
+Metrics_UnifiedNetworkDetail = "Network: Down %s/s Up %s/s"
+Metrics_UnifiedDiskDetail = "Disk I/O: R %s/s W %s/s"
 TUI_ConfirmKill = " تأكيد "
 TUI_ConfirmKillBody = "تأكيد الإنهاء"
 TUI_ConfirmYes = "نعم"
@@ -120,6 +128,7 @@ Process_PID = "PID"
 Process_USER = "مستخدم"
 Process_VIRT = "افتراضي"
 Process_RES = "فعلي"
+Process_FOOT = "بصمة"
 Process_CPU = "CPU"
 Process_GPU = "GPU"
 Process_MEM = "ذاكرة"
@@ -181,7 +190,7 @@ mactop أداة مراقبة مفتوحة المصدر لـ Apple Silicon كتب
 ----خيارات التشغيل----
 --help, -h: عرض قائمة المساعدة
 --version, -v: عرض الإصدار
---interval, -i: فترة التحديث (مللي ثانية). الافتراضي: 1000.
+--interval, -i: ضبط فترة CPU/GPU والطاقة (مللي ثانية). درجات حرارة CPU/GPU والمراوح وقائمة العمليات تُحدّث كل ثانيتين على الأكثر. الافتراضي: 1000.
 --prometheus, -p: منفذ مقاييس Prometheus
 --headless: تشغيل بدون واجهة (إخراج إلى stdout)
 --format: صيغة الإخراج (json, yaml, xml, csv, toon)
@@ -245,7 +254,7 @@ CLI_HelpText = """
 الخيارات:
   -h, --help              عرض رسالة المساعدة
   -v, --version           عرض إصدار mactop
-  -i, --interval <مللي ثانية> تعيين فترة التحديث بالمللي ثانية (الافتراضي: 1000)
+  -i, --interval <مللي ثانية> فترة CPU/GPU والطاقة؛ الحرارة والمراوح والعمليات كل ثانيتين على الأكثر (الافتراضي: 1000)
   --foreground <لون>      تعيين لون المقدمة (اسم أو hex مثل green, #9580FF)
   --bg <لون>              تعيين لون الخلفية (اسم أو hex مثل mocha-base, #22212C)
   -p, --prometheus <منفذ> تشغيل خادم مقاييس Prometheus على المنفذ المحدد (مثل :9090)

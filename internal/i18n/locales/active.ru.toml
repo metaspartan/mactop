@@ -44,6 +44,10 @@ TUI_MemorySwapHistory = "История Память/Swap"
 TUI_CPUUsageHistory = "История загрузки CPU"
 TUI_SoCPowerHistory = "SoC История мощности (CPU / GPU / ANE / DRAM)"
 TUI_SSDReadHistory = "Чтение SSD (GB/s)"
+TUI_UnifiedComputeHistory = "Compute (CPU / GPU / ANE)"
+TUI_UnifiedDRAMHistory = "DRAM Bandwidth (Read / Write)"
+TUI_UnifiedNetworkHistory = "Network (Down / Up)"
+TUI_UnifiedDiskHistory = "Disk (Read / Write)"
 Metrics_SoCPowerDetail = "SoC: Всего %.1fW | ANE %s | CPU %.1fW | GPU %.1fW | DRAM %.1fW"
 Metrics_SoCPowerDetailNoANE = "SoC: Всего %.1fW | CPU %.1fW | GPU %.1fW | DRAM %.1fW"
 Metrics_SSDReadDetail = "Чтение SSD %.2f GB/s (Пик %.2f)"
@@ -57,6 +61,10 @@ Metrics_ANEHistoryPeak = "ANE %.1f%% (Пик %.1f%%, %.2fW)"
 Metrics_ANEHistoryPeakBW = "ANE %.1f%% (Пик %.1f%%, %.2f GB/s)"
 Metrics_BandwidthHistoryPeak = "DRAM R:%.1f W:%.1f  ANE R:%.1f W:%.1f GB/s (Пик %.1f)"
 Metrics_GPUHistoryEff = "GPU Эфф. %.0f%% @ %dMHz (Сырой %.0f%%, Пик сырого %.0f%%)"
+Metrics_UnifiedComputeDetail = "Compute: CPU %.0f%% | GPU %.0f%% @ %dMHz | ANE %.0f%%"
+Metrics_UnifiedDRAMDetail = "DRAM: R %.1f W %.1f GB/s (Total %.1f)"
+Metrics_UnifiedNetworkDetail = "Network: Down %s/s Up %s/s"
+Metrics_UnifiedDiskDetail = "Disk I/O: R %s/s W %s/s"
 TUI_ConfirmKill = " ПОДТВЕРДИТЬ "
 TUI_ConfirmKillBody = "ПОДТВЕРДИТЬ ЗАВЕРШЕНИЕ"
 TUI_ConfirmYes = "Да"
@@ -120,6 +128,7 @@ Process_PID = "PID"
 Process_USER = "ПОЛЬЗ"
 Process_VIRT = "ВИРТ"
 Process_RES = "РЕЗ"
+Process_FOOT = "FOOT"
 Process_CPU = "CPU"
 Process_GPU = "GPU"
 Process_MEM = "ПАМ"
@@ -181,7 +190,7 @@ mactop — инструмент мониторинга для Apple Silicon с �
 ----Параметры запуска----
 --help, -h: Показать справку
 --version, -v: Показать версию
---interval, -i: Интервал обновления (мс). По умолчанию: 1000.
+--interval, -i: Установить интервал загрузки CPU/GPU и мощности (мс). Температуры CPU/GPU, вентиляторы и список процессов обновляются не чаще раза в 2 с. По умолчанию: 1000.
 --prometheus, -p: Порт для метрик Prometheus
 --headless: Режим без интерфейса (вывод в stdout)
 --format: Формат вывода (json, yaml, xml, csv, toon)
@@ -245,7 +254,7 @@ CLI_HelpText = """
 Параметры:
   -h, --help              Показать эту справку
   -v, --version           Показать версию mactop
-  -i, --interval <мс>     Установить интервал обновления в миллисекундах (по умолчанию: 1000)
+  -i, --interval <мс>     Интервал CPU/GPU и мощности; температура, вентиляторы и процессы не чаще раза в 2 с (по умолчанию: 1000)
   --foreground <цвет>     Установить цвет текста UI (имя или hex, напр. green, #9580FF)
   --bg <цвет>             Установить цвет фона UI (имя или hex, напр. mocha-base, #22212C)
   -p, --prometheus <порт> Запустить сервер метрик Prometheus на указанном порту (напр. :9090)

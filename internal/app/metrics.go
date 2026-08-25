@@ -31,6 +31,7 @@ func startPrometheusServer(port string) {
 	registry.MustRegister(rdmaAvailable)
 	registry.MustRegister(scoreUsage)
 	registry.MustRegister(dramBandwidth)
+	registry.MustRegister(dramBandwidthSource)
 	registry.MustRegister(batteryPercent)
 	registry.MustRegister(batteryCharging)
 	registry.MustRegister(cpuCoreUsage)
@@ -80,6 +81,9 @@ func initializePrometheusSeries(sysInfo SystemInfo) {
 	for _, direction := range []string{"read", "write", "combined"} {
 		dramBandwidth.With(prometheus.Labels{"direction": direction}).Set(0)
 	}
+	for _, source := range []DRAMBandwidthSource{DRAMBandwidthUnavailable, DRAMBandwidthDirectional, DRAMBandwidthCombined, DRAMBandwidthPowerEstimate} {
+		dramBandwidthSource.With(prometheus.Labels{"source": string(source)}).Set(0)
+	}
 	for _, direction := range []string{"upload", "download"} {
 		tbNetworkSpeed.With(prometheus.Labels{"direction": direction}).Set(0)
 	}
@@ -101,33 +105,34 @@ func normalizeSocMetricsPower(m SocMetrics) SocMetrics {
 
 func cpuMetricsFromSoc(m SocMetrics, coreUsages []float64, avgUsage float64, throttled bool) CPUMetrics {
 	return CPUMetrics{
-		CPUW:            m.CPUPower,
-		GPUW:            m.GPUPower,
-		ANEW:            m.ANEPower,
-		ANEActive:       m.ANEActive,
-		ANEReadBW:       m.ANEReadBW,
-		ANEWriteBW:      m.ANEWriteBW,
-		DRAMW:           m.DRAMPower,
-		GPUSRAMW:        m.GPUSRAMPower,
-		SystemW:         m.SystemPower,
-		PackageW:        m.TotalPower,
-		Throttled:       throttled,
-		CPUTemp:         float64(m.CPUTemp),
-		GPUTemp:         float64(m.GPUTemp),
-		EClusterActive:  int(m.EClusterActive),
-		PClusterActive:  int(m.PClusterActive),
-		EClusterFreqMHz: int(m.EClusterFreqMHz),
-		PClusterFreqMHz: int(m.PClusterFreqMHz),
-		SClusterActive:  int(m.SClusterActive),
-		SClusterFreqMHz: int(m.SClusterFreqMHz),
-		DRAMReadBW:      m.DRAMReadBW,
-		DRAMWriteBW:     m.DRAMWriteBW,
-		DRAMBWCombined:  m.DRAMBWCombined,
-		ANEBW:           m.ANEBWCombined,
-		Fans:            m.Fans,
-		TempSensors:     m.TempSensors,
-		CoreUsages:      coreUsages,
-		AvgUsage:        avgUsage,
+		CPUW:                m.CPUPower,
+		GPUW:                m.GPUPower,
+		ANEW:                m.ANEPower,
+		ANEActive:           m.ANEActive,
+		ANEReadBW:           m.ANEReadBW,
+		ANEWriteBW:          m.ANEWriteBW,
+		DRAMW:               m.DRAMPower,
+		GPUSRAMW:            m.GPUSRAMPower,
+		SystemW:             m.SystemPower,
+		PackageW:            m.TotalPower,
+		Throttled:           throttled,
+		CPUTemp:             float64(m.CPUTemp),
+		GPUTemp:             float64(m.GPUTemp),
+		EClusterActive:      int(m.EClusterActive),
+		PClusterActive:      int(m.PClusterActive),
+		EClusterFreqMHz:     int(m.EClusterFreqMHz),
+		PClusterFreqMHz:     int(m.PClusterFreqMHz),
+		SClusterActive:      int(m.SClusterActive),
+		SClusterFreqMHz:     int(m.SClusterFreqMHz),
+		DRAMReadBW:          m.DRAMReadBW,
+		DRAMWriteBW:         m.DRAMWriteBW,
+		DRAMBWCombined:      m.DRAMBWCombined,
+		DRAMBandwidthSource: m.DRAMBandwidthSource,
+		ANEBW:               m.ANEBWCombined,
+		Fans:                m.Fans,
+		TempSensors:         m.TempSensors,
+		CoreUsages:          coreUsages,
+		AvgUsage:            avgUsage,
 	}
 }
 
@@ -325,9 +330,25 @@ func publishPrometheusMetrics(snapshot prometheusMetricsSnapshot) {
 	socTemp.Set(cpuMetrics.CPUTemp)
 	gpuTemp.Set(cpuMetrics.GPUTemp)
 	thermalState.Set(prometheusThermalStateValue(snapshot.ThermalLevel))
-	dramBandwidth.With(prometheus.Labels{"direction": "read"}).Set(cpuMetrics.DRAMReadBW)
-	dramBandwidth.With(prometheus.Labels{"direction": "write"}).Set(cpuMetrics.DRAMWriteBW)
+	if cpuMetrics.DRAMBandwidthSource.IsNonDirectional() || cpuMetrics.DRAMBandwidthSource == DRAMBandwidthUnavailable {
+		dramBandwidth.With(prometheus.Labels{"direction": "read"}).Set(0)
+		dramBandwidth.With(prometheus.Labels{"direction": "write"}).Set(0)
+	} else {
+		dramBandwidth.With(prometheus.Labels{"direction": "read"}).Set(cpuMetrics.DRAMReadBW)
+		dramBandwidth.With(prometheus.Labels{"direction": "write"}).Set(cpuMetrics.DRAMWriteBW)
+	}
 	dramBandwidth.With(prometheus.Labels{"direction": "combined"}).Set(cpuMetrics.DRAMBWCombined)
+	activeSource := cpuMetrics.DRAMBandwidthSource
+	if activeSource == "" {
+		activeSource = DRAMBandwidthDirectional
+	}
+	for _, source := range []DRAMBandwidthSource{DRAMBandwidthUnavailable, DRAMBandwidthDirectional, DRAMBandwidthCombined, DRAMBandwidthPowerEstimate} {
+		value := 0.0
+		if source == activeSource {
+			value = 1
+		}
+		dramBandwidthSource.With(prometheus.Labels{"source": string(source)}).Set(value)
+	}
 
 	memoryUsage.With(prometheus.Labels{"type": "used"}).Set(float64(snapshot.Memory.Used) / 1024 / 1024 / 1024)
 	memoryUsage.With(prometheus.Labels{"type": "total"}).Set(float64(snapshot.Memory.Total) / 1024 / 1024 / 1024)
@@ -451,10 +472,10 @@ func getNetDiskMetrics() NetDiskMetrics {
 		if lastNetDiskTime.IsZero() {
 			lastNetStats = totalNet
 		} else {
-			metrics.InBytesPerSec = float64(totalNet.BytesRecv-lastNetStats.BytesRecv) / elapsed
-			metrics.OutBytesPerSec = float64(totalNet.BytesSent-lastNetStats.BytesSent) / elapsed
-			metrics.InPacketsPerSec = float64(totalNet.PacketsRecv-lastNetStats.PacketsRecv) / elapsed
-			metrics.OutPacketsPerSec = float64(totalNet.PacketsSent-lastNetStats.PacketsSent) / elapsed
+			metrics.InBytesPerSec = perSecondCounterDelta(totalNet.BytesRecv, lastNetStats.BytesRecv, elapsed)
+			metrics.OutBytesPerSec = perSecondCounterDelta(totalNet.BytesSent, lastNetStats.BytesSent, elapsed)
+			metrics.InPacketsPerSec = perSecondCounterDelta(totalNet.PacketsRecv, lastNetStats.PacketsRecv, elapsed)
+			metrics.OutPacketsPerSec = perSecondCounterDelta(totalNet.PacketsSent, lastNetStats.PacketsSent, elapsed)
 		}
 		lastNetStats = totalNet
 	}
@@ -471,16 +492,26 @@ func getNetDiskMetrics() NetDiskMetrics {
 		}
 
 		if !lastNetDiskTime.IsZero() {
-			metrics.ReadKBytesPerSec = float64(totalDisk.ReadBytes-lastDiskStats.ReadBytes) / elapsed / 1024
-			metrics.WriteKBytesPerSec = float64(totalDisk.WriteBytes-lastDiskStats.WriteBytes) / elapsed / 1024
-			metrics.ReadOpsPerSec = float64(totalDisk.ReadOps-lastDiskStats.ReadOps) / elapsed
-			metrics.WriteOpsPerSec = float64(totalDisk.WriteOps-lastDiskStats.WriteOps) / elapsed
+			metrics.ReadKBytesPerSec = perSecondCounterDelta(totalDisk.ReadBytes, lastDiskStats.ReadBytes, elapsed) / 1024
+			metrics.WriteKBytesPerSec = perSecondCounterDelta(totalDisk.WriteBytes, lastDiskStats.WriteBytes, elapsed) / 1024
+			metrics.ReadOpsPerSec = perSecondCounterDelta(totalDisk.ReadOps, lastDiskStats.ReadOps, elapsed)
+			metrics.WriteOpsPerSec = perSecondCounterDelta(totalDisk.WriteOps, lastDiskStats.WriteOps, elapsed)
 		}
 		lastDiskStats = totalDisk
 	}
 
 	lastNetDiskTime = now
 	return metrics
+}
+
+// perSecondCounterDelta treats a counter regression as a new baseline. This
+// occurs when an interface or device is replaced/reset; subtracting uint64s
+// directly would underflow into an impossible throughput.
+func perSecondCounterDelta(current, previous uint64, elapsed float64) float64 {
+	if elapsed <= 0 || current < previous {
+		return 0
+	}
+	return float64(current-previous) / elapsed
 }
 
 func collectNetDiskMetrics(done chan struct{}, netdiskMetricsChan chan NetDiskMetrics) {
@@ -574,6 +605,7 @@ func collectMetrics(done chan struct{}, cpumetricsChan chan CPUMetrics, gpumetri
 		} else {
 			gpuMetrics.EffectiveLoad = gpuMetrics.ActivePercent
 		}
+		unifiedPeaks.record(time.Now(), cpuMetrics.AvgUsage, gpuMetrics.EffectiveLoad, aneUtilizationPercent(cpuMetrics))
 
 		tbNetStats := GetThunderboltNetStats()
 		publishPrometheusMetrics(prometheusMetricsSnapshot{
@@ -626,12 +658,24 @@ func updatePrometheusSensors(fans []FanInfo, sensors []TempSensor) {
 	}
 }
 
+const processRefreshInterval = 2 * time.Second
+
+func processRefreshDue(last, now time.Time) bool {
+	return last.IsZero() || !now.Before(last.Add(processRefreshInterval))
+}
+
 func collectProcessMetrics(done chan struct{}, processMetricsChan chan []ProcessMetrics, triggerChan chan struct{}) {
+	var lastRefresh time.Time
 	for {
 		select {
 		case <-done:
 			return
 		case <-triggerChan:
+			now := time.Now()
+			if !processRefreshDue(lastRefresh, now) {
+				continue
+			}
+			lastRefresh = now
 			renderMutex.Lock()
 			sysPct := lastGPUMetrics.ActivePercent
 			renderMutex.Unlock()

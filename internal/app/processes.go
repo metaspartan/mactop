@@ -9,9 +9,22 @@ package app
 #include <mach/processor_info.h>
 #include <mach/mach_init.h>
 #include <mach/mach_time.h>
+#include <sys/resource.h>
 
 static inline time_t get_proc_starttime(struct kinfo_proc *kp) {
     return kp->kp_proc.p_un.__p_starttime.tv_sec;
+}
+
+static inline int get_proc_rusage(pid_t pid, uint64_t *footprint, uint64_t *pageins, uint64_t *bytesread, uint64_t *byteswritten) {
+    struct rusage_info_v2 info = {0};
+    if (proc_pid_rusage(pid, RUSAGE_INFO_V2, (rusage_info_t *)&info) != 0) {
+        return -1;
+    }
+    *footprint = info.ri_phys_footprint;
+    *pageins = info.ri_pageins;
+    *bytesread = info.ri_diskio_bytesread;
+    *byteswritten = info.ri_diskio_byteswritten;
+    return 0;
 }
 
 extern kern_return_t vm_deallocate(vm_map_t target_task, vm_address_t address, vm_size_t size);
@@ -19,6 +32,7 @@ extern kern_return_t vm_deallocate(vm_map_t target_task, vm_address_t address, v
 import "C"
 import (
 	"fmt"
+	"math"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -65,14 +79,27 @@ func getUsername(uid uint32) string {
 }
 
 type ProcessTimeState struct {
-	Time      uint64
-	Timestamp time.Time
-	Command   string
-	CreateSec int64
+	Time             uint64
+	PageIns          uint64
+	DiskBytesRead    uint64
+	DiskBytesWritten uint64
+	Timestamp        time.Time
+	Command          string
+	CreateSec        int64
 }
 
 var prevProcessTimes = make(map[int]ProcessTimeState)
 var prevProcessTimesMutex sync.Mutex
+
+type unifiedProcessSummary struct {
+	Total     int
+	PeakTotal int
+}
+
+var (
+	latestUnifiedProcessSummary unifiedProcessSummary
+	processCountPeak            int
+)
 
 var timebaseInfo C.mach_timebase_info_data_t
 var timebaseOnce sync.Once
@@ -103,6 +130,10 @@ func processOsProc(kp C.struct_kinfo_proc, now time.Time, prevProcessTimes map[i
 	}
 
 	rssBytes := int64(0)
+	footprintBytes := int64(0)
+	pageIns := uint64(0)
+	diskBytesRead := uint64(0)
+	diskBytesWritten := uint64(0)
 	vszBytes := int64(0)
 	totalTimeNs := uint64(0)
 
@@ -115,20 +146,45 @@ func processOsProc(kp C.struct_kinfo_proc, now time.Time, prevProcessTimes map[i
 		totalTimeNs = (rawTime * numer) / denom
 	}
 
+	// phys_footprint is distinct from RSS and deliberately not interpreted as
+	// per-process swap usage. RUSAGE_INFO_V2 also provides the cumulative
+	// page-in and disk counters used for the activity score.
+	var rawFootprint, rawPageIns, rawDiskBytesRead, rawDiskBytesWritten C.uint64_t
+	if C.get_proc_rusage(C.pid_t(pid), &rawFootprint, &rawPageIns, &rawDiskBytesRead, &rawDiskBytesWritten) == 0 {
+		footprintBytes = int64(rawFootprint)
+		pageIns = uint64(rawPageIns)
+		diskBytesRead = uint64(rawDiskBytesRead)
+		diskBytesWritten = uint64(rawDiskBytesWritten)
+	}
+
 	cpuPercent := 0.0
-	if prevState, ok := prevProcessTimes[pid]; ok {
+	pageInsPerSecond := 0.0
+	diskBytesPerSecond := 0.0
+	if prevState, ok := prevProcessTimes[pid]; ok && prevState.CreateSec == createSec {
 		timeDelta := totalTimeNs - prevState.Time
 		wallDelta := now.Sub(prevState.Timestamp).Nanoseconds()
 		if wallDelta > 0 && timeDelta > 0 {
 			cpuPercent = (float64(timeDelta) / float64(wallDelta)) * 100.0
 		}
+		elapsedSeconds := float64(wallDelta) / float64(time.Second)
+		if elapsedSeconds > 0 {
+			if pageIns >= prevState.PageIns {
+				pageInsPerSecond = float64(pageIns-prevState.PageIns) / elapsedSeconds
+			}
+			if diskBytesRead >= prevState.DiskBytesRead && diskBytesWritten >= prevState.DiskBytesWritten {
+				diskBytesPerSecond = float64((diskBytesRead-prevState.DiskBytesRead)+(diskBytesWritten-prevState.DiskBytesWritten)) / elapsedSeconds
+			}
+		}
 	}
 
 	newState := ProcessTimeState{
-		Time:      totalTimeNs,
-		Timestamp: now,
-		Command:   comm,
-		CreateSec: createSec,
+		Time:             totalTimeNs,
+		PageIns:          pageIns,
+		DiskBytesRead:    diskBytesRead,
+		DiskBytesWritten: diskBytesWritten,
+		Timestamp:        now,
+		Command:          comm,
+		CreateSec:        createSec,
 	}
 
 	memPercent := 0.0
@@ -145,19 +201,67 @@ func processOsProc(kp C.struct_kinfo_proc, now time.Time, prevProcessTimes map[i
 	timeStr := formatTime(totalSeconds)
 
 	pm := ProcessMetrics{
-		PID:         pid,
-		User:        user,
-		CPU:         cpuPercent,
-		Memory:      memPercent,
-		VSZ:         vszBytes / 1024,
-		RSS:         rssBytes / 1024,
-		Command:     comm,
-		State:       state,
-		Started:     "",
-		Time:        timeStr,
-		LastUpdated: now,
+		PID:                pid,
+		User:               user,
+		CPU:                cpuPercent,
+		Memory:             memPercent,
+		PageInsPerSecond:   pageInsPerSecond,
+		DiskBytesPerSecond: diskBytesPerSecond,
+		VSZ:                vszBytes / 1024,
+		RSS:                rssBytes / 1024,
+		Footprint:          footprintBytes / 1024,
+		Command:            comm,
+		State:              state,
+		Started:            "",
+		Time:               timeStr,
+		LastUpdated:        now,
 	}
 	return pm, pid, newState, true
+}
+
+func clampUnit(value float64) float64 {
+	return math.Max(0, math.Min(1, value))
+}
+
+func calculateProcessActivity(process ProcessMetrics, totalMem uint64) float64 {
+	staticOccupancy := 0.0
+	if totalMem > 0 {
+		staticBytes := max(process.RSS, process.Footprint) * 1024
+		staticOccupancy = clampUnit(float64(staticBytes) / (0.15 * float64(totalMem)))
+	}
+	memory := clampUnit(0.70*clampUnit(process.PageInsPerSecond/50.0) + 0.30*staticOccupancy)
+	components := []float64{
+		clampUnit(process.CPU / 100.0),
+		clampUnit(process.GPU / 1000.0), // GPU is stored as ms/s; 1000ms/s is 100%.
+		memory,
+		clampUnit(math.Log1p(process.DiskBytesPerSecond) / math.Log1p(64*1024*1024)),
+	}
+
+	peak, activeCount := 0.0, 0
+	for _, component := range components {
+		peak = math.Max(peak, component)
+		if component >= 0.05 {
+			activeCount++
+		}
+	}
+	breadth := float64(activeCount) / float64(len(components))
+	return 9 * (0.75*peak + 0.25*breadth)
+}
+
+func summarizeUnifiedProcesses(processes []ProcessMetrics) unifiedProcessSummary {
+	return unifiedProcessSummary{Total: len(processes)}
+}
+
+func updateUnifiedProcessSummary(processes []ProcessMetrics) {
+	summary := summarizeUnifiedProcesses(processes)
+	processCountPeak = max(processCountPeak, summary.Total)
+	summary.PeakTotal = processCountPeak
+	latestUnifiedProcessSummary = summary
+}
+
+func formatUnifiedProcessSummary(summary unifiedProcessSummary) string {
+	peak := max(summary.PeakTotal, summary.Total)
+	return fmt.Sprintf("Total: %d/%d", summary.Total, peak)
 }
 
 func processStateString(stat C.char) string {
@@ -243,6 +347,10 @@ func getProcessList(systemGpuPercent float64) ([]ProcessMetrics, error) {
 	prevProcessTimes = nextProcessTimes
 
 	updateProcessGPUMetrics(processes, now, systemGpuPercent)
+	for i := range processes {
+		processes[i].Activity = calculateProcessActivity(processes[i], totalMem)
+	}
+	updateUnifiedProcessSummary(processes)
 
 	sort.Slice(processes, func(i, j int) bool {
 		return processes[i].CPU > processes[j].CPU
@@ -383,6 +491,9 @@ func sortProcesses(processes []ProcessMetrics) {
 		case "RES":
 			less = processes[i].RSS > processes[j].RSS // Descending default
 			equal = processes[i].RSS == processes[j].RSS
+		case "FOOT":
+			less = processes[i].Footprint > processes[j].Footprint // Descending default
+			equal = processes[i].Footprint == processes[j].Footprint
 		case "CPU":
 			less = processes[i].CPU > processes[j].CPU // Descending default
 			equal = processes[i].CPU == processes[j].CPU
@@ -424,6 +535,7 @@ func calculateMaxWidths(availableWidth int) map[string]int {
 		"USER": 8,
 		"VIRT": 6,
 		"RES":  6,
+		"FOOT": 6,
 		"CPU":  6,
 		"GPU":  6,
 		"MEM":  5,
@@ -492,6 +604,7 @@ func buildProcessRows(processes []ProcessMetrics, maxWidths map[string]int) []st
 		timeStr := formatTime(seconds)
 		virtStr := formatMemorySize(p.VSZ)
 		resStr := formatResMemorySize(p.RSS)
+		footStr := formatResMemorySize(p.Footprint)
 		username := runewidth.Truncate(p.User, maxWidths["USER"], "...")
 
 		cmdName := p.Command // Already simplified by ps -c
@@ -500,11 +613,12 @@ func buildProcessRows(processes []ProcessMetrics, maxWidths map[string]int) []st
 		// 1000 ms/s = 100% GPU utilization
 		gpuPercent := p.GPU / 10.0
 
-		line := fmt.Sprintf("%*d %-*s %*s %*s %*.1f%% %*.1f%% %*.1f%% %*s %-s",
+		line := fmt.Sprintf("%*d %-*s %*s %*s %*s %*.1f%% %*.1f%% %*.1f%% %*s %-s",
 			maxWidths["PID"], p.PID,
 			maxWidths["USER"], username,
 			maxWidths["VIRT"], virtStr,
 			maxWidths["RES"], resStr,
+			maxWidths["FOOT"], footStr,
 			maxWidths["CPU"]-1, p.CPU,
 			maxWidths["GPU"]-1, gpuPercent,
 			maxWidths["MEM"]-1, p.Memory,
@@ -559,36 +673,155 @@ func updateProcessList() {
 
 	processList.Title, processList.TitleStyle = getProcessListTitle()
 	processList.Rows = items
+	updateUnifiedProcessList(processes)
+}
+
+func updateUnifiedProcessList(processes []ProcessMetrics) {
+	if unifiedProcessList == nil {
+		return
+	}
+
+	termWidth, _ := GetCachedTerminalDimensions()
+	availableWidth := max(1, max(0, termWidth-2)/3-2)
+	ordered := append([]ProcessMetrics(nil), processes...)
+	sortUnifiedProcesses(ordered)
+	rows := make([]string, len(ordered)+1)
+	rows[0] = formatUnifiedProcessHeader(availableWidth)
+	for i, process := range ordered {
+		rows[i+1] = formatUnifiedProcessRow(process, availableWidth)
+	}
+
+	if searchMode || searchText != "" {
+		unifiedProcessList.Title, unifiedProcessList.TitleStyle = getProcessListTitle()
+		unifiedProcessList.TitleSpans = nil
+	} else {
+		summary := latestUnifiedProcessSummary
+		if summary.Total == 0 && len(processes) > 0 {
+			summary = summarizeUnifiedProcesses(processes)
+		}
+		unifiedProcessList.Title = fmt.Sprintf("%s %s | / for search", i18n.T("TUI_ProcessList"), formatUnifiedProcessSummary(summary))
+		if currentConfig.DefaultLayout == LayoutUnified {
+			unifiedProcessList.TitleSpans = unifiedTitleSpans(unifiedProcessList.Title, []titleMetricColor{{Name: "Total", Color: unifiedProcessList.TextStyle.Fg}}, unifiedProcessList.TitleStyle.Bg)
+		} else {
+			unifiedProcessList.TitleSpans = nil
+		}
+	}
+	unifiedProcessList.Rows = rows
+}
+
+func formatUnifiedProcessHeader(width int) string {
+	labels := append([]string(nil), unifiedProcessColumns...)
+	arrow := "↓"
+	if unifiedProcessSortReverse {
+		arrow = "↑"
+	}
+	labels[unifiedProcessSelectedColumn] += arrow
+	header := fmt.Sprintf("%6s %3s %6s %6s %5s %5s %s", labels[0], labels[1], labels[2], labels[3], labels[4], labels[5], labels[6])
+	return runewidth.Truncate(header, max(1, width), "")
+}
+
+func sortUnifiedProcesses(processes []ProcessMetrics) {
+	sort.Slice(processes, func(i, j int) bool {
+		left, right := processes[i], processes[j]
+		var less, equal bool
+		switch unifiedProcessColumns[unifiedProcessSelectedColumn] {
+		case "PID":
+			less, equal = left.PID < right.PID, left.PID == right.PID
+		case "CPU":
+			less, equal = left.CPU > right.CPU, left.CPU == right.CPU
+		case "GPU":
+			leftGPU, rightGPU := left.GPU/10.0, right.GPU/10.0
+			less, equal = leftGPU > rightGPU, leftGPU == rightGPU
+		case "ACT":
+			less, equal = left.Activity > right.Activity, left.Activity == right.Activity
+		case "RSS":
+			less, equal = left.RSS > right.RSS, left.RSS == right.RSS
+		case "FOOT":
+			less, equal = left.Footprint > right.Footprint, left.Footprint == right.Footprint
+		case "CMD":
+			leftCommand, rightCommand := strings.ToLower(left.Command), strings.ToLower(right.Command)
+			less, equal = leftCommand < rightCommand, leftCommand == rightCommand
+		}
+		if equal {
+			return left.PID < right.PID
+		}
+		if unifiedProcessSortReverse {
+			return !less
+		}
+		return less
+	})
+}
+
+func handleUnifiedProcessListEvent(e ui.Event) {
+	if searchMode {
+		handleSearchInput(e)
+		return
+	}
+
+	switch e.ID {
+	case "/":
+		handleSearchToggle()
+		return
+	case "<Escape>":
+		handleSearchClear()
+		return
+	case "<Left>":
+		if unifiedProcessSelectedColumn > 0 {
+			unifiedProcessSelectedColumn--
+		}
+	case "<Right>":
+		if unifiedProcessSelectedColumn < len(unifiedProcessColumns)-1 {
+			unifiedProcessSelectedColumn++
+		}
+	case "<Enter>", "<Space>":
+		unifiedProcessSortReverse = !unifiedProcessSortReverse
+	default:
+		return
+	}
+	updateProcessList()
+}
+
+func formatUnifiedProcessRow(process ProcessMetrics, width int) string {
+	const fixedWidth = 37 // PID, ACT, CPU/GPU, RSS/Footprint columns and separators.
+	width = max(1, width)
+	commandWidth := max(1, width-fixedWidth)
+	command := runewidth.Truncate(process.Command, commandWidth, "...")
+	gpuPercent := process.GPU / 10.0
+	rssGiB := float64(process.RSS) / 1024 / 1024
+	footprintGiB := float64(process.Footprint) / 1024 / 1024
+	activity := int(math.Round(clampUnit(process.Activity/9.0) * 9))
+	row := fmt.Sprintf("%6d %3d %5.1f%% %5.1f%% %4.1fG %4.1fG %s", process.PID, activity, process.CPU, gpuPercent, rssGiB, footprintGiB, command)
+	return runewidth.Truncate(row, width, "")
 }
 
 func handleSearchInput(e ui.Event) {
 	switch e.ID {
 	case "<Escape>":
 		searchMode = false
+		searchDraft = ""
 		searchText = ""
 		filteredProcesses = nil
 		updateProcessList()
 	case "<Enter>":
 		searchMode = false
+		searchText = searchDraft
+		updateFilteredProcesses()
 		updateProcessList()
 	case "<F9>":
 		attemptKillProcess()
 	case "<Backspace>":
-		if len(searchText) > 0 {
-			runes := []rune(searchText)
-			searchText = string(runes[:len(runes)-1])
+		if len(searchDraft) > 0 {
+			runes := []rune(searchDraft)
+			searchDraft = string(runes[:len(runes)-1])
 		}
-		updateFilteredProcesses()
 		updateProcessList()
 	case "<Space>":
-		searchText += " "
-		updateFilteredProcesses()
+		searchDraft += " "
 		updateProcessList()
 	default:
 		// Only append printable characters (simple check)
 		if len(e.ID) == 1 {
-			searchText += e.ID
-			updateFilteredProcesses()
+			searchDraft += e.ID
 			updateProcessList()
 		}
 	}
@@ -749,7 +982,12 @@ func handleNavigation(e ui.Event) {
 }
 
 func handleProcessListEvents(e ui.Event) {
-	// Don't handle process list navigation when in Info or Fan layout (allow their own scrolling)
+	// The unified dashboard contains a read-only compact process summary rather
+	// than the full selectable process table.
+	if currentConfig.DefaultLayout == LayoutUnified {
+		handleUnifiedProcessListEvent(e)
+		return
+	}
 	if currentConfig.DefaultLayout == LayoutInfo || currentConfig.DefaultLayout == LayoutFan {
 		return
 	}

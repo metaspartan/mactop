@@ -44,6 +44,10 @@ TUI_MemorySwapHistory = "Historial Memoria/Intercambio"
 TUI_CPUUsageHistory = "Historial de Uso CPU"
 TUI_SoCPowerHistory = "SoC Historial de Energía (CPU / GPU / ANE / DRAM)"
 TUI_SSDReadHistory = "Lectura SSD (GB/s)"
+TUI_UnifiedComputeHistory = "Compute (CPU / GPU / ANE)"
+TUI_UnifiedDRAMHistory = "DRAM Bandwidth (Read / Write)"
+TUI_UnifiedNetworkHistory = "Network (Down / Up)"
+TUI_UnifiedDiskHistory = "Disk (Read / Write)"
 Metrics_SoCPowerDetail = "SoC: Total %.1fW | ANE %s | CPU %.1fW | GPU %.1fW | DRAM %.1fW"
 Metrics_SoCPowerDetailNoANE = "SoC: Total %.1fW | CPU %.1fW | GPU %.1fW | DRAM %.1fW"
 Metrics_SSDReadDetail = "Lectura SSD %.2f GB/s (Pico %.2f)"
@@ -57,6 +61,10 @@ Metrics_ANEHistoryPeak = "ANE %.1f%% (Pico %.1f%%, %.2fW)"
 Metrics_ANEHistoryPeakBW = "ANE %.1f%% (Pico %.1f%%, %.2f GB/s)"
 Metrics_BandwidthHistoryPeak = "DRAM R:%.1f W:%.1f  ANE R:%.1f W:%.1f GB/s (Pico %.1f)"
 Metrics_GPUHistoryEff = "GPU Efec. %.0f%% @ %dMHz (Bruto %.0f%%, Pico bruto %.0f%%)"
+Metrics_UnifiedComputeDetail = "Compute: CPU %.0f%% | GPU %.0f%% @ %dMHz | ANE %.0f%%"
+Metrics_UnifiedDRAMDetail = "DRAM: R %.1f W %.1f GB/s (Total %.1f)"
+Metrics_UnifiedNetworkDetail = "Network: Down %s/s Up %s/s"
+Metrics_UnifiedDiskDetail = "Disk I/O: R %s/s W %s/s"
 TUI_ConfirmKill = " CONFIRMAR "
 TUI_ConfirmKillBody = "CONFIRMAR TERMINACIÓN"
 TUI_ConfirmYes = "Sí"
@@ -120,6 +128,7 @@ Process_PID = "PID"
 Process_USER = "USUARIO"
 Process_VIRT = "VIRT"
 Process_RES = "RES"
+Process_FOOT = "FOOT"
 Process_CPU = "CPU"
 Process_GPU = "GPU"
 Process_MEM = "MEM"
@@ -181,7 +190,7 @@ Intervalo de actualización: %dms
 ----Opciones de Inicio (Start Flags)----
 --help, -h: Mostrar este menú de ayuda
 --version, -v: Mostrar la versión de mactop
---interval, -i: Fija los ms de actualización. Por defecto es 1000.
+--interval, -i: Fija el intervalo de CPU/GPU y potencia en ms. Temperaturas CPU/GPU, ventiladores y procesos se actualizan como máximo cada 2 s. Por defecto es 1000.
 --prometheus, -p: Puerto para Métricas Prometheus. Por defecto es ninguno.
 --headless: Modo consola (sin TUI, output en stdout)
 --format: Formato para el modo consola (json, yaml, xml, csv, toon). Por defecto es json.
@@ -245,7 +254,7 @@ Uso: mactop [opciones]
 Opciones:
   -h, --help              Mostrar esta ayuda
   -v, --version           Mostrar la versión de mactop
-  -i, --interval <ms>     Fijar el intervalo de actualización en milisegundos (por defecto: 1000)
+  -i, --interval <ms>     Intervalo de CPU/GPU y potencia; temperatura, ventiladores y procesos cada 2 s como máximo (por defecto: 1000)
   --foreground <color>    Fijar el color de primer plano de la UI (nombre o hex, p. ej. green, #9580FF)
   --bg <color>            Fijar el color de fondo de la UI (nombre o hex, p. ej. mocha-base, #22212C)
   -p, --prometheus <port> Ejecutar el servidor de métricas Prometheus en el puerto indicado (p. ej. :9090)

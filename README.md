@@ -8,6 +8,12 @@
 
 `mactop` is a terminal-based monitoring tool "top" designed to display real-time metrics for Apple Silicon chips written by Carsen Klock. It provides a simple and efficient way to monitor CPU and GPU usage, E-Cores and P-Cores, power consumption, GPU frequency, temperatures, and other system metrics directly from your terminal
 
+## Make Apple Silicon Visible
+
+Turn your terminal into a live Apple Silicon cockpit. `mactop` brings compute, memory pressure, DRAM bandwidth, power, thermals, fans, and the processes driving them into one fast, keyboard-first view. Spot a runaway workload, sustained thermal pressure, or a memory-and-disk-heavy process before it becomes a slowdown.
+
+The unified dashboard is built for the moments when a single percentage is not enough: compare CPU, GPU, and ANE activity against memory, DRAM, power, temperature, and fan trends on the same timeline, then sort the compact process list by `ACT` to find the work that matters now.
+
 ![mactop](mactop.gif)
 
 ## Compatibility
@@ -38,15 +44,16 @@
 - Proportional per process GPU usage (experimental)
 - Multiple volume display (shows Mac HD + mounted external volumes)
 - Easy-to-read terminal UI
-- **20 Layouts**: (`l` to cycle layouts) — includes a GPU + Memory focused layout with a DRAM read/write bandwidth history chart
+- **21 Layouts**: (`l` to cycle layouts) — includes a GPU + Memory focused layout with a DRAM read/write bandwidth history chart
   - New `history_soc` layout (`a` to jump to it): four large history StepCharts showing **CPU, GPU, ANE, and DRAM + ANE Bandwidth (Read/Write)** side-by-side, with a compact process list at the bottom. Ideal for observing sustained load, on-device Neural Engine inference, and memory bandwidth behavior over time.
+  - New `unified` layout: the left two thirds align four history rows for CPU/GPU/ANE, memory/DRAM, SoC power, and temperatures/fans. The right third shares those row boundaries for CPU cores, processes, network I/O, and disk I/O. The Compute title shows CPU, frequency-adjusted GPU, and ANE peaks for the last 5 minutes, last hour, and current run. CPU/GPU temperatures, fan status, and the compact process list refresh at most every two seconds to bound monitoring overhead; slower environmental sensors retain their latest reading between refreshes, while CPU/GPU and power continue to follow the configured update interval. Its compact process list includes sortable `ACT` (0-9): a rounded display of a fractional activity score derived from CPU, proportional GPU time, memory page-ins plus the larger of RSS/physical footprint, and per-process disk I/O. Network traffic is excluded because it is not collected per PID.
 - **Persistent Settings**: Remembers your Layout and Theme choice across restarts
 - Customizable UI color (green, red, blue, skyblue, magenta, yellow, gold, silver, white, lime, orange, violet, pink, and more) (`c` to cycle colors)
 - Customizable background color (`b` to cycle colors)
-- Customizable update interval (default is 1000ms) (`-` or `=` to speed up, `+` to slow down)
+- Customizable CPU/GPU usage and power update interval (default is 1000ms) (`-` or `=` to speed up, `+` to slow down); temperatures, fans, and process lists refresh at most every 2 seconds
 - Process list matching htop format (VIRT in GB, CPU normalized by core count)
 - **Process Management**: Kill processes directly from the UI (F9) with safe confirmation.
-- **Process Filter**: Search and filter processes by name (`/`)
+- **Process Filter**: Press `/` to enter a process-name search, type a query, then press `Enter` to apply it (`Esc` clears it). Works in both the full process table and the compact list in the `unified` layout.
 - **Navigation**: Enhanced Vim-like navigation (`g` top, `G` bottom, `j`/`k` scroll)
 - **Headless Mode**: Output JSON metrics to stdout for scripting/logging (`--headless`)
 - **JSON Formatting**: Pretty print JSON output (`--pretty`) or set collection count (`--count <n>`)
@@ -148,7 +155,7 @@ mactop --headless --format toon
 - `--format`: Output format for headless mode (json, yaml, xml, toon). Default is json.
 - `--count`: Number of samples to collect in headless mode (0 = infinite).
 - `--pretty`: Pretty print JSON output in headless mode.
-- `--interval` or `-i`: Set the update interval in milliseconds. Default is 1000.
+- `--interval` or `-i`: Set the CPU/GPU usage and power update interval in milliseconds. CPU/GPU temperatures, fans, and process lists refresh at most every 2 seconds. Default is 1000.
 - `--foreground`: Set the UI foreground color. Accepts named colors (green, red, blue, etc.) or hex colors (#9580FF).
 - `--bg` or `--background`: Set the UI background color. Accepts named colors (mocha-base, etc.) or hex colors (#22212C).
 - `--prometheus` or `-p`: Set and enable the local Prometheus metrics server on the given port. Default is disabled. (e.g. -p 2112 to enable Prometheus metrics on port 2112)
@@ -333,13 +340,13 @@ Use the following keys to interact with the application while its running:
 - `p`: Party Mode (Randomly cycles through colors)
 - `i`: Toggle Info layout (displays system info)
 - `F` (Shift+f): Toggle Fan & Thermals layout (fan monitoring + all temperature sensors)
-- `l`: Cycle through the 19 available layouts.
+- `l`: Cycle through the 21 available layouts.
 - `+` or `=`: Increase update interval (slower updates).
 - `-`: Decrease update interval (faster updates).
 - `F9`: Kill the currently selected process (pauses updates while selecting).
 - `Arrow Keys` or `h/j/k/l`: Navigate the process list and select columns.
 - `g` / `G`: Jump to the top or bottom of the process list.
-- `/`: Search/Filter the process list by name (Esc to clear).
+- `/`: Enter process-name search mode; type a query and press `Enter` to filter. `Esc` clears the active filter.
 - `Enter` or `Space`: Sort by the selected column.
 - `h` or `?`: Toggle the help menu.
 

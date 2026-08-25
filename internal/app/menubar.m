@@ -48,6 +48,7 @@ typedef struct {
   double tflops_fp32;
   char rdma_status[64];
   double dram_bw_combined_gbs;
+  int dram_bw_source;
   int fan_count;
   int fan_rpm[4];
   char fan_name[4][32];
@@ -1453,10 +1454,15 @@ void cleanupMenuBar(void) {
                  value:[NSString stringWithFormat:@"%.1f / %.1f GB", swapUsedGB,
                                                   swapTotalGB]];
     v = (MactopMetricView *)self.dramBwItem.view;
-    [v setTwoToneLabel:localize(@"Menu_DRAMBW")
-                 value:[NSString
-                           stringWithFormat:@"%.1f GB/s",
-                                            metrics.dram_bw_combined_gbs]];
+    NSString *dramBW;
+    if (metrics.dram_bw_source == 0) {
+      dramBW = @"calibrating";
+    } else if (metrics.dram_bw_source == 3) {
+      dramBW = [NSString stringWithFormat:@"~%.1f GB/s", metrics.dram_bw_combined_gbs];
+    } else {
+      dramBW = [NSString stringWithFormat:@"%.1f GB/s", metrics.dram_bw_combined_gbs];
+    }
+    [v setTwoToneLabel:localize(@"Menu_DRAMBW") value:dramBW];
 
     v = (MactopMetricView *)self.netItem.view;
     [v setTwoToneLabel:localize(@"Menu_Network")

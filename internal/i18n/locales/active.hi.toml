@@ -44,6 +44,10 @@ TUI_MemorySwapHistory = "मेमोरी/Swap इतिहास"
 TUI_CPUUsageHistory = "CPU उपयोग इतिहास"
 TUI_SoCPowerHistory = "SoC पावर इतिहास (CPU / GPU / ANE / DRAM)"
 TUI_SSDReadHistory = "SSD पठन (GB/s)"
+TUI_UnifiedComputeHistory = "Compute (CPU / GPU / ANE)"
+TUI_UnifiedDRAMHistory = "DRAM Bandwidth (Read / Write)"
+TUI_UnifiedNetworkHistory = "Network (Down / Up)"
+TUI_UnifiedDiskHistory = "Disk (Read / Write)"
 Metrics_SoCPowerDetail = "SoC: कुल %.1fW | ANE %s | CPU %.1fW | GPU %.1fW | DRAM %.1fW"
 Metrics_SoCPowerDetailNoANE = "SoC: कुल %.1fW | CPU %.1fW | GPU %.1fW | DRAM %.1fW"
 Metrics_SSDReadDetail = "SSD पठन %.2f GB/s (शिखर %.2f)"
@@ -57,6 +61,10 @@ Metrics_ANEHistoryPeak = "ANE %.1f%% (शिखर %.1f%%, %.2fW)"
 Metrics_ANEHistoryPeakBW = "ANE %.1f%% (शिखर %.1f%%, %.2f GB/s)"
 Metrics_BandwidthHistoryPeak = "DRAM R:%.1f W:%.1f  ANE R:%.1f W:%.1f GB/s (शिखर %.1f)"
 Metrics_GPUHistoryEff = "GPU प्रभावी %.0f%% @ %dMHz (कच्चा %.0f%%, कच्चा शिखर %.0f%%)"
+Metrics_UnifiedComputeDetail = "Compute: CPU %.0f%% | GPU %.0f%% @ %dMHz | ANE %.0f%%"
+Metrics_UnifiedDRAMDetail = "DRAM: R %.1f W %.1f GB/s (Total %.1f)"
+Metrics_UnifiedNetworkDetail = "Network: Down %s/s Up %s/s"
+Metrics_UnifiedDiskDetail = "Disk I/O: R %s/s W %s/s"
 TUI_ConfirmKill = " पुष्टि करें "
 TUI_ConfirmKillBody = "समाप्ति की पुष्टि करें"
 TUI_ConfirmYes = "हाँ"
@@ -120,6 +128,7 @@ Process_PID = "PID"
 Process_USER = "उपयोगकर्ता"
 Process_VIRT = "वर्चुअल"
 Process_RES = "भौतिक"
+Process_FOOT = "FOOT"
 Process_CPU = "CPU"
 Process_GPU = "GPU"
 Process_MEM = "मेम"
@@ -181,7 +190,7 @@ Prometheus मेट्रिक्स: %s
 ----प्रारंभ विकल्प----
 --help, -h: यह सहायता मेनू दिखाएँ
 --version, -v: संस्करण दिखाएँ
---interval, -i: अपडेट अंतराल (ms) सेट करें। डिफ़ॉल्ट: 1000.
+--interval, -i: CPU/GPU उपयोग और पावर का अपडेट अंतराल (ms) सेट करें। CPU/GPU तापमान, पंखे और प्रक्रिया सूची अधिकतम हर 2 सेकंड में अपडेट होते हैं। डिफ़ॉल्ट: 1000.
 --prometheus, -p: Prometheus मेट्रिक्स पोर्ट
 --headless: बिना इंटरफ़ेस मोड (stdout पर आउटपुट)
 --format: आउटपुट फ़ॉर्मेट (json, yaml, xml, csv, toon)
@@ -245,7 +254,7 @@ CLI_HelpText = """
 विकल्प:
   -h, --help              यह सहायता संदेश दिखाएँ
   -v, --version           mactop का संस्करण दिखाएँ
-  -i, --interval <ms>     अपडेट अंतराल मिलीसेकंड में सेट करें (डिफ़ॉल्ट: 1000)
+  -i, --interval <ms>     CPU/GPU उपयोग और पावर अंतराल; तापमान, पंखे और प्रक्रियाएँ अधिकतम हर 2 सेकंड में (डिफ़ॉल्ट: 1000)
   --foreground <रंग>      UI अग्रभूमि रंग सेट करें (नाम या hex, जैसे green, #9580FF)
   --bg <रंग>              UI पृष्ठभूमि रंग सेट करें (नाम या hex, जैसे mocha-base, #22212C)
   -p, --prometheus <पोर्ट> निर्दिष्ट पोर्ट पर Prometheus सर्वर शुरू करें (जैसे :9090)

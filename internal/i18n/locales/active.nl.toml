@@ -44,6 +44,10 @@ TUI_MemorySwapHistory = "Geheugen/Swap Historie"
 TUI_CPUUsageHistory = "CPU Gebruikshistorie"
 TUI_SoCPowerHistory = "SoC Vermogenshistorie (CPU / GPU / ANE / DRAM)"
 TUI_SSDReadHistory = "SSD-lezen (GB/s)"
+TUI_UnifiedComputeHistory = "Compute (CPU / GPU / ANE)"
+TUI_UnifiedDRAMHistory = "DRAM Bandwidth (Read / Write)"
+TUI_UnifiedNetworkHistory = "Network (Down / Up)"
+TUI_UnifiedDiskHistory = "Disk (Read / Write)"
 Metrics_SoCPowerDetail = "SoC: Totaal %.1fW | ANE %s | CPU %.1fW | GPU %.1fW | DRAM %.1fW"
 Metrics_SoCPowerDetailNoANE = "SoC: Totaal %.1fW | CPU %.1fW | GPU %.1fW | DRAM %.1fW"
 Metrics_SSDReadDetail = "SSD-lezen %.2f GB/s (Piek %.2f)"
@@ -57,6 +61,10 @@ Metrics_ANEHistoryPeak = "ANE %.1f%% (Piek %.1f%%, %.2fW)"
 Metrics_ANEHistoryPeakBW = "ANE %.1f%% (Piek %.1f%%, %.2f GB/s)"
 Metrics_BandwidthHistoryPeak = "DRAM R:%.1f W:%.1f  ANE R:%.1f W:%.1f GB/s (Piek %.1f)"
 Metrics_GPUHistoryEff = "GPU Eff. %.0f%% @ %dMHz (Ruw %.0f%%, Piek ruw %.0f%%)"
+Metrics_UnifiedComputeDetail = "Compute: CPU %.0f%% | GPU %.0f%% @ %dMHz | ANE %.0f%%"
+Metrics_UnifiedDRAMDetail = "DRAM: R %.1f W %.1f GB/s (Total %.1f)"
+Metrics_UnifiedNetworkDetail = "Network: Down %s/s Up %s/s"
+Metrics_UnifiedDiskDetail = "Disk I/O: R %s/s W %s/s"
 TUI_ConfirmKill = " BEVESTIGEN "
 TUI_ConfirmKillBody = "BEVESTIG BEËINDIGING"
 TUI_ConfirmYes = "Ja"
@@ -120,6 +128,7 @@ Process_PID = "PID"
 Process_USER = "GEBR"
 Process_VIRT = "VIRT"
 Process_RES = "RES"
+Process_FOOT = "FOOT"
 Process_CPU = "CPU"
 Process_GPU = "GPU"
 Process_MEM = "GEH"
@@ -181,7 +190,7 @@ Verversingsinterval: %dms
 ----Startopties----
 --help, -h: Hulpmenu tonen
 --version, -v: Versie tonen
---interval, -i: Verversingsinterval (ms). Standaard: 1000.
+--interval, -i: Stel het interval voor CPU/GPU en vermogen in (ms). CPU/GPU-temperaturen, ventilatoren en processen worden maximaal elke 2 s bijgewerkt. Standaard: 1000.
 --prometheus, -p: Prometheus-metrieken poort
 --headless: Zonder interface draaien (stdout)
 --format: Uitvoerformaat (json, yaml, xml, csv, toon)
@@ -245,7 +254,7 @@ Gebruik: mactop [opties]
 Opties:
   -h, --help              Dit hulpbericht tonen
   -v, --version           De versie van mactop tonen
-  -i, --interval <ms>     Verversingsinterval instellen in milliseconden (standaard: 1000)
+  -i, --interval <ms>     Interval voor CPU/GPU en vermogen; temperatuur, ventilatoren en processen maximaal elke 2 s (standaard: 1000)
   --foreground <kleur>    UI-voorgrondkleur instellen (naam of hex, bijv. green, #9580FF)
   --bg <kleur>            UI-achtergrondkleur instellen (naam of hex, bijv. mocha-base, #22212C)
   -p, --prometheus <poort> Prometheus-metrieken server starten op opgegeven poort (bijv. :9090)

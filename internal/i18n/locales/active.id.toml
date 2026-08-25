@@ -44,6 +44,10 @@ TUI_MemorySwapHistory = "Riwayat Memori/Swap"
 TUI_CPUUsageHistory = "Riwayat Penggunaan CPU"
 TUI_SoCPowerHistory = "SoC Riwayat Daya (CPU / GPU / ANE / DRAM)"
 TUI_SSDReadHistory = "Baca SSD (GB/s)"
+TUI_UnifiedComputeHistory = "Compute (CPU / GPU / ANE)"
+TUI_UnifiedDRAMHistory = "DRAM Bandwidth (Read / Write)"
+TUI_UnifiedNetworkHistory = "Network (Down / Up)"
+TUI_UnifiedDiskHistory = "Disk (Read / Write)"
 Metrics_SoCPowerDetail = "SoC: Total %.1fW | ANE %s | CPU %.1fW | GPU %.1fW | DRAM %.1fW"
 Metrics_SoCPowerDetailNoANE = "SoC: Total %.1fW | CPU %.1fW | GPU %.1fW | DRAM %.1fW"
 Metrics_SSDReadDetail = "Baca SSD %.2f GB/s (Puncak %.2f)"
@@ -57,6 +61,10 @@ Metrics_ANEHistoryPeak = "ANE %.1f%% (Puncak %.1f%%, %.2fW)"
 Metrics_ANEHistoryPeakBW = "ANE %.1f%% (Puncak %.1f%%, %.2f GB/s)"
 Metrics_BandwidthHistoryPeak = "DRAM R:%.1f W:%.1f  ANE R:%.1f W:%.1f GB/s (Puncak %.1f)"
 Metrics_GPUHistoryEff = "GPU Efektif %.0f%% @ %dMHz (Mentah %.0f%%, Puncak mentah %.0f%%)"
+Metrics_UnifiedComputeDetail = "Compute: CPU %.0f%% | GPU %.0f%% @ %dMHz | ANE %.0f%%"
+Metrics_UnifiedDRAMDetail = "DRAM: R %.1f W %.1f GB/s (Total %.1f)"
+Metrics_UnifiedNetworkDetail = "Network: Down %s/s Up %s/s"
+Metrics_UnifiedDiskDetail = "Disk I/O: R %s/s W %s/s"
 TUI_ConfirmKill = " KONFIRMASI "
 TUI_ConfirmKillBody = "KONFIRMASI PENGHENTIAN"
 TUI_ConfirmYes = "Ya"
@@ -120,6 +128,7 @@ Process_PID = "PID"
 Process_USER = "PENGGUNA"
 Process_VIRT = "VIRTUAL"
 Process_RES = "FISIK"
+Process_FOOT = "FOOT"
 Process_CPU = "CPU"
 Process_GPU = "GPU"
 Process_MEM = "MEM"
@@ -181,7 +190,7 @@ Interval Pembaruan: %dms
 ----Opsi Mulai----
 --help, -h: Tampilkan menu bantuan
 --version, -v: Tampilkan versi
---interval, -i: Interval pembaruan (ms). Default: 1000.
+--interval, -i: Atur interval CPU/GPU dan daya (ms). Suhu CPU/GPU, kipas, dan daftar proses diperbarui paling cepat setiap 2 detik. Default: 1000.
 --prometheus, -p: Port Prometheus metrics
 --headless: Mode tanpa tampilan (output ke stdout)
 --format: Format output (json, yaml, xml, csv, toon)
@@ -245,7 +254,7 @@ Penggunaan: mactop [opsi]
 Opsi:
   -h, --help              Tampilkan pesan bantuan ini
   -v, --version           Tampilkan versi mactop
-  -i, --interval <ms>     Atur interval pembaruan dalam milidetik (default: 1000)
+  -i, --interval <ms>     Interval CPU/GPU dan daya; suhu, kipas, dan proses paling cepat setiap 2 detik (default: 1000)
   --foreground <warna>    Atur warna depan UI (nama atau hex, cth. green, #9580FF)
   --bg <warna>            Atur warna latar UI (nama atau hex, cth. mocha-base, #22212C)
   -p, --prometheus <port> Jalankan server Prometheus metrics pada port yang ditentukan (cth. :9090)

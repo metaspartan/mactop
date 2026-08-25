@@ -44,6 +44,10 @@ TUI_MemorySwapHistory = "ประวัติหน่วยความจำ/
 TUI_CPUUsageHistory = "ประวัติการใช้ CPU"
 TUI_SoCPowerHistory = "SoC ประวัติพลังงาน (CPU / GPU / ANE / DRAM)"
 TUI_SSDReadHistory = "อ่าน SSD (GB/s)"
+TUI_UnifiedComputeHistory = "Compute (CPU / GPU / ANE)"
+TUI_UnifiedDRAMHistory = "DRAM Bandwidth (Read / Write)"
+TUI_UnifiedNetworkHistory = "Network (Down / Up)"
+TUI_UnifiedDiskHistory = "Disk (Read / Write)"
 Metrics_SoCPowerDetail = "SoC: รวม %.1fW | ANE %s | CPU %.1fW | GPU %.1fW | DRAM %.1fW"
 Metrics_SoCPowerDetailNoANE = "SoC: รวม %.1fW | CPU %.1fW | GPU %.1fW | DRAM %.1fW"
 Metrics_SSDReadDetail = "อ่าน SSD %.2f GB/s (สูงสุด %.2f)"
@@ -57,6 +61,10 @@ Metrics_ANEHistoryPeak = "ANE %.1f%% (สูงสุด %.1f%%, %.2fW)"
 Metrics_ANEHistoryPeakBW = "ANE %.1f%% (สูงสุด %.1f%%, %.2f GB/s)"
 Metrics_BandwidthHistoryPeak = "DRAM R:%.1f W:%.1f  ANE R:%.1f W:%.1f GB/s (สูงสุด %.1f)"
 Metrics_GPUHistoryEff = "GPU สุทธิ %.0f%% @ %dMHz (ดิบ %.0f%%, สูงสุดดิบ %.0f%%)"
+Metrics_UnifiedComputeDetail = "Compute: CPU %.0f%% | GPU %.0f%% @ %dMHz | ANE %.0f%%"
+Metrics_UnifiedDRAMDetail = "DRAM: R %.1f W %.1f GB/s (Total %.1f)"
+Metrics_UnifiedNetworkDetail = "Network: Down %s/s Up %s/s"
+Metrics_UnifiedDiskDetail = "Disk I/O: R %s/s W %s/s"
 TUI_ConfirmKill = " ยืนยัน "
 TUI_ConfirmKillBody = "ยืนยันการสิ้นสุด"
 TUI_ConfirmYes = "ใช่"
@@ -120,6 +128,7 @@ Process_PID = "PID"
 Process_USER = "ผู้ใช้"
 Process_VIRT = "เสมือน"
 Process_RES = "จริง"
+Process_FOOT = "FOOT"
 Process_CPU = "CPU"
 Process_GPU = "GPU"
 Process_MEM = "หน่วยความจำ"
@@ -181,7 +190,7 @@ Prometheus Metrics: %s
 ----ตัวเลือกการเริ่มต้น----
 --help, -h: แสดงเมนูช่วยเหลือ
 --version, -v: แสดงเวอร์ชัน
---interval, -i: ช่วงรีเฟรช (มิลลิวินาที) ค่าเริ่มต้น: 1000
+--interval, -i: ตั้งช่วง CPU/GPU และพลังงาน (มิลลิวินาที) อุณหภูมิ CPU/GPU พัดลม และรายการโปรเซสจะอัปเดตเร็วที่สุดทุก 2 วินาที ค่าเริ่มต้น: 1000
 --prometheus, -p: พอร์ต Prometheus metrics
 --headless: โหมดไม่มีหน้าจอ (ส่งออกไป stdout)
 --format: รูปแบบเอาต์พุต (json, yaml, xml, csv, toon)
@@ -245,7 +254,7 @@ CLI_HelpText = """
 ตัวเลือก:
   -h, --help              แสดงข้อความช่วยเหลือนี้
   -v, --version           แสดงเวอร์ชัน mactop
-  -i, --interval <มิลลิวินาที> ตั้งช่วงรีเฟรชเป็นมิลลิวินาที (ค่าเริ่มต้น: 1000)
+  -i, --interval <มิลลิวินาที> ช่วง CPU/GPU และพลังงาน; อุณหภูมิ พัดลม และโปรเซสเร็วที่สุดทุก 2 วินาที (ค่าเริ่มต้น: 1000)
   --foreground <สี>       ตั้งสีตัวอักษร UI (ชื่อหรือ hex เช่น green, #9580FF)
   --bg <สี>               ตั้งสีพื้นหลัง UI (ชื่อหรือ hex เช่น mocha-base, #22212C)
   -p, --prometheus <พอร์ต> เริ่มเซิร์ฟเวอร์ Prometheus บนพอร์ตที่กำหนด (เช่น :9090)

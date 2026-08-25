@@ -44,6 +44,10 @@ TUI_MemorySwapHistory = "Storico Memoria/Swap"
 TUI_CPUUsageHistory = "Storico Utilizzo CPU"
 TUI_SoCPowerHistory = "SoC Storico Potenza (CPU / GPU / ANE / DRAM)"
 TUI_SSDReadHistory = "Lettura SSD (GB/s)"
+TUI_UnifiedComputeHistory = "Compute (CPU / GPU / ANE)"
+TUI_UnifiedDRAMHistory = "DRAM Bandwidth (Read / Write)"
+TUI_UnifiedNetworkHistory = "Network (Down / Up)"
+TUI_UnifiedDiskHistory = "Disk (Read / Write)"
 Metrics_SoCPowerDetail = "SoC: Totale %.1fW | ANE %s | CPU %.1fW | GPU %.1fW | DRAM %.1fW"
 Metrics_SoCPowerDetailNoANE = "SoC: Totale %.1fW | CPU %.1fW | GPU %.1fW | DRAM %.1fW"
 Metrics_SSDReadDetail = "Lettura SSD %.2f GB/s (Picco %.2f)"
@@ -57,6 +61,10 @@ Metrics_ANEHistoryPeak = "ANE %.1f%% (Picco %.1f%%, %.2fW)"
 Metrics_ANEHistoryPeakBW = "ANE %.1f%% (Picco %.1f%%, %.2f GB/s)"
 Metrics_BandwidthHistoryPeak = "DRAM R:%.1f W:%.1f  ANE R:%.1f W:%.1f GB/s (Picco %.1f)"
 Metrics_GPUHistoryEff = "GPU Eff. %.0f%% @ %dMHz (Grezzo %.0f%%, Picco grezzo %.0f%%)"
+Metrics_UnifiedComputeDetail = "Compute: CPU %.0f%% | GPU %.0f%% @ %dMHz | ANE %.0f%%"
+Metrics_UnifiedDRAMDetail = "DRAM: R %.1f W %.1f GB/s (Total %.1f)"
+Metrics_UnifiedNetworkDetail = "Network: Down %s/s Up %s/s"
+Metrics_UnifiedDiskDetail = "Disk I/O: R %s/s W %s/s"
 TUI_ConfirmKill = " CONFERMA "
 TUI_ConfirmKillBody = "CONFERMA TERMINAZIONE"
 TUI_ConfirmYes = "Sì"
@@ -120,6 +128,7 @@ Process_PID = "PID"
 Process_USER = "UTENTE"
 Process_VIRT = "VIRT"
 Process_RES = "RES"
+Process_FOOT = "FOOT"
 Process_CPU = "CPU"
 Process_GPU = "GPU"
 Process_MEM = "MEM"
@@ -181,7 +190,7 @@ Intervallo Aggiornamento: %dms
 ----Opzioni di Avvio----
 --help, -h: Mostra questo menu
 --version, -v: Mostra la versione
---interval, -i: Intervallo aggiornamento (ms). Default: 1000.
+--interval, -i: Imposta l'intervallo di CPU/GPU e potenza (ms). Temperature CPU/GPU, ventole e processi si aggiornano al massimo ogni 2 s. Default: 1000.
 --prometheus, -p: Porta per metriche Prometheus
 --headless: Modalità senza interfaccia (output su stdout)
 --format: Formato output (json, yaml, xml, csv, toon)
@@ -245,7 +254,7 @@ Utilizzo: mactop [opzioni]
 Opzioni:
   -h, --help              Mostra questo messaggio di aiuto
   -v, --version           Mostra la versione di mactop
-  -i, --interval <ms>     Imposta l'intervallo di aggiornamento in millisecondi (default: 1000)
+  -i, --interval <ms>     Intervallo CPU/GPU e potenza; temperatura, ventole e processi al massimo ogni 2 s (default: 1000)
   --foreground <color>    Imposta il colore primo piano dell'UI (nome o hex, es. green, #9580FF)
   --bg <color>            Imposta il colore sfondo dell'UI (nome o hex, es. mocha-base, #22212C)
   -p, --prometheus <port> Avvia il server metriche Prometheus sulla porta indicata (es. :9090)
