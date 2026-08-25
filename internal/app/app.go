@@ -28,6 +28,7 @@ var (
 	menubarWorker                bool // Hidden flag for the worker process
 	titleFloatVerb               = regexp.MustCompile(`%(?:\[[0-9]+\])?[-+# 0]*\d*(?:\.\d+)?f`)
 	getExternalPowerAdapterWatts = GetExternalPowerAdapterWatts
+	getBatteryInfo               = GetBatteryInfo
 )
 
 // formatTitle rounds only floating-point title values. Chart data and current
@@ -175,6 +176,8 @@ func setupUI() {
 	anePowerHistory = make([]float64, numPoints)
 	dramPowerHistory = make([]float64, numPoints)
 	totalPowerHistory = make([]float64, numPoints)
+	batteryPercentHistory = make([]float64, numPoints)
+	batteryPercentHistorySeeded = false
 	cpuTempHistory = make([]float64, numPoints)
 	gpuTempHistory = make([]float64, numPoints)
 	memoryTempHistory = make([]float64, numPoints)
@@ -1730,6 +1733,12 @@ func updateSoCPowerHistory(cpuMetrics CPUMetrics) {
 	shiftAndAppend(anePowerHistory, cpuMetrics.ANEW)
 	shiftAndAppend(dramPowerHistory, cpuMetrics.DRAMW)
 	shiftAndAppend(totalPowerHistory, cpuMetrics.PackageW)
+	battery := BatteryInfo{}
+	showBattery := false
+	if currentConfig.DefaultLayout == LayoutUnified {
+		battery = getBatteryInfo()
+		showBattery = appendBatteryPercentHistory(battery)
+	}
 
 	if socPowerHistoryChart != nil {
 		termWidth, _ := GetCachedTerminalDimensions()
@@ -1774,15 +1783,11 @@ func updateSoCPowerHistory(cpuMetrics CPUMetrics) {
 			maxVal = 0.5
 		}
 
-		// Total is first so the component traces remain visible where they overlap.
+		chartMax := maxVal * 1.15
+		// Start with physical power traces; a present battery series is prepended
+		// below them after all power components are assembled.
 		socPowerHistoryChart.Data = [][]float64{visTotal, visCPU, visGPU, visDRAM}
-		socPowerHistoryChart.MaxVal = maxVal * 1.15
-		// ANE is omitted from the labels and title entirely when its energy
-		// counter is provably dead (macOS 27+) — there is no reading to show.
-		// The (flat) series itself stays plotted so the chart structure is
-		// stable, and the label/segment return automatically if a future OS
-		// build revives the counter (aneBWLabelMode flips off when watts flow).
-		aneDead := aneBWLabelMode(cpuMetrics)
+		socPowerHistoryChart.MaxVal = chartMax
 		labels := []string{
 			fmt.Sprintf("T %.1fW", cpuMetrics.PackageW),
 			fmt.Sprintf("C %.1fW", cpuMetrics.CPUW),
@@ -1801,22 +1806,47 @@ func updateSoCPowerHistory(cpuMetrics CPUMetrics) {
 			fmt.Sprintf("G %.0fW", historicalPeak("power-gpu", seriesMax(gpuPowerHistory))),
 			fmt.Sprintf("D %.0fW", historicalPeak("power-dram", seriesMax(dramPowerHistory))),
 		}
-		if !aneDead {
-			socPowerHistoryChart.Data = append(socPowerHistoryChart.Data, visANE)
-			labels = append(labels, fmt.Sprintf("A %.1fW", cpuMetrics.ANEW))
-			peakLabels = append(peakLabels, fmt.Sprintf("A %.0fW", seriesMax(visANE)))
-			historyPeakLabels = append(historyPeakLabels, fmt.Sprintf("A %.0fW", historicalPeak("power-ane", seriesMax(anePowerHistory))))
+		// Keep ANE visible even when macOS provides no usable watt reading. The
+		// right-side `A 0.0W` value makes that state explicit instead of silently
+		// removing the current metric.
+		socPowerHistoryChart.Data = append(socPowerHistoryChart.Data, visANE)
+		labels = append(labels, fmt.Sprintf("A %.1fW", cpuMetrics.ANEW))
+		peakLabels = append(peakLabels, fmt.Sprintf("A %.0fW", seriesMax(visANE)))
+		historyPeakLabels = append(historyPeakLabels, fmt.Sprintf("A %.0fW", historicalPeak("power-ane", seriesMax(anePowerHistory))))
+		if showBattery {
+			batteryHistory := batteryPercentHistory[len(batteryPercentHistory)-visibleWidth:]
+			// The chart's primary scale is watts. Map charge percentage across its
+			// full visual height while keeping all battery labels in real percent.
+			batterySeries := make([]float64, len(batteryHistory))
+			for i, percent := range batteryHistory {
+				batterySeries[i] = chartMax * percent / 100
+			}
+			// PeakStepChart paints later series over earlier ones. Battery is the
+			// bottom layer so all physical power traces remain legible above it.
+			socPowerHistoryChart.Data = append([][]float64{batterySeries}, socPowerHistoryChart.Data...)
+			labels = append([]string{fmt.Sprintf("B %d%%", *battery.Percent)}, labels...)
+			peakLabels = append([]string{fmt.Sprintf("B %.0f%%", seriesMax(batteryHistory))}, peakLabels...)
+			historyPeakLabels = append(historyPeakLabels, fmt.Sprintf("B %.0f%%", historicalPeak("battery-percent", seriesMax(batteryPercentHistory))))
 		}
 		socPowerHistoryChart.DataLabels = labels
 		socPowerHistoryChart.ShowPeakLabels = currentConfig.DefaultLayout == LayoutUnified
 		socPowerHistoryChart.PeakLabels = peakLabels
 		// Keep CPU/GPU/ANE colors identical to the unified compute chart. Total
-		// is neutral; DRAM remains cyan, its established memory-data color.
-		socPowerHistoryChart.LineColors = socPowerHistoryColors()
+		// is neutral; DRAM remains cyan, and battery remains magenta to match the
+		// established capacity color and its bottom-layer data position.
+		lineColors := socPowerHistoryColors()
+		if showBattery {
+			lineColors = append([]ui.Color{ui.ColorMagenta}, lineColors...)
+		}
+		socPowerHistoryChart.LineColors = lineColors
 
-		legend := "CPU / GPU / DRAM"
-		if !aneDead {
-			legend += " / ANE"
+		legend := "CPU / GPU / DRAM / ANE"
+		if showBattery {
+			legend += " / Battery"
+		}
+		batteryTitleName := "Battery"
+		if !unifiedShowsSidebar(termWidth) {
+			batteryTitleName = "B"
 		}
 		powerPeak := historicalPeak("power-total", seriesMax(totalPowerHistory))
 		adapterWatts := 0
@@ -1825,7 +1855,7 @@ func updateSoCPowerHistory(cpuMetrics CPUMetrics) {
 		}
 		socPowerHistoryChart.Title = unifiedHistoryTitle(
 			formatUnifiedPowerTitle(unifiedChartTitle("TUI_SoCPowerHistory", legend), powerPeak, adapterWatts),
-			namedHistoryValues(historyPeakLabels[1:], map[string]string{"C": "CPU", "G": "GPU", "D": "DRAM", "A": "ANE"}),
+			namedHistoryValues(historyPeakLabels[1:], map[string]string{"C": "CPU", "G": "GPU", "D": "DRAM", "A": "ANE", "B": batteryTitleName}),
 		)
 		setUnifiedTitleSpans(socPowerHistoryChart,
 			titleMetricColor{Name: "Total", Color: ui.ColorSilver},
@@ -1833,8 +1863,34 @@ func updateSoCPowerHistory(cpuMetrics CPUMetrics) {
 			titleMetricColor{Name: "GPU", Color: ui.ColorYellow},
 			titleMetricColor{Name: "DRAM", Color: ui.ColorCyan},
 			titleMetricColor{Name: "ANE", Color: ui.ColorGreen},
+			titleMetricColor{Name: batteryTitleName, Color: ui.ColorMagenta},
 		)
 	}
+}
+
+// appendBatteryPercentHistory records a real battery reading for Layout 21.
+// First-use seeding prevents a fabricated zero-to-current-charge jump.
+func appendBatteryPercentHistory(battery BatteryInfo) bool {
+	if !battery.Displayable() {
+		return false
+	}
+	// Startup sizes the power histories to the terminal-aware buffer length.
+	// Keep this optional series aligned even if a future resize path forgets it.
+	if len(batteryPercentHistory) != len(totalPowerHistory) {
+		batteryPercentHistory = make([]float64, len(totalPowerHistory))
+		batteryPercentHistorySeeded = false
+	}
+	percent := float64(*battery.Percent)
+	if !batteryPercentHistorySeeded {
+		for i := range batteryPercentHistory {
+			batteryPercentHistory[i] = percent
+		}
+		batteryPercentHistorySeeded = true
+	} else {
+		shiftAndAppend(batteryPercentHistory, percent)
+	}
+	recordHistoricalPeak("battery-percent", percent)
+	return true
 }
 
 func formatUnifiedPowerTitle(title string, historicalPeak float64, adapterWatts int) string {
@@ -2017,7 +2073,8 @@ func memoryTitleMetricColors() []titleMetricColor {
 }
 
 // socPowerHistoryColors follows Total/CPU/GPU/DRAM/ANE series order. CPU, GPU,
-// and ANE deliberately match the A/G/C colors in unifiedComputeHistoryColors.
+// and ANE deliberately match the A/G/C colors in
+// unifiedComputeHistoryColors.
 func socPowerHistoryColors() []ui.Color {
 	return []ui.Color{ui.ColorSilver, ui.ColorRed, ui.ColorYellow, ui.ColorCyan, ui.ColorGreen}
 }

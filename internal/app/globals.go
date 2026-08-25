@@ -93,6 +93,10 @@ var (
 
 	// Per-component power histories for the SoC history layout (history_soc).
 	cpuPowerHistory, gpuPowerHistory, anePowerHistory, dramPowerHistory, totalPowerHistory = make([]float64, 100), make([]float64, 100), make([]float64, 100), make([]float64, 100), make([]float64, 100)
+	// Battery charge history is rendered only as a self-normalized series in the
+	// Layout 21 power chart, keeping its percentage scale separate from watts.
+	batteryPercentHistory       = make([]float64, 100)
+	batteryPercentHistorySeeded bool
 	// Unified dashboard thermal histories. Fans use individual full-height duty
 	// traces, while their labels retain the physical RPM readings.
 	cpuTempHistory, gpuTempHistory, memoryTempHistory, ssdTempHistory = make([]float64, 100), make([]float64, 100), make([]float64, 100), make([]float64, 100)

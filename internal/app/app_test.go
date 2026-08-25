@@ -594,6 +594,35 @@ func TestPeakStepChartKeepsMemoryAndSwapOverDRAMOnShortChart(t *testing.T) {
 	}
 }
 
+func TestPeakStepChartDrawsAllSixPowerCurrentLabels(t *testing.T) {
+	chart := NewPeakStepChart()
+	chart.Border = false
+	chart.ShowAxes = false
+	chart.ShowRightAxis = true
+	chart.SetRect(0, 0, 20, 8)
+	chart.MaxVal = 10
+	chart.Data = [][]float64{{8}, {7}, {6}, {5}, {4}, {0}}
+	chart.DataLabels = []string{"B 80%", "T 7.0W", "C 6.0W", "G 5.0W", "D 4.0W", "A 0.0W"}
+	chart.LineColors = []ui.Color{ui.ColorMagenta, ui.ColorSilver, ui.ColorRed, ui.ColorYellow, ui.ColorCyan, ui.ColorGreen}
+
+	buf := ui.NewBuffer(image.Rect(0, 0, 20, 8))
+	chart.Draw(buf)
+	for _, prefix := range []rune{'B', 'T', 'C', 'G', 'D', 'A'} {
+		found := false
+		for y := 0; y < 8 && !found; y++ {
+			for x := 0; x < 20; x++ {
+				if buf.GetCell(image.Pt(x, y)).Rune == prefix {
+					found = true
+					break
+				}
+			}
+		}
+		if !found {
+			t.Fatalf("right-side label %q was not drawn", prefix)
+		}
+	}
+}
+
 func TestPeakStepChartKeepsDifferentUnitGroupsIndependent(t *testing.T) {
 	chart := NewPeakStepChart()
 	chart.Data = [][]float64{{1.4}, {0}, {32.5}}
@@ -873,17 +902,20 @@ func TestSoCPowerHistoryDrawsTotalAndShowsOnlyItsPeakInTitle(t *testing.T) {
 	origChart, origHistory := socPowerHistoryChart, totalPowerHistory
 	origConfig := currentConfig
 	origAdapterWatts := getExternalPowerAdapterWatts
+	origBatteryInfo := getBatteryInfo
 	origWidth, origHeight := GetCachedTerminalDimensions()
 	t.Cleanup(func() {
 		socPowerHistoryChart, totalPowerHistory = origChart, origHistory
 		currentConfig = origConfig
 		getExternalPowerAdapterWatts = origAdapterWatts
+		getBatteryInfo = origBatteryInfo
 		UpdateCachedTerminalDimensions(origWidth, origHeight)
 	})
 
 	UpdateCachedTerminalDimensions(10, 20)
 	currentConfig.DefaultLayout = LayoutUnified
 	getExternalPowerAdapterWatts = func() int { return 0 }
+	getBatteryInfo = func() BatteryInfo { return BatteryInfo{} }
 	socPowerHistoryChart = NewPeakStepChart()
 	totalPowerHistory = make([]float64, 100)
 	totalPowerHistory[len(totalPowerHistory)-6] = 15
@@ -900,8 +932,74 @@ func TestSoCPowerHistoryDrawsTotalAndShowsOnlyItsPeakInTitle(t *testing.T) {
 	if got, want := socPowerHistoryChart.PeakLabels[0], "T 12W"; got != want {
 		t.Fatalf("left peak label = %q, want visible peak %q", got, want)
 	}
+	if strings.Contains(strings.Join(socPowerHistoryChart.DataLabels, " "), "B ") {
+		t.Fatalf("battery-unavailable chart labels = %v, want no battery series", socPowerHistoryChart.DataLabels)
+	}
 	if !strings.Contains(socPowerHistoryChart.Title, "Total: 15W") || strings.Contains(socPowerHistoryChart.Title, "Total: 12W/") {
 		t.Fatalf("power title = %q", socPowerHistoryChart.Title)
+	}
+}
+
+func TestSoCPowerHistoryAddsNormalizedBatteryCurveWhenAvailable(t *testing.T) {
+	origChart := socPowerHistoryChart
+	origCPU, origGPU, origANE, origDRAM, origTotal := cpuPowerHistory, gpuPowerHistory, anePowerHistory, dramPowerHistory, totalPowerHistory
+	origBatteryHistory, origBatterySeeded := batteryPercentHistory, batteryPercentHistorySeeded
+	origConfig := currentConfig
+	origAdapterWatts := getExternalPowerAdapterWatts
+	origBatteryInfo := getBatteryInfo
+	origANEBWMode := aneBWModeLatched.Load()
+	origWidth, origHeight := GetCachedTerminalDimensions()
+	t.Cleanup(func() {
+		socPowerHistoryChart = origChart
+		cpuPowerHistory, gpuPowerHistory, anePowerHistory, dramPowerHistory, totalPowerHistory = origCPU, origGPU, origANE, origDRAM, origTotal
+		batteryPercentHistory, batteryPercentHistorySeeded = origBatteryHistory, origBatterySeeded
+		currentConfig = origConfig
+		getExternalPowerAdapterWatts = origAdapterWatts
+		getBatteryInfo = origBatteryInfo
+		aneBWModeLatched.Store(origANEBWMode)
+		UpdateCachedTerminalDimensions(origWidth, origHeight)
+	})
+
+	UpdateCachedTerminalDimensions(300, 20)
+	currentConfig.DefaultLayout = LayoutUnified
+	getExternalPowerAdapterWatts = func() int { return 0 }
+	aneBWModeLatched.Store(false)
+	percent := 80
+	getBatteryInfo = func() BatteryInfo { return BatteryInfo{Present: true, Percent: &percent} }
+	socPowerHistoryChart = NewPeakStepChart()
+	cpuPowerHistory, gpuPowerHistory, anePowerHistory, dramPowerHistory, totalPowerHistory = make([]float64, 500), make([]float64, 500), make([]float64, 500), make([]float64, 500), make([]float64, 500)
+	batteryPercentHistory = make([]float64, 100)
+	batteryPercentHistorySeeded = false
+	resetHistoricalPeaks()
+	t.Cleanup(resetHistoricalPeaks)
+
+	updateSoCPowerHistory(CPUMetrics{CPUW: 4, GPUW: 3, DRAMW: 2, ANEBW: 2, PackageW: 12})
+	if got, want := socPowerHistoryChart.DataLabels[0], "B 80%"; got != want {
+		t.Fatalf("battery current label = %q, want %q", got, want)
+	}
+	if got, want := socPowerHistoryChart.PeakLabels[0], "B 80%"; got != want {
+		t.Fatalf("battery peak label = %q, want %q", got, want)
+	}
+	batterySeries := socPowerHistoryChart.Data[0]
+	if got, want := batterySeries[len(batterySeries)-1], socPowerHistoryChart.MaxVal*0.8; math.Abs(got-want) > 0.001 {
+		t.Fatalf("battery normalized value = %.3f, want %.3f", got, want)
+	}
+	if got, want := socPowerHistoryChart.LineColors[:2], []ui.Color{ui.ColorMagenta, ui.ColorSilver}; !slices.Equal(got, want) {
+		t.Fatalf("battery/total draw colors = %v, want battery below total %v", got, want)
+	}
+	if !strings.Contains(strings.Join(socPowerHistoryChart.DataLabels, " "), "A 0.0W") {
+		t.Fatalf("ANE watt-counter-unavailable labels = %v, want current A value", socPowerHistoryChart.DataLabels)
+	}
+	if !strings.Contains(socPowerHistoryChart.Title, "Battery: 80%") {
+		t.Fatalf("power title = %q, want battery peak", socPowerHistoryChart.Title)
+	}
+	UpdateCachedTerminalDimensions(99, 20)
+	updateSoCPowerHistory(CPUMetrics{CPUW: 4, GPUW: 3, DRAMW: 2, ANEBW: 2, PackageW: 12})
+	if !strings.Contains(socPowerHistoryChart.Title, "B: 80%") || strings.Contains(socPowerHistoryChart.Title, "Battery:") {
+		t.Fatalf("narrow power title = %q, want compact battery label", socPowerHistoryChart.Title)
+	}
+	if got, want := len(batteryPercentHistory), len(totalPowerHistory); got != want {
+		t.Fatalf("battery history length = %d, want power history length %d", got, want)
 	}
 }
 

@@ -457,6 +457,12 @@ func currentLabelOrder(seriesCount int) []int {
 			order = append(order, idx)
 		}
 	}
+	// The first four entries preserve the capacity/bandwidth ordering used by
+	// unified memory. Additional series (for example ANE and battery in the
+	// power chart) must still receive a right-side current label.
+	for idx := 4; idx < seriesCount; idx++ {
+		order = append(order, idx)
+	}
 	return order
 }
 
