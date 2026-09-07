@@ -749,6 +749,12 @@ static void startBgCalibrationOnce(void) {
 
 // Residency-weighted average of IOReport histogram buckets labeled
 // "  16GB/s", "1GB/s", etc. Returns -1 if this channel is not a histogram.
+//
+// Bucket 0 is an underflow/floor bin: on M4 Pro DCS BW the labels start at
+// 16 GB/s with no 0 bucket, so idle residency sits entirely in "16GB/s"
+// even when true DRAM traffic is ~0.1 GB/s (M4-base AMC idle). Count
+// bucket 0 as 0 GB/s. Higher buckets keep their labels; under load bucket
+// 0 is empty so the reading is unchanged.
 static double histogramAvgGBs(CFDictionaryRef item) {
   int32_t n = IOReportStateGetCount(item);
   if (n <= 1)
@@ -764,8 +770,8 @@ static double histogramAvgGBs(CFDictionaryRef item) {
     if (stateName != NULL)
       CFStringGetCString(stateName, sn, sizeof(sn), kCFStringEncodingUTF8);
     // atof skips leading spaces: "  16GB/s" -> 16.0
-    double gbps = atof(sn);
-    if (gbps <= 0.0)
+    double gbps = (s == 0) ? 0.0 : atof(sn);
+    if (s != 0 && gbps <= 0.0)
       continue;
     weighted += gbps * (double)r;
     tot += r;
@@ -3099,12 +3105,12 @@ PowerMetrics samplePowerMetrics(int durationMs) {
         }
       }
       // M4 Pro / M4 Max: PMP "DCS BW" / "AMCC RD|WR|RD+WR" are 32-bucket
-      // rate histograms ("  16GB/s".."256GB/s"), not byte accumulators.
+      // rate histograms ("  16GB/s".."512GB/s"), not byte accumulators.
       // IOReportSimpleGetIntegerValue returns INT64_MIN on them. AMCC is
       // the memory-controller aggregate — do not sum PACC/EACC/AGX agent
-      // histograms or they double-count. Lowest bucket is 16 GB/s, so idle
-      // cannot read as 0. max, not +=, in case a PMP re-merge duplicates
-      // the channel.
+      // histograms or they double-count. Bucket 0 is an underflow bin
+      // (histogramAvgGBs counts it as 0), otherwise idle is a phantom
+      // 16 GB/s. max, not +=, in case a PMP re-merge duplicates the channel.
       if (strcmp(sub, "DCS BW") == 0 && strncmp(chn, "AMCC ", 5) == 0) {
         double avgGBs = histogramAvgGBs(item);
         if (avgGBs >= 0.0) {
@@ -3341,10 +3347,10 @@ PowerMetrics samplePowerMetrics(int durationMs) {
       !g_direct_dram_bw_available || g_dram_bw_fallback_enabled;
 
   // Fallback: use PMP DRAM BW data when AMC Stats produces no bandwidth data.
-  // Prefer the AMCC RD+WR histogram for combined GB/s (one idle floor of
-  // ~16 GB/s on M4 Pro). AMCC RD and AMCC WR have independent floors, so
-  // summing them over-reports idle; scale them to the combined histogram
-  // when it is present. Go reconstructs combined as (read+write)/interval.
+  // Prefer the AMCC RD+WR histogram for combined GB/s. AMCC RD and AMCC WR
+  // have independent underflow bins, so summing them can still disagree
+  // with combined; scale them to the combined histogram when it is present.
+  // Go reconstructs combined as (read+write)/interval.
   if (allowDramFallback &&
       metrics.dramReadBytes == 0 && metrics.dramWriteBytes == 0) {
     if (pmpDramCombinedBytes > 0) {
