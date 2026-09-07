@@ -747,6 +747,108 @@ static void startBgCalibrationOnce(void) {
   }
 }
 
+// Residency-weighted average of IOReport histogram buckets labeled
+// "  16GB/s", "1GB/s", etc. Returns -1 if this channel is not a histogram.
+//
+// Bucket 0 is an underflow/floor bin: on M4 Pro DCS BW the labels start at
+// 16 GB/s with no 0 bucket, so idle residency sits entirely in "16GB/s"
+// even when true DRAM traffic is ~0.1 GB/s (M4-base AMC idle). Count
+// bucket 0 as 0 GB/s. Higher buckets keep their labels; under load bucket
+// 0 is empty so the reading is unchanged.
+static double histogramAvgGBs(CFDictionaryRef item) {
+  int32_t n = IOReportStateGetCount(item);
+  if (n <= 1)
+    return -1.0;
+  int64_t tot = 0;
+  double weighted = 0.0;
+  for (int32_t s = 0; s < n; s++) {
+    int64_t r = IOReportStateGetResidency(item, s);
+    if (r <= 0)
+      continue;
+    CFStringRef stateName = IOReportStateGetNameForIndex(item, s);
+    char sn[64] = {0};
+    if (stateName != NULL)
+      CFStringGetCString(stateName, sn, sizeof(sn), kCFStringEncodingUTF8);
+    // atof skips leading spaces: "  16GB/s" -> 16.0
+    double gbps = (s == 0) ? 0.0 : atof(sn);
+    if (s != 0 && gbps <= 0.0)
+      continue;
+    weighted += gbps * (double)r;
+    tot += r;
+  }
+  if (tot <= 0)
+    return 0.0;
+  return weighted / (double)tot;
+}
+
+static int64_t histogramBytesOverWindow(double avgGBs, int durationMs,
+                                        int64_t actualDurationNs) {
+  if (avgGBs < 0.0)
+    return 0;
+  double sampleSec = (actualDurationNs > 0)
+                         ? (double)actualDurationNs / 1e9
+                         : (double)durationMs / 1000.0;
+  if (sampleSec <= 0.0)
+    return 0;
+  return (int64_t)(avgGBs * 1e9 * sampleSec);
+}
+
+static int pmpChannelIsDramOrAneFallback(CFDictionaryRef ch) {
+  char name[256] = {0};
+  char sub[64] = {0};
+  CFStringRef nm = IOReportChannelGetChannelName(ch);
+  CFStringRef sg = IOReportChannelGetSubGroup(ch);
+  if (nm != NULL)
+    CFStringGetCString(nm, name, sizeof(name), kCFStringEncodingUTF8);
+  if (sg != NULL)
+    CFStringGetCString(sg, sub, sizeof(sub), kCFStringEncodingUTF8);
+  // M4 Pro/Max DRAM: PMP "DCS BW" / "AMCC RD|WR|RD+WR" rate histograms.
+  // Do not keep PACC/EACC/AGX agent histograms — AMCC is the aggregate.
+  if (strcmp(sub, "DCS BW") == 0 && strncmp(name, "AMCC ", 5) == 0)
+    return 1;
+  // Older chips: PMP "DRAM BW" simple integer byte counters (if present).
+  if (strcmp(sub, "DRAM BW") == 0)
+    return 1;
+  // ANE utilization + AF BW histograms (same filter as the ANE-only merge).
+  if (strstr(name, "ANE") != NULL || strstr(name, "ane") != NULL)
+    return 1;
+  return 0;
+}
+
+// Keep only the PMP channels mactop actually parses for DRAM/ANE bandwidth.
+// The full PMP group is 500+ channels and is a large per-tick IPC cost.
+static CFMutableDictionaryRef copyFilteredPMPFallback(CFDictionaryRef pmp) {
+  CFArrayRef arr = NULL;
+  if (pmp != NULL)
+    arr = CFDictionaryGetValue(pmp, CFSTR("IOReportChannels"));
+  if (arr == NULL)
+    return NULL;
+  CFMutableArrayRef keep =
+      CFArrayCreateMutable(kCFAllocatorDefault, 0, &kCFTypeArrayCallBacks);
+  if (keep == NULL)
+    return NULL;
+  CFIndex n = CFArrayGetCount(arr);
+  for (CFIndex i = 0; i < n; i++) {
+    CFDictionaryRef ch = (CFDictionaryRef)CFArrayGetValueAtIndex(arr, i);
+    if (pmpChannelIsDramOrAneFallback(ch))
+      CFArrayAppendValue(keep, ch);
+  }
+  if (CFArrayGetCount(keep) == 0) {
+    CFRelease(keep);
+    return NULL;
+  }
+  CFMutableDictionaryRef out = CFDictionaryCreateMutable(
+      kCFAllocatorDefault, 0, &kCFTypeDictionaryKeyCallBacks,
+      &kCFTypeDictionaryValueCallBacks);
+  if (out == NULL) {
+    CFRelease(keep);
+    return NULL;
+  }
+  CFDictionarySetValue(out, CFSTR("IOReportChannels"), keep);
+  CFRelease(keep);
+  return out;
+}
+
 static void ensurePMPDramChannels(void) {
   if (g_pmp_channels_attempted || g_channels == NULL)
     return;
@@ -756,6 +858,14 @@ static void ensurePMPDramChannels(void) {
   if (pmpChan == NULL) {
     // No PMP group exists on this machine — permanent, mark attempted so we
     // don't probe every sample.
+    g_pmp_channels_attempted = 1;
+    return;
+  }
+
+  CFMutableDictionaryRef pmpFiltered = copyFilteredPMPFallback(pmpChan);
+  CFRelease(pmpChan);
+  if (pmpFiltered == NULL) {
+    // PMP exists but has none of the DRAM/ANE channels we parse.
     g_pmp_channels_attempted = 1;
     return;
   }
@@ -771,11 +881,11 @@ static void ensurePMPDramChannels(void) {
   CFMutableDictionaryRef merged =
       CFDictionaryCreateMutableCopy(kCFAllocatorDefault, 0, g_channels);
   if (merged == NULL) {
-    CFRelease(pmpChan);
+    CFRelease(pmpFiltered);
     return; // transient allocation failure — retry on a later sample
   }
-  IOReportMergeChannels((CFDictionaryRef)merged, pmpChan, NULL);
-  CFRelease(pmpChan);
+  IOReportMergeChannels((CFDictionaryRef)merged, pmpFiltered, NULL);
+  CFRelease(pmpFiltered);
 
   CFMutableDictionaryRef subsystem = NULL;
   IOReportSubscriptionRef newSub =
@@ -1045,12 +1155,13 @@ int initIOReport() {
   }
   g_direct_dram_bw_available = hasDirectBWChannels;
 
-  // Only add PMP channels when no direct AMC bandwidth channels exist. If AMC
-  // channels exist but remain zero under load, the sampler enables fallback and
-  // re-subscribes with PMP dynamically.
+  // Only add PMP DRAM/ANE channels when no direct AMC bandwidth channels exist.
+  // If AMC channels exist but remain zero under load, the sampler enables
+  // fallback and re-subscribes with the filtered PMP set dynamically.
   if (!g_direct_dram_bw_available) {
-    // PMP is cheap to add compared with calibration; calibration stays deferred
-    // until runtime activity proves there is memory traffic to recover.
+    // Filtered PMP (AMCC DCS-BW + ANE + legacy DRAM BW) is cheap compared
+    // with calibration; calibration stays deferred until runtime activity
+    // proves there is memory traffic to recover.
     ensurePMPDramChannels();
   }
 
@@ -1066,11 +1177,12 @@ int initIOReport() {
   //
   // Fix: pull in *only* the ANE-related PMP channels (filtered by name).
   // This binds us to the correct IOReport data for ANE without the full PMP cost.
-  // Skipped when ensurePMPDramChannels() already merged the full PMP group
-  // above (A-series, and M5+ without direct AMC BW): merging the ANE channels
-  // again would duplicate them in the subscription. The ANE parsers in
-  // samplePowerMetrics are duplicate-safe (max, not sum) either way — the
-  // dynamic PMP fallback re-merge can still introduce duplicates later.
+  // Skipped when ensurePMPDramChannels() already merged the filtered PMP set
+  // above (M4 Pro/Max, A-series, and M5+ without direct AMC BW): that set
+  // already includes ANE channels, so merging them again would duplicate
+  // them in the subscription. The ANE parsers in samplePowerMetrics are
+  // duplicate-safe (max, not sum) either way — the dynamic PMP fallback
+  // re-merge can still introduce duplicates later.
   if (!g_pmp_channels_attempted) {
     CFDictionaryRef pmpAll = IOReportCopyChannelsInGroup(CFSTR("PMP"), NULL, 0, 0, 0);
     if (pmpAll) {
@@ -2992,6 +3104,30 @@ PowerMetrics samplePowerMetrics(int durationMs) {
           }
         }
       }
+      // M4 Pro / M4 Max: PMP "DCS BW" / "AMCC RD|WR|RD+WR" are 32-bucket
+      // rate histograms ("  16GB/s".."512GB/s"), not byte accumulators.
+      // IOReportSimpleGetIntegerValue returns INT64_MIN on them. AMCC is
+      // the memory-controller aggregate — do not sum PACC/EACC/AGX agent
+      // histograms or they double-count. Bucket 0 is an underflow bin
+      // (histogramAvgGBs counts it as 0), otherwise idle is a phantom
+      // 16 GB/s. max, not +=, in case a PMP re-merge duplicates the channel.
+      if (strcmp(sub, "DCS BW") == 0 && strncmp(chn, "AMCC ", 5) == 0) {
+        double avgGBs = histogramAvgGBs(item);
+        if (avgGBs >= 0.0) {
+          int64_t bytes = histogramBytesOverWindow(
+              avgGBs, durationMs, metrics.actualDurationNs);
+          if (strcmp(chn, "AMCC RD+WR") == 0) {
+            if (bytes > pmpDramCombinedBytes)
+              pmpDramCombinedBytes = bytes;
+          } else if (strcmp(chn, "AMCC RD") == 0) {
+            if (bytes > pmpDramReadBytes)
+              pmpDramReadBytes = bytes;
+          } else if (strcmp(chn, "AMCC WR") == 0) {
+            if (bytes > pmpDramWriteBytes)
+              pmpDramWriteBytes = bytes;
+          }
+        }
+      }
       // ANE on macOS 27+ / M5: every PMP ANE channel is a STATE channel
       // (format 2). IOReportSimpleGetIntegerValue returns garbage (INT64_MIN)
       // on them, so all parsing below uses the State* getters only.
@@ -3211,14 +3347,28 @@ PowerMetrics samplePowerMetrics(int durationMs) {
       !g_direct_dram_bw_available || g_dram_bw_fallback_enabled;
 
   // Fallback: use PMP DRAM BW data when AMC Stats produces no bandwidth data.
+  // Prefer the AMCC RD+WR histogram for combined GB/s. AMCC RD and AMCC WR
+  // have independent underflow bins, so summing them can still disagree
+  // with combined; scale them to the combined histogram when it is present.
+  // Go reconstructs combined as (read+write)/interval.
   if (allowDramFallback &&
       metrics.dramReadBytes == 0 && metrics.dramWriteBytes == 0) {
-    metrics.dramReadBytes = pmpDramReadBytes;
-    metrics.dramWriteBytes = pmpDramWriteBytes;
-    if (metrics.dramReadBytes == 0 && metrics.dramWriteBytes == 0 &&
-        pmpDramCombinedBytes > 0) {
-      metrics.dramReadBytes = pmpDramCombinedBytes / 2;
-      metrics.dramWriteBytes = pmpDramCombinedBytes - metrics.dramReadBytes;
+    if (pmpDramCombinedBytes > 0) {
+      int64_t rd = pmpDramReadBytes;
+      int64_t wr = pmpDramWriteBytes;
+      if (rd + wr <= 0) {
+        rd = pmpDramCombinedBytes / 2;
+        wr = pmpDramCombinedBytes - rd;
+      } else {
+        double scale = (double)pmpDramCombinedBytes / (double)(rd + wr);
+        rd = (int64_t)(rd * scale);
+        wr = pmpDramCombinedBytes - rd;
+      }
+      metrics.dramReadBytes = rd;
+      metrics.dramWriteBytes = wr;
+    } else {
+      metrics.dramReadBytes = pmpDramReadBytes;
+      metrics.dramWriteBytes = pmpDramWriteBytes;
     }
   }
 

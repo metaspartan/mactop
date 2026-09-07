@@ -204,7 +204,8 @@ func sampleSocMetrics(durationMs int) SocMetrics {
 	}
 	// ANE bandwidth uses the same actual-interval divisor as DRAM BW so the
 	// GB/s is exact regardless of scheduler jitter (the C layer already chose
-	// the best byte source: AMC counters on M1-M4, PMP histograms on M5+).
+	// the best byte source: AMC counters on M1-M4, PMP AMCC histograms on
+	// M4 Pro/Max, PMP/power histograms on M5+).
 	var aneReadBW, aneWriteBW, aneBWCombined float64
 	if intervalSec > 0 {
 		aneReadBW = float64(pm.aneReadBytes) / intervalSec / 1e9
