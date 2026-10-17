@@ -3,6 +3,7 @@ package app
 import (
 	"fmt"
 	"math"
+	"net"
 	"net/http"
 	"strings"
 	"time"
@@ -11,8 +12,31 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-func startPrometheusServer(port string) {
-	port = strings.TrimPrefix(port, ":")
+// prometheusListenAddr turns the -p/--prometheus value into the address the
+// metrics server listens on. A bare port ("2112") or ":2112" keeps the
+// previous behaviour and listens on all interfaces; a host:port value such as
+// "127.0.0.1:2112" or "[::1]:2112" listens on that address only.
+func prometheusListenAddr(value string) string {
+	if strings.Contains(value, ":") {
+		return value
+	}
+	return ":" + value
+}
+
+// prometheusURL is the address shown to the user for the metrics endpoint.
+func prometheusURL(value string) string {
+	host, port, err := net.SplitHostPort(prometheusListenAddr(value))
+	if err != nil {
+		return value
+	}
+	if host == "" {
+		host = "localhost"
+	}
+	return "http://" + net.JoinHostPort(host, port) + "/metrics"
+}
+
+func startPrometheusServer(listen string) {
+	addr := prometheusListenAddr(listen)
 	registry := prometheus.NewRegistry()
 	registry.MustRegister(cpuUsage)
 	registry.MustRegister(ecoreUsage)
@@ -51,7 +75,7 @@ func startPrometheusServer(port string) {
 
 	http.Handle("/metrics", handler)
 	go func() {
-		err := http.ListenAndServe(":"+port, nil)
+		err := http.ListenAndServe(addr, nil)
 		if err != nil {
 			stderrLogger.Printf("Failed to start Prometheus metrics server: %v\n", err)
 		}
