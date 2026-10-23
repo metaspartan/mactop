@@ -1065,7 +1065,7 @@ func updateCPUHistory(totalUsage float64) {
 			}
 
 			// In history_soc: single current value line + peak number in title only
-			if currentConfig.DefaultLayout == LayoutHistorySoC {
+			if isHistorySoCLayout() {
 				currentPeak := 0.0
 				if len(visiblePeak) > 0 {
 					currentPeak = visiblePeak[len(visiblePeak)-1]
@@ -1101,8 +1101,8 @@ func updateMemoryHistory(memoryMetrics MemoryMetrics) {
 	if memoryHistoryChart != nil {
 		termWidth, _ := GetCachedTerminalDimensions()
 		visibleWidth := (termWidth / 2) - 4 // Half width, account for borders
-		if currentConfig.DefaultLayout == LayoutHistorySoC {
-			visibleWidth = (termWidth / 3) - 4
+		if cols := historySoCBottomColumns(); cols > 0 {
+			visibleWidth = (termWidth / cols) - 4
 		}
 		if visibleWidth <= 0 || visibleWidth > len(memoryUsedHistory) {
 			visibleWidth = len(memoryUsedHistory)
@@ -1602,7 +1602,7 @@ func renderGPUHistoryChart(gpuMetrics GPUMetrics, avgGPU, effectiveNow float64) 
 	}
 	termWidth, _ := GetCachedTerminalDimensions()
 	visibleWidth := termWidth - 4
-	if currentConfig.DefaultLayout == LayoutHistoryFull || currentConfig.DefaultLayout == LayoutHistorySoC {
+	if currentConfig.DefaultLayout == LayoutHistoryFull || isHistorySoCLayout() {
 		visibleWidth = (termWidth / 2) - 4
 	}
 	if visibleWidth <= 0 || visibleWidth > len(gpuValues) {
@@ -1613,7 +1613,7 @@ func renderGPUHistoryChart(gpuMetrics GPUMetrics, avgGPU, effectiveNow float64) 
 	visibleEffective := gpuEffectiveHistory[len(gpuEffectiveHistory)-visibleWidth:]
 	visiblePeak := gpuPeakHistory[len(gpuPeakHistory)-visibleWidth:]
 
-	if currentConfig.DefaultLayout == LayoutHistorySoC {
+	if isHistorySoCLayout() {
 		currentPeak := 0.0
 		if len(visiblePeak) > 0 {
 			currentPeak = visiblePeak[len(visiblePeak)-1]
@@ -1701,7 +1701,7 @@ func updateNetDiskUI(netdiskMetrics NetDiskMetrics) {
 	if ssdReadHistoryChart != nil {
 		termWidth, _ := GetCachedTerminalDimensions()
 		visibleWidth := termWidth - 4
-		if currentConfig.DefaultLayout == LayoutHistorySoC {
+		if historySoCBottomColumns() == 3 {
 			visibleWidth = (termWidth / 3) - 4
 		}
 		if visibleWidth <= 0 || visibleWidth > len(ssdReadHistory) {
