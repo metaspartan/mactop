@@ -39,9 +39,10 @@
 - Proportional per process GPU usage (experimental)
 - Multiple volume display (shows Mac HD + mounted external volumes)
 - Easy-to-read terminal UI
-- **22 Layouts**: (`l` to cycle layouts) — includes a GPU + Memory focused layout with a DRAM read/write bandwidth history chart, a memory-pressure layout, plus a ports layout for listening TCP/UDP sockets
+- **23 Layouts**: (`l` to cycle layouts) — includes a GPU + Memory focused layout with a DRAM read/write bandwidth history chart, a memory-pressure layout, plus a ports layout for listening TCP/UDP sockets
 - **Memory Pressure**: kernel pressure state (Normal/Warning/Critical) via `kern.memorystatus_vm_pressure_level`, with approximate history for Activity Monitor-style green/yellow/red signal
   - New `history_soc` layout (`a` to jump to it): four large history StepCharts showing **CPU, GPU, ANE, and DRAM + ANE Bandwidth (Read/Write)** side-by-side, with a compact process list at the bottom. Ideal for observing sustained load, on-device Neural Engine inference, and memory bandwidth behavior over time.
+  - `history_soc_mem` is the next layout after `history_soc`. It drops the SSD read column so memory throughput and memory in use each take half of the bottom row, the same width as the CPU, GPU, ANE, and SoC power charts.
 - **Persistent Settings**: Remembers your Layout and Theme choice across restarts
 - Customizable UI color (green, red, blue, skyblue, magenta, yellow, gold, silver, white, lime, orange, violet, pink, and more) (`c` to cycle colors)
 - Customizable background color (`b` to cycle colors)

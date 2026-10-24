@@ -20,20 +20,42 @@ const (
 	LayoutSmall           = "small"
 	LayoutNetworkIO       = "network_io"
 	LayoutInfo            = "info"
-	LayoutTiny            = "tiny"         // Compact layout with abbreviated stats + mini process list
-	LayoutMicro           = "micro"        // Ultra-compact gauges + sparklines, no process list
-	LayoutNano            = "nano"         // Dense info panel + small gauges + mini process list
-	LayoutPico            = "pico"         // Maximum density with 2x2 gauges + sparklines
-	LayoutHistory         = "history"      // StepChart history for GPU, Power, and Memory
-	LayoutHistoryFull     = "history_full" // StepChart history including CPU
-	LayoutHistorySoC      = "history_soc"  // StepChart history: CPU, GPU, ANE, DRAM Bandwidth
-	LayoutFan             = "fan"          // Fan control and temperature sensors
-	LayoutGPUMemory       = "gpu_memory"   // GPU + Memory focused with memory bandwidth chart
-	LayoutPorts           = "ports"        // Listening TCP/UDP ports per process
-	LayoutMemory          = "memory"       // Memory pressure, swap, DRAM bandwidth focused
+	LayoutTiny            = "tiny"            // Compact layout with abbreviated stats + mini process list
+	LayoutMicro           = "micro"           // Ultra-compact gauges + sparklines, no process list
+	LayoutNano            = "nano"            // Dense info panel + small gauges + mini process list
+	LayoutPico            = "pico"            // Maximum density with 2x2 gauges + sparklines
+	LayoutHistory         = "history"         // StepChart history for GPU, Power, and Memory
+	LayoutHistoryFull     = "history_full"    // StepChart history including CPU
+	LayoutHistorySoC      = "history_soc"     // StepChart history: CPU, GPU, ANE, DRAM Bandwidth
+	LayoutHistorySoCMem   = "history_soc_mem" // history_soc with the SSD column removed; memory throughput and memory in use share the bottom row
+	LayoutFan             = "fan"             // Fan control and temperature sensors
+	LayoutGPUMemory       = "gpu_memory"      // GPU + Memory focused with memory bandwidth chart
+	LayoutPorts           = "ports"           // Listening TCP/UDP ports per process
+	LayoutMemory          = "memory"          // Memory pressure, swap, DRAM bandwidth focused
 )
 
-var layoutOrder = []string{LayoutDefault, LayoutAlternative, LayoutAlternativeFull, LayoutVertical, LayoutCompact, LayoutDashboard, LayoutGaugesOnly, LayoutGPUFocus, LayoutCPUFocus, LayoutGPUMemory, LayoutMemory, LayoutNetworkIO, LayoutSmall, LayoutTiny, LayoutMicro, LayoutNano, LayoutPico, LayoutHistory, LayoutHistoryFull, LayoutHistorySoC, LayoutFan, LayoutPorts}
+var layoutOrder = []string{LayoutDefault, LayoutAlternative, LayoutAlternativeFull, LayoutVertical, LayoutCompact, LayoutDashboard, LayoutGaugesOnly, LayoutGPUFocus, LayoutCPUFocus, LayoutGPUMemory, LayoutMemory, LayoutNetworkIO, LayoutSmall, LayoutTiny, LayoutMicro, LayoutNano, LayoutPico, LayoutHistory, LayoutHistoryFull, LayoutHistorySoC, LayoutHistorySoCMem, LayoutFan, LayoutPorts}
+
+// isHistorySoCLayout reports the history_soc family. Both draw CPU, GPU, ANE,
+// and SoC power on the top rows, plus memory throughput and memory in use on
+// the bottom. history_soc also keeps an SSD column.
+func isHistorySoCLayout() bool {
+	return historySoCBottomColumns() > 0
+}
+
+// historySoCBottomColumns is the number of equal columns in the bottom row.
+// Zero means the current layout is not a history_soc layout. Chart sample
+// windows use this so about one sample lines up with one column.
+func historySoCBottomColumns() int {
+	switch currentConfig.DefaultLayout {
+	case LayoutHistorySoC:
+		return 3
+	case LayoutHistorySoCMem:
+		return 2
+	default:
+		return 0
+	}
+}
 
 func setupGrid() {
 	totalLayouts = len(layoutOrder)
@@ -142,6 +164,7 @@ var namedLayoutSetters = map[string]func(){
 	LayoutPorts:           setPortsLayoutGrid,
 	LayoutMemory:          setMemoryLayoutGrid,
 	LayoutHistorySoC:      setHistorySoCLayoutGrid,
+	LayoutHistorySoCMem:   setHistorySoCMemLayoutGrid,
 	LayoutAlternative:     setAlternativeLayoutGrid,
 	LayoutAlternativeFull: setAlternativeFullLayoutGrid,
 	LayoutVertical:        setVerticalLayoutGrid,
@@ -591,7 +614,33 @@ func setHistorySoCLayoutGrid() {
 	)
 
 	// Force orange for memory graph specifically in history_soc
-	if currentConfig.DefaultLayout == LayoutHistorySoC && memoryHistoryChart != nil {
+	if isHistorySoCLayout() && memoryHistoryChart != nil {
+		memoryHistoryChart.LineColors = []ui.Color{ui.ColorOrange, ui.ColorMagenta}
+	}
+}
+
+func setHistorySoCMemLayoutGrid() {
+	// history_soc without the SSD column. The bottom row is two equal columns,
+	// so all six panels share one width:
+	// Row 1: CPU + GPU
+	// Row 2: ANE + SoC Power
+	// Row 3: Memory throughput | Memory in use
+	grid.Set(
+		ui.NewRow(0.30,
+			ui.NewCol(1.0/2, cpuHistoryChart),
+			ui.NewCol(1.0/2, gpuHistoryChart),
+		),
+		ui.NewRow(0.30,
+			ui.NewCol(1.0/2, aneHistoryChart),
+			ui.NewCol(1.0/2, socPowerHistoryChart),
+		),
+		ui.NewRow(0.40,
+			ui.NewCol(1.0/2, bandwidthHistoryChart),
+			ui.NewCol(1.0/2, memoryHistoryChart),
+		),
+	)
+
+	if isHistorySoCLayout() && memoryHistoryChart != nil {
 		memoryHistoryChart.LineColors = []ui.Color{ui.ColorOrange, ui.ColorMagenta}
 	}
 }
