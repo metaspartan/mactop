@@ -426,6 +426,7 @@ func updateHelpText() {
 		updateInterval,
 	)
 
+	fullText += "\n  d: Toggle process details (wide: docked; small: popup). Tab: list/details focus\n"
 	lines := strings.Split(fullText, "\n")
 	_, termHeight := GetCachedTerminalDimensions()
 
@@ -532,12 +533,7 @@ func togglePartyMode() {
 				renderMutex.Lock()
 				updateProcessList()
 				width, height := ui.TerminalDimensions()
-				ui.Clear()
-				if width > 2 && height > 2 {
-					ui.Render(mainBlock, grid)
-				} else {
-					ui.Render(mainBlock)
-				}
+				drawScreen(width, height)
 				renderMutex.Unlock()
 			}
 		}()
@@ -550,6 +546,9 @@ func renderUI() {
 	renderMutex.Lock()
 	defer renderMutex.Unlock()
 	w, h := ui.TerminalDimensions()
+	if renderProcessDetails(w, h) {
+		return
+	}
 	if w > 2 && h > 2 {
 		if killPending {
 			ui.Render(mainBlock, grid, confirmModal) // Render on top

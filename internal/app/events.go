@@ -56,12 +56,14 @@ func drainProcessMetricsUpdate() {
 	case processes := <-processMetricsChan:
 		renderMutex.Lock()
 		if !isFrozen && !killPending {
+			selectedPID := processDetailsSelectionPID()
 			lastProcesses = processes
 			if searchText != "" {
 				refreshFilteredProcesses()
 			}
 			if !isPortsLayoutActive() {
 				updateProcessList()
+				restoreProcessDetailsSelection(selectedPID)
 			}
 		}
 		renderMutex.Unlock()
@@ -74,12 +76,14 @@ func drainPortMetricsUpdate() {
 	case ports := <-portMetricsChan:
 		renderMutex.Lock()
 		if !isFrozen && !killPending {
+			selectedPID := processDetailsSelectionPID()
 			lastPorts = ports
 			if searchText != "" || portsExternalOnly {
 				refreshFilteredPorts()
 			}
 			if isPortsLayoutActive() {
 				updatePortsList()
+				restoreProcessDetailsSelection(selectedPID)
 			}
 		}
 		renderMutex.Unlock()
@@ -126,6 +130,9 @@ func updateLayout(w, h int) {
 
 func drawScreen(w, h int) {
 	ui.Clear()
+	if renderProcessDetails(w, h) {
+		return
+	}
 	if w > 2 && h > 2 {
 		if killPending {
 			ui.Render(mainBlock, grid, confirmModal)
@@ -345,6 +352,11 @@ func handleInfoFanScroll(direction int) {
 
 func handleGenericMouseEvent(e ui.Event) {
 	renderMutex.Lock()
+	if handleProcessDetailsMouse(e) {
+		drawScreen(GetCachedTerminalDimensions())
+		renderMutex.Unlock()
+		return
+	}
 
 	if showHelp {
 		switch e.ID {
@@ -388,7 +400,9 @@ func handleEvents(done chan struct{}, uiEvents <-chan ui.Event) {
 		case ui.ResizeEvent:
 			handleResizeEvent(e)
 		case ui.KeyboardEvent:
-			handleKeyboardEvent(e, done)
+			if !handleProcessDetailsKeyboardEvent(e.ID) {
+				handleKeyboardEvent(e, done)
+			}
 		case ui.MouseEvent:
 			handleGenericMouseEvent(e)
 		}

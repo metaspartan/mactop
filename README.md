@@ -356,6 +356,7 @@ Use the following keys to interact with the application while its running:
 - `e`: On the ports layout, toggle external-only filter.
 - `+` or `=`: Increase update interval (slower updates).
 - `-`: Decrease update interval (faster updates).
+- `d`: Toggle process details: full command, executable path, working directory, PID and parent PID. At 150 columns × 24 rows or larger, details dock beside the dashboard and follow the selected process; list navigation, filtering and sorting remain available. Press Tab to focus the details for scrolling, and Tab again to return to the list. Smaller terminals use a scrollable popup. Resize to switch modes automatically; Escape closes details.
 - `F9`: Kill the currently selected process (pauses updates while selecting).
 - `Arrow Keys` or `h/j/k/l`: Navigate the process list and select columns.
 - `g` / `G`: Jump to the top or bottom of the process list.
