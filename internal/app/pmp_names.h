@@ -94,13 +94,39 @@ static inline bool isPmpCpuPowerChannel(const char *sub, const char *chn) {
   return *p == '\0' || strcmp(p, " SRAM") == 0;
 }
 
-// M4 Pro/Max DRAM bandwidth: PMP "DCS BW" / "AMCC RD", "AMCC WR" and
-// "AMCC RD+WR" are 32-bucket rate histograms, not byte accumulators. The
-// agent histograms in the same subgroup ("PACC0", "EACC0", "AGX", ...) must
-// be skipped: AMCC is the memory-controller aggregate, so summing agents
-// double-counts.
+// AMCC_BW_READ = 1, AMCC_BW_WRITE = 2, AMCC_BW_COMBINED = 3.
+// 0 means the name is not an AMCC DRAM rate channel.
+enum {
+  AMCC_BW_READ = 1,
+  AMCC_BW_WRITE = 2,
+  AMCC_BW_COMBINED = 3
+};
+
+// "AMCC RD+WR" on one die (M4 Pro/Max). "AMCC0 RD+WR" / "AMCC1 RD" on
+// M3 Ultra: one memory-controller aggregate per die, so the dies sum.
+// AFC/AFI/AFR histograms are fabric and are rejected by the "DCS BW" gate.
+static inline int amccDcsBwDirection(const char *chn) {
+  if (strncmp(chn, "AMCC", 4) != 0)
+    return 0;
+  const char *p = skipDigits(chn + 4);
+  if (*p != ' ')
+    return 0;
+  p++;
+  if (strcmp(p, "RD+WR") == 0)
+    return AMCC_BW_COMBINED;
+  if (strcmp(p, "RD") == 0)
+    return AMCC_BW_READ;
+  if (strcmp(p, "WR") == 0)
+    return AMCC_BW_WRITE;
+  return 0;
+}
+
+// PMP "DCS BW" AMCC channels are 32-bucket rate histograms, not byte
+// accumulators. Agent histograms in the same subgroup ("PACC0", "EACC0",
+// "AGX", ...) are skipped: AMCC is the memory-controller aggregate, so
+// summing agents double-counts.
 static inline bool isAmccDcsBwChannel(const char *sub, const char *chn) {
-  return strcmp(sub, "DCS BW") == 0 && strncmp(chn, "AMCC ", 5) == 0;
+  return strcmp(sub, "DCS BW") == 0 && amccDcsBwDirection(chn) != 0;
 }
 
 // Residency-weighted average of histogram bins, each read at its label
