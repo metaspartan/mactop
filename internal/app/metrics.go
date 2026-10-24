@@ -734,6 +734,9 @@ func collectMetrics(done chan struct{}, cpumetricsChan chan CPUMetrics, gpumetri
 	}
 }
 
+// Updated by the single metrics sampling loop; GaugeVec itself is concurrent-safe.
+var previousTempSensors = map[string]prometheus.Labels{}
+
 func updatePrometheusSensors(fans []FanInfo, sensors []TempSensor) {
 	for _, fan := range fans {
 		if fan.TachReadable {
@@ -742,9 +745,19 @@ func updatePrometheusSensors(fans []FanInfo, sensors []TempSensor) {
 			fanRPM.With(prometheus.Labels{"fan_id": fmt.Sprintf("%d", fan.ID), "fan_name": fan.Name}).Set(-1)
 		}
 	}
+	current := make(map[string]prometheus.Labels, len(sensors))
 	for _, sensor := range sensors {
-		tempSensorGauge.With(prometheus.Labels{"key": sensor.Key, "name": sensor.Name}).Set(sensor.Value)
+		labels := prometheus.Labels{"key": sensor.Key, "name": sensor.Name}
+		identity := sensor.Key + "\x00" + sensor.Name
+		current[identity] = labels
+		tempSensorGauge.With(labels).Set(sensor.Value)
 	}
+	for identity, labels := range previousTempSensors {
+		if _, exists := current[identity]; !exists {
+			tempSensorGauge.Delete(labels)
+		}
+	}
+	previousTempSensors = current
 }
 
 func shouldCollectPorts() bool {

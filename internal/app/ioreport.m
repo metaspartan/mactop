@@ -2902,9 +2902,10 @@ typedef struct IONVMeSMARTInterface {
 
 
 static void readNVMeSMARTTemps(void) {
-  // Use local storage — only update global cache if we get results.
-  // This preserves cached data when the SMART plugin intermittently fails
-  // (common on Apple Silicon embedded NVMe where the user client is unstable).
+  // Publish only successful reads from this attempt. Do not keep an old
+  // temperature indefinitely when a drive disappears or its SMART read fails.
+  g_nvme_temp_count = 0;
+  g_nvme_smart_active = 0;
   temp_sensor_t localTemps[16];
   int localCount = 0;
 
@@ -2976,12 +2977,12 @@ static void readNVMeSMARTTemps(void) {
       IONVMeSMARTInterface **smartInterface = NULL;
       HRESULT res = (*plugin)->QueryInterface(plugin,
           CFUUIDGetUUIDBytes(smartInterfaceID), (LPVOID *)&smartInterface);
-      (*plugin)->Release(plugin);
-
       if (res == S_OK && smartInterface) {
         readResult = (*smartInterface)->SMARTReadData(smartInterface, &smartData);
         (*smartInterface)->Release(smartInterface);
       }
+      // Stop closes the exclusive SMART user client; Release alone leaks it.
+      IODestroyPlugInInterface(plugin);
     }
 
     IOObjectRelease(svc);
@@ -3005,13 +3006,9 @@ static void readNVMeSMARTTemps(void) {
   }
   IOObjectRelease(iter);
 
-  // Only update global cache if we got results.
-  // If all reads failed, preserve previous cached data.
-  if (localCount > 0) {
-    memcpy(g_nvme_temps, localTemps, localCount * sizeof(temp_sensor_t));
-    g_nvme_temp_count = localCount;
-    g_nvme_smart_active = 1;
-  }
+  memcpy(g_nvme_temps, localTemps, localCount * sizeof(temp_sensor_t));
+  g_nvme_temp_count = localCount;
+  g_nvme_smart_active = (localCount > 0);
 }
 
 // --- ANE activity fallback via IORegistry power state -----------------------
@@ -4054,6 +4051,14 @@ PowerMetrics samplePowerMetrics(int durationMs) {
   // Otherwise fall back to SMC (with category-aware 10°C threshold).
   // This prevents M2 Max's incomplete/garbage HID from replacing good SMC data.
 
+  static int smcTempTick = 0;
+  int refreshSlowSensors = (smcTempTick % 5 == 0);  // Refresh every 5th tick
+  smcTempTick++;
+
+  if (refreshSlowSensors) {
+    readNVMeSMARTTemps();
+  }
+
   // Step 1: Read HID per-core sensors and get per-category counts
   temp_sensor_t hidSensors[64];
   int hidEcount = 0, hidPcount = 0, hidScount = 0, hidGPUcount = 0;
@@ -4135,9 +4140,6 @@ PowerMetrics samplePowerMetrics(int durationMs) {
   // Step 4: Add SMC sensors, skipping categories already covered by HID.
   // Tiered caching: slow-changing sensors (Ambient, Board, SSD, VRM, etc.)
   // are only read from SMC every 5th tick to reduce IPC overhead.
-  static int smcTempTick = 0;
-  int refreshSlowSensors = (smcTempTick % 5 == 0);  // Refresh every 5th tick
-  smcTempTick++;
 
   for (int i = 0; i < g_all_temp_sensor_count && validSensorCount < 512; i++) {
     char k1 = g_all_temp_sensors[i].key[1];
@@ -4181,9 +4183,6 @@ PowerMetrics samplePowerMetrics(int durationMs) {
 
   // Step 5: Append NVMe SMART temperatures.
   // Uses the same slow-sensor tick as SMC environmental sensors.
-  if (refreshSlowSensors) {
-    readNVMeSMARTTemps();
-  }
   for (int i = 0; i < g_nvme_temp_count && validSensorCount < 512; i++) {
     metrics.temps[validSensorCount++] = g_nvme_temps[i];
   }
