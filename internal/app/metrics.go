@@ -3,6 +3,7 @@ package app
 import (
 	"fmt"
 	"math"
+	"net"
 	"net/http"
 	"strings"
 	"time"
@@ -11,8 +12,31 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-func startPrometheusServer(port string) {
-	port = strings.TrimPrefix(port, ":")
+// prometheusListenAddr turns the -p/--prometheus value into the address the
+// metrics server listens on. A bare port ("2112") or ":2112" keeps the
+// previous behaviour and listens on all interfaces; a host:port value such as
+// "127.0.0.1:2112" or "[::1]:2112" listens on that address only.
+func prometheusListenAddr(value string) string {
+	if strings.Contains(value, ":") {
+		return value
+	}
+	return ":" + value
+}
+
+// prometheusURL is the address shown to the user for the metrics endpoint.
+func prometheusURL(value string) string {
+	host, port, err := net.SplitHostPort(prometheusListenAddr(value))
+	if err != nil {
+		return value
+	}
+	if host == "" {
+		host = "localhost"
+	}
+	return "http://" + net.JoinHostPort(host, port) + "/metrics"
+}
+
+func startPrometheusServer(listen string) {
+	addr := prometheusListenAddr(listen)
 	registry := prometheus.NewRegistry()
 	registry.MustRegister(cpuUsage)
 	registry.MustRegister(ecoreUsage)
@@ -51,7 +75,7 @@ func startPrometheusServer(port string) {
 
 	http.Handle("/metrics", handler)
 	go func() {
-		err := http.ListenAndServe(":"+port, nil)
+		err := http.ListenAndServe(addr, nil)
 		if err != nil {
 			stderrLogger.Printf("Failed to start Prometheus metrics server: %v\n", err)
 		}
@@ -518,60 +542,55 @@ func GetCPUPercentages() ([]float64, error) {
 	return percentages, nil
 }
 
-func getNetDiskMetrics() NetDiskMetrics {
-	var metrics NetDiskMetrics
+// Treat new devices and counter resets as new baselines, not traffic.
+func counterRate(current, previous uint64, elapsed float64) float64 {
+	if elapsed <= 0 || current < previous {
+		return 0
+	}
+	return float64(current-previous) / elapsed
+}
 
+func netDiskRates(netNow, netBefore map[string]NativeNetMetric, diskNow, diskBefore map[string]NativeDiskMetric, elapsed float64) NetDiskMetrics {
+	var metrics NetDiskMetrics
+	for name, current := range netNow {
+		if previous, exists := netBefore[name]; exists {
+			metrics.InBytesPerSec += counterRate(current.BytesRecv, previous.BytesRecv, elapsed)
+			metrics.OutBytesPerSec += counterRate(current.BytesSent, previous.BytesSent, elapsed)
+			metrics.InPacketsPerSec += counterRate(current.PacketsRecv, previous.PacketsRecv, elapsed)
+			metrics.OutPacketsPerSec += counterRate(current.PacketsSent, previous.PacketsSent, elapsed)
+		}
+	}
+	for name, current := range diskNow {
+		if previous, exists := diskBefore[name]; exists {
+			metrics.ReadKBytesPerSec += counterRate(current.ReadBytes, previous.ReadBytes, elapsed) / 1024
+			metrics.WriteKBytesPerSec += counterRate(current.WriteBytes, previous.WriteBytes, elapsed) / 1024
+			metrics.ReadOpsPerSec += counterRate(current.ReadOps, previous.ReadOps, elapsed)
+			metrics.WriteOpsPerSec += counterRate(current.WriteOps, previous.WriteOps, elapsed)
+		}
+	}
+	return metrics
+}
+
+var previousNetworkDevices map[string]NativeNetMetric
+var previousDiskDevices map[string]NativeDiskMetric
+
+func getNetDiskMetrics() NetDiskMetrics {
 	netDiskMutex.Lock()
 	defer netDiskMutex.Unlock()
-
 	now := time.Now()
 	elapsed := now.Sub(lastNetDiskTime).Seconds()
-	if elapsed <= 0 {
-		elapsed = 1
+	netMap, netErr := GetNativeNetworkMetrics()
+	diskMap, diskErr := GetNativeDiskMetrics()
+	// A failed snapshot invalidates its baseline; do not charge several
+	// intervals of accumulated counters to one interval on recovery.
+	if netErr != nil {
+		netMap = nil
 	}
-
-	// Native Network Metrics
-	netMap, err := GetNativeNetworkMetrics()
-	if err == nil {
-		var totalNet NativeNetMetric
-		for _, iface := range netMap {
-			totalNet.BytesRecv += iface.BytesRecv
-			totalNet.BytesSent += iface.BytesSent
-			totalNet.PacketsRecv += iface.PacketsRecv
-			totalNet.PacketsSent += iface.PacketsSent
-		}
-
-		if lastNetDiskTime.IsZero() {
-			lastNetStats = totalNet
-		} else {
-			metrics.InBytesPerSec = float64(totalNet.BytesRecv-lastNetStats.BytesRecv) / elapsed
-			metrics.OutBytesPerSec = float64(totalNet.BytesSent-lastNetStats.BytesSent) / elapsed
-			metrics.InPacketsPerSec = float64(totalNet.PacketsRecv-lastNetStats.PacketsRecv) / elapsed
-			metrics.OutPacketsPerSec = float64(totalNet.PacketsSent-lastNetStats.PacketsSent) / elapsed
-		}
-		lastNetStats = totalNet
+	if diskErr != nil {
+		diskMap = nil
 	}
-
-	// Native Disk Metrics
-	diskMap, err := GetNativeDiskMetrics()
-	if err == nil {
-		var totalDisk NativeDiskMetric
-		for _, d := range diskMap {
-			totalDisk.ReadBytes += d.ReadBytes
-			totalDisk.WriteBytes += d.WriteBytes
-			totalDisk.ReadOps += d.ReadOps
-			totalDisk.WriteOps += d.WriteOps
-		}
-
-		if !lastNetDiskTime.IsZero() {
-			metrics.ReadKBytesPerSec = float64(totalDisk.ReadBytes-lastDiskStats.ReadBytes) / elapsed / 1024
-			metrics.WriteKBytesPerSec = float64(totalDisk.WriteBytes-lastDiskStats.WriteBytes) / elapsed / 1024
-			metrics.ReadOpsPerSec = float64(totalDisk.ReadOps-lastDiskStats.ReadOps) / elapsed
-			metrics.WriteOpsPerSec = float64(totalDisk.WriteOps-lastDiskStats.WriteOps) / elapsed
-		}
-		lastDiskStats = totalDisk
-	}
-
+	metrics := netDiskRates(netMap, previousNetworkDevices, diskMap, previousDiskDevices, elapsed)
+	previousNetworkDevices, previousDiskDevices = netMap, diskMap
 	lastNetDiskTime = now
 	return metrics
 }
@@ -710,6 +729,9 @@ func collectMetrics(done chan struct{}, cpumetricsChan chan CPUMetrics, gpumetri
 	}
 }
 
+// Updated by the single metrics sampling loop; GaugeVec itself is concurrent-safe.
+var previousTempSensors = map[string]prometheus.Labels{}
+
 func updatePrometheusSensors(fans []FanInfo, sensors []TempSensor) {
 	for _, fan := range fans {
 		if fan.TachReadable {
@@ -718,9 +740,19 @@ func updatePrometheusSensors(fans []FanInfo, sensors []TempSensor) {
 			fanRPM.With(prometheus.Labels{"fan_id": fmt.Sprintf("%d", fan.ID), "fan_name": fan.Name}).Set(-1)
 		}
 	}
+	current := make(map[string]prometheus.Labels, len(sensors))
 	for _, sensor := range sensors {
-		tempSensorGauge.With(prometheus.Labels{"key": sensor.Key, "name": sensor.Name}).Set(sensor.Value)
+		labels := prometheus.Labels{"key": sensor.Key, "name": sensor.Name}
+		identity := sensor.Key + "\x00" + sensor.Name
+		current[identity] = labels
+		tempSensorGauge.With(labels).Set(sensor.Value)
 	}
+	for identity, labels := range previousTempSensors {
+		if _, exists := current[identity]; !exists {
+			tempSensorGauge.Delete(labels)
+		}
+	}
+	previousTempSensors = current
 }
 
 func shouldCollectPorts() bool {

@@ -251,7 +251,7 @@ func applyCustomGaugeColors(theme *CustomThemeConfig, fgColor ui.Color) {
 // the multi-line history charts (styleStepChart forces a single color).
 func applyMultiSeriesChartColors(theme *CustomThemeConfig, fgColor ui.Color) {
 	if memoryHistoryChart != nil {
-		if currentConfig.DefaultLayout == LayoutHistorySoC {
+		if isHistorySoCLayout() {
 			memoryHistoryChart.LineColors = []ui.Color{ui.ColorOrange, ui.ColorMagenta}
 		} else {
 			memColor := resolveCustomColor(theme.Memory, fgColor)
@@ -259,7 +259,7 @@ func applyMultiSeriesChartColors(theme *CustomThemeConfig, fgColor ui.Color) {
 		}
 	}
 	if bandwidthHistoryChart != nil {
-		if currentConfig.DefaultLayout != LayoutHistorySoC {
+		if !isHistorySoCLayout() {
 			bwColor := resolveCustomColor(theme.Bandwidth, fgColor)
 			if bwColor == fgColor {
 				bwColor = resolveCustomColor(theme.Memory, fgColor)

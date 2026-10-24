@@ -869,11 +869,11 @@ static double readDramPower(io_connect_t conn) {
 // Residency-weighted average of IOReport histogram buckets labeled
 // "  16GB/s", "1GB/s", etc. Returns -1 if this channel is not a histogram.
 //
-// Bucket 0 is an underflow/floor bin: on M4 Pro DCS BW the labels start at
-// 16 GB/s with no 0 bucket, so idle residency sits entirely in "16GB/s"
-// even when true DRAM traffic is ~0.1 GB/s (M4-base AMC idle). Count
-// bucket 0 as 0 GB/s. Higher buckets keep their labels; under load bucket
-// 0 is empty so the reading is unchanged.
+// Bucket 0 is an underflow/floor bin: labels start at 16 GB/s on M4 Pro
+// and 64 GB/s on M3 Ultra, with no 0 bucket, so idle residency sits
+// entirely in the first bin. Count bucket 0 as 0 GB/s. Higher buckets
+// keep their labels; under load bucket 0 is empty so the reading is
+// unchanged.
 static double histogramAvgGBs(CFDictionaryRef item) {
   int32_t n = IOReportStateGetCount(item);
   if (n <= 1)
@@ -925,8 +925,8 @@ static int pmpChannelIsParsed(CFDictionaryRef ch) {
     CFStringGetCString(nm, name, sizeof(name), kCFStringEncodingUTF8);
   if (sg != NULL)
     CFStringGetCString(sg, sub, sizeof(sub), kCFStringEncodingUTF8);
-  // M4 Pro/Max DRAM rate histograms; skips the PACC/EACC/AGX agent
-  // histograms beside them, since AMCC is the memory-controller aggregate.
+  // DRAM rate histograms ("AMCC RD+WR", "AMCC0 RD+WR", ...). Skips the
+  // PACC/EACC/AGX agent histograms beside them.
   if (isAmccDcsBwChannel(sub, name))
     return 1;
   // Older chips: PMP "DRAM BW" simple integer byte counters (if present).
@@ -1302,7 +1302,7 @@ int initIOReport() {
   // plus the "Energy" CPU cluster histograms used for CPU power on M5.
   // This binds us to the correct IOReport data for ANE without the full PMP cost.
   // Skipped when ensurePMPDramChannels() already merged the filtered PMP set
-  // above (M4 Pro/Max, A-series, and M5+ without direct AMC BW): that set
+  // above (M4 Pro/Max, M3 Ultra, A-series, and M5+ without direct AMC BW): that set
   // already includes ANE channels, so merging them again would duplicate
   // them in the subscription. The ANE parsers in samplePowerMetrics are
   // duplicate-safe (max, not sum) either way — the dynamic PMP fallback
@@ -2902,9 +2902,10 @@ typedef struct IONVMeSMARTInterface {
 
 
 static void readNVMeSMARTTemps(void) {
-  // Use local storage — only update global cache if we get results.
-  // This preserves cached data when the SMART plugin intermittently fails
-  // (common on Apple Silicon embedded NVMe where the user client is unstable).
+  // Publish only successful reads from this attempt. Do not keep an old
+  // temperature indefinitely when a drive disappears or its SMART read fails.
+  g_nvme_temp_count = 0;
+  g_nvme_smart_active = 0;
   temp_sensor_t localTemps[16];
   int localCount = 0;
 
@@ -2976,12 +2977,12 @@ static void readNVMeSMARTTemps(void) {
       IONVMeSMARTInterface **smartInterface = NULL;
       HRESULT res = (*plugin)->QueryInterface(plugin,
           CFUUIDGetUUIDBytes(smartInterfaceID), (LPVOID *)&smartInterface);
-      (*plugin)->Release(plugin);
-
       if (res == S_OK && smartInterface) {
         readResult = (*smartInterface)->SMARTReadData(smartInterface, &smartData);
         (*smartInterface)->Release(smartInterface);
       }
+      // Stop closes the exclusive SMART user client; Release alone leaks it.
+      IODestroyPlugInInterface(plugin);
     }
 
     IOObjectRelease(svc);
@@ -3005,13 +3006,9 @@ static void readNVMeSMARTTemps(void) {
   }
   IOObjectRelease(iter);
 
-  // Only update global cache if we got results.
-  // If all reads failed, preserve previous cached data.
-  if (localCount > 0) {
-    memcpy(g_nvme_temps, localTemps, localCount * sizeof(temp_sensor_t));
-    g_nvme_temp_count = localCount;
-    g_nvme_smart_active = 1;
-  }
+  memcpy(g_nvme_temps, localTemps, localCount * sizeof(temp_sensor_t));
+  g_nvme_temp_count = localCount;
+  g_nvme_smart_active = (localCount > 0);
 }
 
 // --- ANE activity fallback via IORegistry power state -----------------------
@@ -3340,6 +3337,10 @@ PowerMetrics samplePowerMetrics(int durationMs) {
   int aneBwCount = 0;
   PmpKeyedMax pmpCpu[PMP_KEYED_MAX];
   int pmpCpuCount = 0;
+  // Per-die AMCC histograms. Keyed by group+channel so PMP0/AMCC0 and
+  // PMP1/AMCC1 sum, while a re-merged duplicate of one channel does not.
+  PmpKeyedMax pmpDram[PMP_KEYED_MAX];
+  int pmpDramCount = 0;
 
   for (CFIndex i = 0; i < count; i++) {
     CFDictionaryRef item = (CFDictionaryRef)CFArrayGetValueAtIndex(channels, i);
@@ -3660,28 +3661,16 @@ PowerMetrics samplePowerMetrics(int durationMs) {
           }
         }
       }
-      // M4 Pro / M4 Max: PMP "DCS BW" / "AMCC RD|WR|RD+WR" are 32-bucket
-      // rate histograms ("  16GB/s".."512GB/s"), not byte accumulators.
-      // IOReportSimpleGetIntegerValue returns INT64_MIN on them. AMCC is
-      // the memory-controller aggregate — do not sum PACC/EACC/AGX agent
-      // histograms or they double-count. Bucket 0 is an underflow bin
-      // (histogramAvgGBs counts it as 0), otherwise idle is a phantom
-      // 16 GB/s. max, not +=, in case a PMP re-merge duplicates the channel.
+      // DCS BW AMCC rate histograms, not byte counters.
+      // "AMCC RD+WR" on one die; "AMCC0"/"AMCC1" on M3 Ultra (PMP0/PMP1).
+      // Those are separate controllers and are summed after the loop.
       if (isAmccDcsBwChannel(sub, chn)) {
         double avgGBs = histogramAvgGBs(item);
         if (avgGBs >= 0.0) {
           int64_t bytes = histogramBytesOverWindow(
               avgGBs, durationMs, metrics.actualDurationNs);
-          if (strcmp(chn, "AMCC RD+WR") == 0) {
-            if (bytes > pmpDramCombinedBytes)
-              pmpDramCombinedBytes = bytes;
-          } else if (strcmp(chn, "AMCC RD") == 0) {
-            if (bytes > pmpDramReadBytes)
-              pmpDramReadBytes = bytes;
-          } else if (strcmp(chn, "AMCC WR") == 0) {
-            if (bytes > pmpDramWriteBytes)
-              pmpDramWriteBytes = bytes;
-          }
+          pmpKeyedMaxRecord(pmpDram, &pmpDramCount, grp, chn, (double)bytes,
+                            amccDcsBwDirection(chn));
         }
       }
       // ANE on macOS 27+ / M5: every PMP ANE channel is a STATE channel
@@ -3793,6 +3782,12 @@ PowerMetrics samplePowerMetrics(int durationMs) {
   pmpAneWriteBytes += (int64_t)pmpKeyedMaxSum(aneBw, aneBwCount, ANE_BW_WRITE);
   pmpAneCombinedBytes +=
       (int64_t)pmpKeyedMaxSum(aneBw, aneBwCount, ANE_BW_COMBINED);
+  pmpDramReadBytes +=
+      (int64_t)pmpKeyedMaxSum(pmpDram, pmpDramCount, AMCC_BW_READ);
+  pmpDramWriteBytes +=
+      (int64_t)pmpKeyedMaxSum(pmpDram, pmpDramCount, AMCC_BW_WRITE);
+  pmpDramCombinedBytes +=
+      (int64_t)pmpKeyedMaxSum(pmpDram, pmpDramCount, AMCC_BW_COMBINED);
 
   // Post-loop: assign accumulated CPU cluster metrics to final metrics.
   // On M5+ chips (mClusterCount > 0): MCPU = Performance (pCluster), PCPU = Super (sCluster).
@@ -4056,6 +4051,14 @@ PowerMetrics samplePowerMetrics(int durationMs) {
   // Otherwise fall back to SMC (with category-aware 10°C threshold).
   // This prevents M2 Max's incomplete/garbage HID from replacing good SMC data.
 
+  static int smcTempTick = 0;
+  int refreshSlowSensors = (smcTempTick % 5 == 0);  // Refresh every 5th tick
+  smcTempTick++;
+
+  if (refreshSlowSensors) {
+    readNVMeSMARTTemps();
+  }
+
   // Step 1: Read HID per-core sensors and get per-category counts
   temp_sensor_t hidSensors[64];
   int hidEcount = 0, hidPcount = 0, hidScount = 0, hidGPUcount = 0;
@@ -4137,9 +4140,6 @@ PowerMetrics samplePowerMetrics(int durationMs) {
   // Step 4: Add SMC sensors, skipping categories already covered by HID.
   // Tiered caching: slow-changing sensors (Ambient, Board, SSD, VRM, etc.)
   // are only read from SMC every 5th tick to reduce IPC overhead.
-  static int smcTempTick = 0;
-  int refreshSlowSensors = (smcTempTick % 5 == 0);  // Refresh every 5th tick
-  smcTempTick++;
 
   for (int i = 0; i < g_all_temp_sensor_count && validSensorCount < 512; i++) {
     char k1 = g_all_temp_sensors[i].key[1];
@@ -4183,9 +4183,6 @@ PowerMetrics samplePowerMetrics(int durationMs) {
 
   // Step 5: Append NVMe SMART temperatures.
   // Uses the same slow-sensor tick as SMC environmental sensors.
-  if (refreshSlowSensors) {
-    readNVMeSMARTTemps();
-  }
   for (int i = 0; i < g_nvme_temp_count && validSensorCount < 512; i++) {
     metrics.temps[validSensorCount++] = g_nvme_temps[i];
   }

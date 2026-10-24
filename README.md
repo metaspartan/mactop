@@ -24,7 +24,7 @@
 - GPU frequency and usage percentage display
 - CPU and GPU temperatures + Thermal State
 - **M5 Super Core (S-Core) Support**: Full support for Apple M5's new CPU architecture (E-cores, P-cores, S-cores)
-- **DRAM Bandwidth Monitoring**: Real-time DRAM read/write bandwidth (GB/s) — AMC DCS byte counters on M1–M4, PMP AMCC rate histograms on M4 Pro/Max (no sudo), auto-calibrated power-based estimation on M5+ chips
+- **DRAM Bandwidth Monitoring**: Real-time DRAM read/write bandwidth (GB/s) — AMC DCS byte counters on M1–M4, PMP AMCC rate histograms on M4 Pro/Max and per-die AMCC0/AMCC1 on M3 Ultra (no sudo), auto-calibrated power-based estimation on M5+ chips
 - **Comprehensive Temperature Sensors**: All available SMC temperature sensors (CPU Die, GPU, Memory, SSD, Airflow, and more) with human-readable labels
 - **Fan Monitoring**: Real-time fan RPM, target speed, mode (Auto/Manual), and visual RPM bars
 - **Fan Speed Control**: Optional interactive fan speed control via `--fan-control` flag (writes to SMC), plus headless one-shot commands (`--fan-set`, `--fan-auto`, `--fan-status`) for scripts, cron, and SSH
@@ -39,9 +39,10 @@
 - Proportional per process GPU usage (experimental)
 - Multiple volume display (shows Mac HD + mounted external volumes)
 - Easy-to-read terminal UI
-- **22 Layouts**: (`l` to cycle layouts) — includes a GPU + Memory focused layout with a DRAM read/write bandwidth history chart, a memory-pressure layout, plus a ports layout for listening TCP/UDP sockets
+- **23 Layouts**: (`l` to cycle layouts) — includes a GPU + Memory focused layout with a DRAM read/write bandwidth history chart, a memory-pressure layout, plus a ports layout for listening TCP/UDP sockets
 - **Memory Pressure**: kernel pressure state (Normal/Warning/Critical) via `kern.memorystatus_vm_pressure_level`, with approximate history for Activity Monitor-style green/yellow/red signal
   - New `history_soc` layout (`a` to jump to it): four large history StepCharts showing **CPU, GPU, ANE, and DRAM + ANE Bandwidth (Read/Write)** side-by-side, with a compact process list at the bottom. Ideal for observing sustained load, on-device Neural Engine inference, and memory bandwidth behavior over time.
+  - `history_soc_mem` is the next layout after `history_soc`. It drops the SSD read column so memory throughput and memory in use each take half of the bottom row, the same width as the CPU, GPU, ANE, and SoC power charts.
 - **Persistent Settings**: Remembers your Layout and Theme choice across restarts
 - Customizable UI color (green, red, blue, skyblue, magenta, yellow, gold, silver, white, lime, orange, violet, pink, and more) (`c` to cycle colors)
 - Customizable background color (`b` to cycle colors)
@@ -163,7 +164,7 @@ mactop --headless --format toon
 - `--interval` or `-i`: Set the update interval in milliseconds. Default is 1000.
 - `--foreground`: Set the UI foreground color. Accepts named colors (green, red, blue, etc.), full palette themes (dracula, mocha, macchiato, frappe) or hex colors (#9580FF).
 - `--bg` or `--background`: Set the UI background color. Accepts named colors (dracula-base, mocha-base, etc.) or hex colors (#22212C).
-- `--prometheus` or `-p`: Set and enable the local Prometheus metrics server on the given port. Default is disabled. (e.g. -p 2112 to enable Prometheus metrics on port 2112)
+- `--prometheus` or `-p`: Set and enable the local Prometheus metrics server on the given port. Default is disabled. (e.g. -p 2112 to enable Prometheus metrics on port 2112 on all interfaces, or -p 127.0.0.1:2112 to listen on localhost only)
 - `--unit-network`: Network unit: auto, byte, kb, mb, gb (default: auto)
 - `--unit-disk`: Disk unit: auto, byte, kb, mb, gb (default: auto)
 - `--unit-temp`: Temperature unit: celsius, fahrenheit (default: celsius)
@@ -355,6 +356,7 @@ Use the following keys to interact with the application while its running:
 - `e`: On the ports layout, toggle external-only filter.
 - `+` or `=`: Increase update interval (slower updates).
 - `-`: Decrease update interval (faster updates).
+- `d`: Toggle process details: full command, executable path, working directory, PID and parent PID. At 150 columns × 24 rows or larger, details dock beside the dashboard and follow the selected process; list navigation, filtering and sorting remain available. Press Tab to focus the details for scrolling, and Tab again to return to the list. Smaller terminals use a scrollable popup. Resize to switch modes automatically; Escape closes details.
 - `F9`: Kill the currently selected process (pauses updates while selecting).
 - `Arrow Keys` or `h/j/k/l`: Navigate the process list and select columns.
 - `g` / `G`: Jump to the top or bottom of the process list.
@@ -649,7 +651,7 @@ Contributions are what make the open-source community such an amazing place to l
 ## What does mactop use to get real-time data?
 
 - **Apple SMC**: For SoC temperature sensors, System Power (PSTR, or the DC-in keys PDTR/PD0R on desktops where PSTR reads 0), fan speed monitoring (FNum, F*Ac/Mn/Mx/Tg/Md), fan speed control via SMCWrite, and comprehensive temperature sensor enumeration
-- **IOReport API**: For CPU, GPU, ANE, and DRAM power consumption (no sudo required) — DRAM GB/s from AMC DCS byte counters (M1–M4) or PMP `DCS BW` / `AMCC RD|WR|RD+WR` histograms (M4 Pro/Max; AMC Stats does not subscribe on those chips). DRAM power is also used for auto-calibrated bandwidth estimation on M5+ chips
+- **IOReport API**: For CPU, GPU, ANE, and DRAM power consumption (no sudo required) — DRAM GB/s from AMC DCS byte counters (M1–M4) or PMP `DCS BW` / `AMCC[n] RD|WR|RD+WR` histograms (M4 Pro/Max, and per-die `AMCC0`/`AMCC1` on M3 Ultra; AMC Stats does not yield DCS byte deltas on those chips). DRAM power is also used for auto-calibrated bandwidth estimation on M5+ chips
 - **IOKit**: For GPU frequency table from `pmgr` device
 - **IOHIDEventSystemClient**: Fallback for SoC temperature sensors
 - **NSProcessInfo.thermalState**: For system thermal state (Nominal/Fair/Serious/Critical)
