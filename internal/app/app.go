@@ -845,7 +845,7 @@ func Run() {
 
 	if prometheusPort != "" {
 		startPrometheusServer(prometheusPort)
-		stderrLogger.Printf("Prometheus metrics available at http://localhost:%s/metrics\n", prometheusPort)
+		stderrLogger.Printf("Prometheus metrics available at %s\n", prometheusURL(prometheusPort))
 	}
 	setupUI()
 	initializeTheme(colorName, setColor, interval, setInterval)
@@ -1836,8 +1836,8 @@ func updateTBNetUI(tbStats []ThunderboltNetStats) {
 }
 
 func parseCommandLineFlags() {
-	flag.StringVar(&prometheusPort, "prometheus", "", "Port to run Prometheus metrics server on (e.g. :9090)")
-	flag.StringVar(&prometheusPort, "p", "", "Port to run Prometheus metrics server on (e.g. :9090)")
+	flag.StringVar(&prometheusPort, "prometheus", "", "Port or host:port to run Prometheus metrics server on (e.g. 9090, or 127.0.0.1:9090 for localhost only)")
+	flag.StringVar(&prometheusPort, "p", "", "Port or host:port to run Prometheus metrics server on (e.g. 9090, or 127.0.0.1:9090 for localhost only)")
 	flag.BoolVar(&headless, "headless", false, "Run in headless mode (no TUI, output JSON to stdout)")
 	flag.BoolVar(&headlessPretty, "pretty", false, "Pretty print output in headless mode")
 	flag.IntVar(&headlessCount, "count", 0, "Number of samples to collect in headless mode (0 = infinite)")
