@@ -223,20 +223,18 @@ func sampleSocMetrics(durationMs int) SocMetrics {
 	// the requested durationMs only if the C timing was unavailable. Using the
 	// actual interval keeps GB/s correct under scheduler jitter and under the
 	// power-derived fallback, which scales bytes by sampleSec internally.
-	var dramReadBW, dramWriteBW, dramBWCombined float64
 	intervalSec := float64(pm.actualDurationNs) / 1e9
 	if intervalSec <= 0 && durationMs > 0 {
 		intervalSec = float64(durationMs) / 1000.0
 	}
-	if intervalSec > 0 {
-		dramReadBW = float64(pm.dramReadBytes) / intervalSec / 1e9
-		dramWriteBW = float64(pm.dramWriteBytes) / intervalSec / 1e9
-		dramBWCombined = float64(pm.dramReadBytes+pm.dramWriteBytes) / intervalSec / 1e9
-	}
+	dramReadBW, dramWriteBW, dramBWCombined := dramBandwidthFromBytes(
+		int64(pm.dramReadBytes), int64(pm.dramWriteBytes),
+		int64(pm.actualDurationNs), durationMs,
+	)
 	// ANE bandwidth uses the same actual-interval divisor as DRAM BW so the
 	// GB/s is exact regardless of scheduler jitter (the C layer already chose
-	// the best byte source: AMC counters on M1-M4, PMP AMCC histograms on
-	// M4 Pro/Max, PMP/power histograms on M5+).
+	// the best byte source: AMC counters on M1-M4 and PMP bandwidth histograms
+	// on M4 Pro/Max and M5+.
 	var aneReadBW, aneWriteBW, aneBWCombined float64
 	if intervalSec > 0 {
 		aneReadBW = float64(pm.aneReadBytes) / intervalSec / 1e9

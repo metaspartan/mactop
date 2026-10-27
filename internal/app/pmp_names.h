@@ -94,13 +94,31 @@ static inline bool isPmpCpuPowerChannel(const char *sub, const char *chn) {
   return *p == '\0' || strcmp(p, " SRAM") == 0;
 }
 
-// M4 Pro/Max DRAM bandwidth: PMP "DCS BW" / "AMCC RD", "AMCC WR" and
-// "AMCC RD+WR" are 32-bucket rate histograms, not byte accumulators. The
-// agent histograms in the same subgroup ("PACC0", "EACC0", "AGX", ...) must
-// be skipped: AMCC is the memory-controller aggregate, so summing agents
-// double-counts.
+typedef enum {
+  PMP_DRAM_BW_INVALID = -1,
+  PMP_DRAM_BW_READ = 0,
+  PMP_DRAM_BW_WRITE = 1,
+  PMP_DRAM_BW_COMBINED = 2
+} PmpDramBwKind;
+
+static inline PmpDramBwKind pmpAmccDramBwKind(const char *chn) {
+  if (chn == NULL || strncmp(chn, "AMCC", 4) != 0)
+    return PMP_DRAM_BW_INVALID;
+  const char *direction = chn + 4;
+  if (*direction >= '0' && *direction <= '9')
+    direction = skipDigits(direction);
+  if (strcmp(direction, " RD") == 0)
+    return PMP_DRAM_BW_READ;
+  if (strcmp(direction, " WR") == 0)
+    return PMP_DRAM_BW_WRITE;
+  if (strcmp(direction, " RD+WR") == 0 || strcmp(direction, " RW") == 0)
+    return PMP_DRAM_BW_COMBINED;
+  return PMP_DRAM_BW_INVALID;
+}
+
 static inline bool isAmccDcsBwChannel(const char *sub, const char *chn) {
-  return strcmp(sub, "DCS BW") == 0 && strncmp(chn, "AMCC ", 5) == 0;
+  return sub != NULL && strcmp(sub, "DCS BW") == 0 &&
+         pmpAmccDramBwKind(chn) != PMP_DRAM_BW_INVALID;
 }
 
 // Residency-weighted average of histogram bins, each read at its label

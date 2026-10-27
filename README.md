@@ -24,7 +24,7 @@
 - GPU frequency and usage percentage display
 - CPU and GPU temperatures + Thermal State
 - **M5 Super Core (S-Core) Support**: Full support for Apple M5's new CPU architecture (E-cores, P-cores, S-cores)
-- **DRAM Bandwidth Monitoring**: Real-time DRAM read/write bandwidth (GB/s) — AMC DCS byte counters on M1–M4, PMP AMCC rate histograms on M4 Pro/Max (no sudo), auto-calibrated power-based estimation on M5+ chips
+- **DRAM Bandwidth Monitoring**: Real-time DRAM read/write bandwidth (GB/s) — AMC DCS byte counters where available, PMP AMCC rate histograms including per-die M5+ channels, and calibrated power-based estimation as a fallback
 - **Comprehensive Temperature Sensors**: All available SMC temperature sensors (CPU Die, GPU, Memory, SSD, Airflow, and more) with human-readable labels
 - **Fan Monitoring**: Real-time fan RPM, target speed, mode (Auto/Manual), and visual RPM bars
 - **Fan Speed Control**: Optional interactive fan speed control via `--fan-control` flag (writes to SMC), plus headless one-shot commands (`--fan-set`, `--fan-auto`, `--fan-status`) for scripts, cron, and SSH
