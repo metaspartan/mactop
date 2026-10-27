@@ -3,6 +3,7 @@
 
 #include "smc.h"
 #include "pmp_names.h"
+#include "dram_bw.h"
 #import <CoreFoundation/CoreFoundation.h>
 #import <CoreWLAN/CoreWLAN.h>
 #import <Foundation/Foundation.h>
@@ -218,6 +219,26 @@ static int g_pmp_channels_attempted = 0;
 static int g_bg_calibration_started = 0;
 static double g_dramPowerFloorW = 0.0;
 static int g_dram_power_calibrated = 0;
+static int g_last_dram_bw_source = 0;
+static int64_t g_last_amc_dram_read_bytes = 0;
+static int64_t g_last_amc_dram_write_bytes = 0;
+static int64_t g_last_amc_dram_combined_bytes = 0;
+static int64_t g_last_pmp_dram_read_bytes = 0;
+static int64_t g_last_pmp_dram_write_bytes = 0;
+static int64_t g_last_pmp_dram_combined_bytes = 0;
+static int64_t g_last_dram_read_bytes = 0;
+static int64_t g_last_dram_write_bytes = 0;
+
+enum {
+  DRAM_BW_SOURCE_NONE,
+  DRAM_BW_SOURCE_AMC,
+  DRAM_BW_SOURCE_PMP,
+  DRAM_BW_SOURCE_POWER,
+  DRAM_BW_SOURCE_KPERF,
+  DRAM_BW_SOURCE_AMC_REQUEST
+};
+
+static void dumpDramBandwidthTrace(void);
 
 void setExpectedCoreCounts(int eCores, int pCores, int sCores) {
   g_expected_ecores = eCores;
@@ -703,7 +724,7 @@ static void printLiveEnergyContributors(int durationMs);
 // When direct byte counters are unavailable or appear blocked, estimate DRAM BW
 // from DRAM power. The conversion factor (GB/s per watt) is source- and
 // machine-dependent, so use the estimate only after local calibration:
-//   1. Spawn 4 threads reading 256MB buffers (>> L2 cache → every read hits DRAM)
+//   1. Spawn 4 threads reading 128MB buffers (>> L2 cache → every read hits DRAM)
 //   2. Measure exact bytes read and DRAM power delta simultaneously
 //   3. Derive: g_dramGBsPerWatt = measured_throughput / measured_power_delta
 // This avoids chip tables and avoids reporting idle bandwidth from a static
@@ -714,7 +735,7 @@ static volatile int g_calib_running = 0;
 static volatile int64_t g_calib_bytes = 0;
 
 static void *calibThread(void *arg) {
-  size_t sz = 256ULL * 1024 * 1024; // 256MB per thread (>> L2 cache per core)
+  size_t sz = 128ULL * 1024 * 1024;
   volatile char *buf = malloc(sz);
   if (!buf) return NULL;
   memset((void *)buf, 0xAB, sz);
@@ -925,8 +946,8 @@ static int pmpChannelIsParsed(CFDictionaryRef ch) {
     CFStringGetCString(nm, name, sizeof(name), kCFStringEncodingUTF8);
   if (sg != NULL)
     CFStringGetCString(sg, sub, sizeof(sub), kCFStringEncodingUTF8);
-  // M4 Pro/Max DRAM rate histograms; skips the PACC/EACC/AGX agent
-  // histograms beside them, since AMCC is the memory-controller aggregate.
+  // DRAM rate histograms; skips the PACC/EACC/AGX agent histograms beside
+  // them, since AMCC is the memory-controller aggregate.
   if (isAmccDcsBwChannel(sub, name))
     return 1;
   // Older chips: PMP "DRAM BW" simple integer byte counters (if present).
@@ -1034,6 +1055,7 @@ static void ensurePMPDramChannels(void) {
 static void calibrateDramBwFromPower(void) {
   if (g_channels == NULL || g_subscription == NULL)
     return;
+  io_connect_t calibrationSMC = SMCOpen();
 
   // Step 1: idle baseline (500ms)
   CFDictionaryRef s1 = IOReportCreateSamples(g_subscription, g_channels, NULL);
@@ -1062,6 +1084,8 @@ static void calibrateDramBwFromPower(void) {
   }
   if (s1) CFRelease(s1);
   if (s2) CFRelease(s2);
+  if (idleDramPower <= 0.001 && calibrationSMC)
+    idleDramPower = readDramPower(calibrationSMC);
 
   // Step 2: run 4 threads for ~1.5 seconds, measure during 1 second
   __sync_lock_test_and_set(&g_calib_bytes, 0);
@@ -1106,25 +1130,17 @@ static void calibrateDramBwFromPower(void) {
   }
   if (s1) CFRelease(s1);
   if (s2) CFRelease(s2);
+  if (stressDramPower <= 0.001 && calibrationSMC)
+    stressDramPower = readDramPower(calibrationSMC);
+  if (calibrationSMC)
+    SMCClose(calibrationSMC);
 
-  // Derive calibration constant
-  double deltaPower = stressDramPower - idleDramPower;
-  double throughputGBs = (double)bytesRead / 1e9; // GB in 1 second
-
-  if (deltaPower > 0.01 && throughputGBs > 1.0) {
-    g_dramGBsPerWatt = throughputGBs / deltaPower;
-    // Use 90% of measured idle as baseline: some "idle" power includes
-    // background memory traffic We want to subtract static/leakage only.
-    g_dramIdlePowerW = idleDramPower * 0.9;
-    // Sanity check: should be between 5 and 500 GB/s per watt
-    if (g_dramGBsPerWatt < 5.0 || g_dramGBsPerWatt > 500.0) {
-      g_dramGBsPerWatt = 0.0;
-      g_dramIdlePowerW = 0.0;
-      return;
-    }
-    if (g_dramIdlePowerW < 0) g_dramIdlePowerW = 0;
+  g_dramGBsPerWatt = 0.0;
+  g_dramIdlePowerW = 0.0;
+  if (dramCalibrationParameters(idleDramPower, stressDramPower, bytesRead,
+                               1.0, &g_dramGBsPerWatt,
+                               &g_dramIdlePowerW))
     g_dram_power_calibrated = 1;
-  }
 }
 
 
@@ -1677,6 +1693,8 @@ void dumpIOReportDebug(void) {
          "   power is not exposed to user space on this build; mactop reports the\n"
          "   raw 0 rather than inventing a value. ANE utilization %% comes from the\n"
          "   [UTIL] PMP floor channels above.)\n");
+
+  dumpDramBandwidthTrace();
 
   printf("\n=== End Debug Dump ===\n");
 }
@@ -3159,12 +3177,22 @@ static int readAnyAnePowered(io_service_t *svcs, int count) {
 
 PowerMetrics samplePowerMetrics(int durationMs) {
   PowerMetrics metrics = {0};
+  g_last_dram_bw_source = DRAM_BW_SOURCE_NONE;
+  g_last_amc_dram_read_bytes = 0;
+  g_last_amc_dram_write_bytes = 0;
+  g_last_amc_dram_combined_bytes = 0;
+  g_last_pmp_dram_read_bytes = 0;
+  g_last_pmp_dram_write_bytes = 0;
+  g_last_pmp_dram_combined_bytes = 0;
+  g_last_dram_read_bytes = 0;
+  g_last_dram_write_bytes = 0;
 
   if (g_subscription == NULL || g_channels == NULL) {
     if (initIOReport() != 0) {
       return metrics;
     }
   }
+  int pmpChannelsWereAvailable = g_pmp_channels_attempted;
 
   @autoreleasepool {
 
@@ -3313,6 +3341,8 @@ PowerMetrics samplePowerMetrics(int durationMs) {
   int hasAmcPartitionDcsCombined = 0;
   int hasAmcClientDcs = 0;
   int hasAmcRequestBytes = 0;
+  PmpKeyedMax pmpDramBw[PMP_KEYED_MAX];
+  int pmpDramBwCount = 0;
   int64_t pmpDramReadBytes = 0;
   int64_t pmpDramWriteBytes = 0;
   int64_t pmpDramCombinedBytes = 0;
@@ -3660,28 +3690,22 @@ PowerMetrics samplePowerMetrics(int durationMs) {
           }
         }
       }
-      // M4 Pro / M4 Max: PMP "DCS BW" / "AMCC RD|WR|RD+WR" are 32-bucket
-      // rate histograms ("  16GB/s".."512GB/s"), not byte accumulators.
+      // PMP "DCS BW" / "AMCC<n> RD|WR|RD+WR" are 32-bucket rate histograms
+      // ("  16GB/s".."512GB/s"), not byte accumulators.
       // IOReportSimpleGetIntegerValue returns INT64_MIN on them. AMCC is
       // the memory-controller aggregate — do not sum PACC/EACC/AGX agent
       // histograms or they double-count. Bucket 0 is an underflow bin
       // (histogramAvgGBs counts it as 0), otherwise idle is a phantom
-      // 16 GB/s. max, not +=, in case a PMP re-merge duplicates the channel.
+      // 16 GB/s. Deduplicate each group/channel, then sum distinct dies.
       if (isAmccDcsBwChannel(sub, chn)) {
         double avgGBs = histogramAvgGBs(item);
         if (avgGBs >= 0.0) {
           int64_t bytes = histogramBytesOverWindow(
               avgGBs, durationMs, metrics.actualDurationNs);
-          if (strcmp(chn, "AMCC RD+WR") == 0) {
-            if (bytes > pmpDramCombinedBytes)
-              pmpDramCombinedBytes = bytes;
-          } else if (strcmp(chn, "AMCC RD") == 0) {
-            if (bytes > pmpDramReadBytes)
-              pmpDramReadBytes = bytes;
-          } else if (strcmp(chn, "AMCC WR") == 0) {
-            if (bytes > pmpDramWriteBytes)
-              pmpDramWriteBytes = bytes;
-          }
+          PmpDramBwKind kind = pmpAmccDramBwKind(chn);
+          if (kind != PMP_DRAM_BW_INVALID)
+            pmpKeyedMaxRecord(pmpDramBw, &pmpDramBwCount, grp, chn,
+                              (double)bytes, (int)kind);
         }
       }
       // ANE on macOS 27+ / M5: every PMP ANE channel is a STATE channel
@@ -3821,6 +3845,22 @@ PowerMetrics samplePowerMetrics(int durationMs) {
     metrics.sClusterFreqMHz = sClusterFreq;
   }
 
+  pmpDramReadBytes = (int64_t)pmpKeyedMaxSum(
+      pmpDramBw, pmpDramBwCount, PMP_DRAM_BW_READ);
+  pmpDramWriteBytes = (int64_t)pmpKeyedMaxSum(
+      pmpDramBw, pmpDramBwCount, PMP_DRAM_BW_WRITE);
+  pmpDramCombinedBytes = (int64_t)pmpKeyedMaxSum(
+      pmpDramBw, pmpDramBwCount, PMP_DRAM_BW_COMBINED);
+  g_last_amc_dram_read_bytes = amcExactDcsReadBytes + amcPartitionDcsReadBytes +
+                               amcClientDcsReadBytes;
+  g_last_amc_dram_write_bytes = amcExactDcsWriteBytes + amcPartitionDcsWriteBytes +
+                                amcClientDcsWriteBytes;
+  g_last_amc_dram_combined_bytes = amcExactDcsCombinedBytes +
+                                   amcPartitionDcsCombinedBytes;
+  g_last_pmp_dram_read_bytes = pmpDramReadBytes;
+  g_last_pmp_dram_write_bytes = pmpDramWriteBytes;
+  g_last_pmp_dram_combined_bytes = pmpDramCombinedBytes;
+
   // Prefer whole-CPU energy totals; fall back to the sum of cluster-type
   // channels when only those exist (newer chip/OS naming generations).
   metrics.cpuPower = (cpuTotalEnergyW > 0) ? cpuTotalEnergyW : cpuTypedEnergyW;
@@ -3897,6 +3937,7 @@ PowerMetrics samplePowerMetrics(int durationMs) {
       // Counters are producing data — trust them and disable any fallback.
       g_direct_dram_bw_zero_samples = 0;
       g_dram_bw_fallback_enabled = 0;
+      g_last_dram_bw_source = DRAM_BW_SOURCE_AMC;
     } else {
       // DCS read zero. This is evaluated every time (no "seen data" latch):
       // if the counters worked earlier but later stall under load, we must
@@ -3909,7 +3950,6 @@ PowerMetrics samplePowerMetrics(int durationMs) {
       if (g_direct_dram_bw_zero_samples >= 3 && fallbackTrafficLikely) {
         g_dram_bw_fallback_enabled = 1;
         ensurePMPDramChannels();
-        startBgCalibrationOnce();
       }
     }
   }
@@ -3922,8 +3962,8 @@ PowerMetrics samplePowerMetrics(int durationMs) {
   // have independent underflow bins, so summing them can still disagree
   // with combined; scale them to the combined histogram when it is present.
   // Go reconstructs combined as (read+write)/interval.
-  if (allowDramFallback &&
-      metrics.dramReadBytes == 0 && metrics.dramWriteBytes == 0) {
+  if (dramPmpFallbackNeeded(allowDramFallback, metrics.dramReadBytes,
+                            metrics.dramWriteBytes)) {
     if (pmpDramCombinedBytes > 0) {
       int64_t rd = pmpDramReadBytes;
       int64_t wr = pmpDramWriteBytes;
@@ -3941,6 +3981,15 @@ PowerMetrics samplePowerMetrics(int durationMs) {
       metrics.dramReadBytes = pmpDramReadBytes;
       metrics.dramWriteBytes = pmpDramWriteBytes;
     }
+    if (metrics.dramReadBytes > 0 || metrics.dramWriteBytes > 0)
+      g_last_dram_bw_source = DRAM_BW_SOURCE_PMP;
+  }
+
+  if (g_direct_dram_bw_zero_samples >= 3 && dramPowerCalibrationNeeded(
+          allowDramFallback, pmpChannelsWereAvailable, pmpDramReadBytes,
+          pmpDramWriteBytes, pmpDramCombinedBytes, metrics.dramReadBytes,
+          metrics.dramWriteBytes, fallbackTrafficLikely)) {
+    startBgCalibrationOnce();
   }
 
   if (!g_direct_dram_bw_available &&
@@ -3997,10 +4046,8 @@ PowerMetrics samplePowerMetrics(int durationMs) {
   if (allowDramFallback && g_dram_power_calibrated &&
       metrics.dramReadBytes == 0 && metrics.dramWriteBytes == 0 &&
       metrics.dramPower > 0.001 && g_dramGBsPerWatt > 0.0) {
-    // Subtract static/idle power — only dynamic power indicates data transfer
-    double activePower = metrics.dramPower - g_dramIdlePowerW;
-    if (activePower < 0) activePower = 0;
-    double dramBwGBs = activePower * g_dramGBsPerWatt;
+    double dramBwGBs = estimateDramBandwidthGBs(
+        metrics.dramPower, g_dramIdlePowerW, g_dramGBsPerWatt);
     // Convert to bytes for this sample interval. Use the actual wall-clock
     // interval (captured around the IOReport snapshots) when available so
     // the Go-side division by the same interval recovers dramBwGBs exactly.
@@ -4011,6 +4058,8 @@ PowerMetrics samplePowerMetrics(int durationMs) {
     // Split evenly between read and write (power can't distinguish direction)
     metrics.dramReadBytes = totalBytes / 2;
     metrics.dramWriteBytes = totalBytes / 2;
+    if (totalBytes > 0)
+      g_last_dram_bw_source = DRAM_BW_SOURCE_POWER;
   }
 
   // Fallback: use kperf PMU counters for DRAM BW (requires root).
@@ -4020,6 +4069,8 @@ PowerMetrics samplePowerMetrics(int durationMs) {
     readKperfDramBW(&kperfRd, &kperfWr);
     metrics.dramReadBytes = kperfRd;
     metrics.dramWriteBytes = kperfWr;
+    if (kperfRd > 0 || kperfWr > 0)
+      g_last_dram_bw_source = DRAM_BW_SOURCE_KPERF;
   }
 
   // Last-resort compatibility fallback: request counters can over-count fabric
@@ -4030,6 +4081,8 @@ PowerMetrics samplePowerMetrics(int durationMs) {
       hasAmcRequestBytes) {
     metrics.dramReadBytes = amcRequestReadBytes;
     metrics.dramWriteBytes = amcRequestWriteBytes;
+    if (amcRequestReadBytes > 0 || amcRequestWriteBytes > 0)
+      g_last_dram_bw_source = DRAM_BW_SOURCE_AMC_REQUEST;
   }
 
   // ANE power is taken strictly from the Energy Model "ANE" channel (if present
@@ -4192,11 +4245,60 @@ PowerMetrics samplePowerMetrics(int durationMs) {
 
   metrics.tempSensorCount = validSensorCount;
 
+  g_last_dram_read_bytes = metrics.dramReadBytes;
+  g_last_dram_write_bytes = metrics.dramWriteBytes;
+
   CFRelease(delta);
 
   } // @autoreleasepool
 
   return metrics;
+}
+
+static const char *dramBandwidthSourceName(int source) {
+  switch (source) {
+  case DRAM_BW_SOURCE_AMC:
+    return "AMC DCS";
+  case DRAM_BW_SOURCE_PMP:
+    return "PMP AMCC";
+  case DRAM_BW_SOURCE_POWER:
+    return "calibrated power estimate";
+  case DRAM_BW_SOURCE_KPERF:
+    return "kperf estimate";
+  case DRAM_BW_SOURCE_AMC_REQUEST:
+    return "AMC request counters";
+  default:
+    return "none";
+  }
+}
+
+static void dumpDramBandwidthTrace(void) {
+  printf("\n--- DRAM Bandwidth Source Trace ---\n");
+  if (initIOReport() != 0) {
+    printf("  IOReport initialization failed\n");
+    return;
+  }
+
+  for (int i = 0; i < 12; i++) {
+    PowerMetrics sample = samplePowerMetrics(250);
+    printf("  sample %d source=%s AMC=%lld/%lld/%lld B PMP=%lld/%lld/%lld B selected=%lld/%lld B DRAM=%.2f W GPU=%.1f%%\n",
+           i + 1, dramBandwidthSourceName(g_last_dram_bw_source),
+           (long long)g_last_amc_dram_read_bytes,
+           (long long)g_last_amc_dram_write_bytes,
+           (long long)g_last_amc_dram_combined_bytes,
+           (long long)g_last_pmp_dram_read_bytes,
+           (long long)g_last_pmp_dram_write_bytes,
+           (long long)g_last_pmp_dram_combined_bytes,
+           (long long)g_last_dram_read_bytes,
+           (long long)g_last_dram_write_bytes,
+           sample.dramPower, sample.gpuActive);
+  }
+  printf("  state: amc_dcs_channels=%d amc_zero_samples=%d amc_fallback_enabled=%d pmp_attached=%d calibration_started=%d calibrated=%d kperf_active=%d power_floor=%.2f W idle_floor=%.2f W ratio=%.2f GB/s/W\n",
+         g_direct_dram_bw_available, g_direct_dram_bw_zero_samples,
+         g_dram_bw_fallback_enabled, g_pmp_channels_attempted,
+         g_bg_calibration_started, g_dram_power_calibrated, g_kperf_active,
+         g_dramPowerFloorW,
+         g_dramIdlePowerW, g_dramGBsPerWatt);
 }
 
 void cleanupIOReport() {

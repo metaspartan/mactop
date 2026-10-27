@@ -164,10 +164,15 @@ func TestAmccDcsBwChannel(t *testing.T) {
 		{"DCS BW", "AMCC RD+WR", true}, // M4 Pro/Max: preferred combined source
 		{"DCS BW", "AMCC RD", true},
 		{"DCS BW", "AMCC WR", true},
+		{"DCS BW", "AMCC0 RD", true}, // M5 Ultra PMP0
+		{"DCS BW", "AMCC1 WR", true}, // M5 Ultra PMP1
+		{"DCS BW", "AMCC0 RD+WR", true},
 		{"DCS BW", "PACC0 RD", false}, // agent histogram, not the aggregate
 		{"DCS BW", "EACC0 WR", false},
 		{"DCS BW", "AGX RD+WR", false},
 		{"DCS BW", "AMCC", false}, // needs the trailing space + direction
+		{"DCS BW", "AMCCX RD", false},
+		{"DCS BW", "AMCC0", false},
 		{"DCS Floor", "AMCC RD", false},
 		{"DRAM BW", "AMCC RD", false},
 		{"", "", false},
@@ -175,6 +180,26 @@ func TestAmccDcsBwChannel(t *testing.T) {
 	for _, c := range cases {
 		if got := pmpIsAmccDcsBwChannel(c.sub, c.chn); got != c.want {
 			t.Errorf("isAmccDcsBwChannel(%q, %q) = %v, want %v", c.sub, c.chn, got, c.want)
+		}
+	}
+}
+
+func TestAmccDramBwKind(t *testing.T) {
+	cases := []struct {
+		channel string
+		want    int
+	}{
+		{"AMCC RD", 0},
+		{"AMCC0 RD", 0},
+		{"AMCC1 WR", 1},
+		{"AMCC0 RD+WR", 2},
+		{"AMCC1 RW", 2},
+		{"AMCCX RD", -1},
+		{"AMCC0", -1},
+	}
+	for _, tc := range cases {
+		if got := pmpAmccDramBwKind(tc.channel); got != tc.want {
+			t.Errorf("pmpAmccDramBwKind(%q) = %d, want %d", tc.channel, got, tc.want)
 		}
 	}
 }
@@ -201,7 +226,7 @@ func TestBinWeightedAverage(t *testing.T) {
 }
 
 func TestPmpKeyedMax(t *testing.T) {
-	const read, write = 0, 1
+	const read, write, combined = 0, 1, 2
 
 	// Single die: one channel per direction, listed twice by a merged
 	// subscription. The duplicate must not double count.
@@ -223,5 +248,20 @@ func TestPmpKeyedMax(t *testing.T) {
 	}, 2)
 	if ultra[read] != 10 || ultra[write] != 0 {
 		t.Errorf("ultra = %v, want [10 0]", ultra)
+	}
+
+	// M5 Ultra exposes AMCC counters per PMP group. Duplicates within one
+	// group should keep the maximum, while distinct dies must still sum.
+	dramUltra := pmpKeyedSums([]pmpRecord{
+		{"PMP0", "AMCC0 RD", 8, read},
+		{"PMP0", "AMCC0 WR", 2, write},
+		{"PMP0", "AMCC0 RD+WR", 10, combined},
+		{"PMP0", "AMCC0 RD", 6, read},
+		{"PMP1", "AMCC1 RD", 5, read},
+		{"PMP1", "AMCC1 WR", 3, write},
+		{"PMP1", "AMCC1 RD+WR", 8, combined},
+	}, 3)
+	if dramUltra[read] != 13 || dramUltra[write] != 5 || dramUltra[combined] != 18 {
+		t.Errorf("M5 Ultra DRAM = %v, want [13 5 18]", dramUltra)
 	}
 }
