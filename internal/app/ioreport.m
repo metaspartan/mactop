@@ -3346,6 +3346,9 @@ PowerMetrics samplePowerMetrics(int durationMs) {
   int64_t pmpDramReadBytes = 0;
   int64_t pmpDramWriteBytes = 0;
   int64_t pmpDramCombinedBytes = 0;
+  int64_t legacyPmpDramReadBytes = 0;
+  int64_t legacyPmpDramWriteBytes = 0;
+  int64_t legacyPmpDramCombinedBytes = 0;
   int64_t amcAneReadBytes = 0;
   int64_t amcAneWriteBytes = 0;
   double cpuTotalEnergyW = 0;
@@ -3682,11 +3685,11 @@ PowerMetrics samplePowerMetrics(int durationMs) {
         int64_t val = IOReportSimpleGetIntegerValue(item, 0);
         if (validIOReportCounter(val) && val > 0) {
           if (strstr(chn, "RD+WR") != NULL || strstr(chn, "RW") != NULL) {
-            pmpDramCombinedBytes += val;
+            legacyPmpDramCombinedBytes += val;
           } else if (amcChannelDirection(chn) == 1) {
-            pmpDramReadBytes += val;
+            legacyPmpDramReadBytes += val;
           } else if (amcChannelDirection(chn) == 2) {
-            pmpDramWriteBytes += val;
+            legacyPmpDramWriteBytes += val;
           }
         }
       }
@@ -3845,12 +3848,17 @@ PowerMetrics samplePowerMetrics(int durationMs) {
     metrics.sClusterFreqMHz = sClusterFreq;
   }
 
-  pmpDramReadBytes = (int64_t)pmpKeyedMaxSum(
+  int64_t amccPmpDramReadBytes = (int64_t)pmpKeyedMaxSum(
       pmpDramBw, pmpDramBwCount, PMP_DRAM_BW_READ);
-  pmpDramWriteBytes = (int64_t)pmpKeyedMaxSum(
+  int64_t amccPmpDramWriteBytes = (int64_t)pmpKeyedMaxSum(
       pmpDramBw, pmpDramBwCount, PMP_DRAM_BW_WRITE);
-  pmpDramCombinedBytes = (int64_t)pmpKeyedMaxSum(
+  int64_t amccPmpDramCombinedBytes = (int64_t)pmpKeyedMaxSum(
       pmpDramBw, pmpDramBwCount, PMP_DRAM_BW_COMBINED);
+  selectPmpDramBytes(
+      legacyPmpDramReadBytes, legacyPmpDramWriteBytes,
+      legacyPmpDramCombinedBytes, amccPmpDramReadBytes,
+      amccPmpDramWriteBytes, amccPmpDramCombinedBytes,
+      &pmpDramReadBytes, &pmpDramWriteBytes, &pmpDramCombinedBytes);
   g_last_amc_dram_read_bytes = amcExactDcsReadBytes + amcPartitionDcsReadBytes +
                                amcClientDcsReadBytes;
   g_last_amc_dram_write_bytes = amcExactDcsWriteBytes + amcPartitionDcsWriteBytes +

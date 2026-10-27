@@ -95,6 +95,57 @@ func TestDramPmpFallbackAndCalibrationSelection(t *testing.T) {
 	}
 }
 
+func TestSelectPmpDramBytes(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name                           string
+		legacyRead, legacyWrite        int64
+		legacyCombined                 int64
+		amccRead, amccWrite, amccTotal int64
+		wantRead, wantWrite, wantTotal int64
+	}{
+		{
+			name:       "legacy counters when AMCC is absent",
+			legacyRead: 100, legacyWrite: 20, legacyCombined: 120,
+			wantRead: 100, wantWrite: 20, wantTotal: 120,
+		},
+		{
+			name:       "legacy counters when AMCC is idle",
+			legacyRead: 100, legacyWrite: 20, legacyCombined: 120,
+			amccRead: 0, amccWrite: 0, amccTotal: 0,
+			wantRead: 100, wantWrite: 20, wantTotal: 120,
+		},
+		{
+			name:       "active AMCC data takes precedence",
+			legacyRead: 100, legacyWrite: 20, legacyCombined: 120,
+			amccRead: 80, amccWrite: 15, amccTotal: 95,
+			wantRead: 80, wantWrite: 15, wantTotal: 95,
+		},
+		{
+			name:       "AMCC combined-only data takes precedence",
+			legacyRead: 100, legacyWrite: 20, legacyCombined: 120,
+			amccTotal: 95,
+			wantTotal: 95,
+		},
+		{
+			name: "all sources idle",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			read, write, combined := selectPmpDramBytes(
+				tc.legacyRead, tc.legacyWrite, tc.legacyCombined,
+				tc.amccRead, tc.amccWrite, tc.amccTotal,
+			)
+			if read != tc.wantRead || write != tc.wantWrite || combined != tc.wantTotal {
+				t.Fatalf("selectPmpDramBytes() = (%d, %d, %d), want (%d, %d, %d)", read, write, combined, tc.wantRead, tc.wantWrite, tc.wantTotal)
+			}
+		})
+	}
+}
+
 func TestDramCalibrationParameters(t *testing.T) {
 	t.Parallel()
 

@@ -13,6 +13,16 @@ func dramPmpFallbackNeeded(fallbackAllowed bool, readBytes, writeBytes int64) bo
 	return bool(C.dramPmpFallbackNeeded(C.bool(fallbackAllowed), C.int64_t(readBytes), C.int64_t(writeBytes)))
 }
 
+func selectPmpDramBytes(legacyReadBytes, legacyWriteBytes, legacyCombinedBytes, amccReadBytes, amccWriteBytes, amccCombinedBytes int64) (int64, int64, int64) {
+	var readBytes, writeBytes, combinedBytes C.int64_t
+	C.selectPmpDramBytes(
+		C.int64_t(legacyReadBytes), C.int64_t(legacyWriteBytes), C.int64_t(legacyCombinedBytes),
+		C.int64_t(amccReadBytes), C.int64_t(amccWriteBytes), C.int64_t(amccCombinedBytes),
+		&readBytes, &writeBytes, &combinedBytes,
+	)
+	return int64(readBytes), int64(writeBytes), int64(combinedBytes)
+}
+
 func dramPowerCalibrationNeeded(fallbackAllowed, pmpChannelsInSample bool, pmpReadBytes, pmpWriteBytes, pmpCombinedBytes, selectedReadBytes, selectedWriteBytes int64, trafficLikely bool) bool {
 	return bool(C.dramPowerCalibrationNeeded(
 		C.bool(fallbackAllowed), C.bool(pmpChannelsInSample),

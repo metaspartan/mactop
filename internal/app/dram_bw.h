@@ -11,6 +11,31 @@ static inline bool dramPmpFallbackNeeded(bool fallbackAllowed,
   return fallbackAllowed && readBytes == 0 && writeBytes == 0;
 }
 
+// Prefer AMCC histogram bytes when they carry traffic; otherwise preserve the
+// legacy PMP byte counters, which may be the only populated source.
+static inline void selectPmpDramBytes(int64_t legacyReadBytes,
+                                     int64_t legacyWriteBytes,
+                                     int64_t legacyCombinedBytes,
+                                     int64_t amccReadBytes,
+                                     int64_t amccWriteBytes,
+                                     int64_t amccCombinedBytes,
+                                     int64_t *readBytes,
+                                     int64_t *writeBytes,
+                                     int64_t *combinedBytes) {
+  if (readBytes == NULL || writeBytes == NULL || combinedBytes == NULL)
+    return;
+
+  if (amccReadBytes > 0 || amccWriteBytes > 0 || amccCombinedBytes > 0) {
+    *readBytes = amccReadBytes;
+    *writeBytes = amccWriteBytes;
+    *combinedBytes = amccCombinedBytes;
+  } else {
+    *readBytes = legacyReadBytes;
+    *writeBytes = legacyWriteBytes;
+    *combinedBytes = legacyCombinedBytes;
+  }
+}
+
 static inline bool dramPowerCalibrationNeeded(bool fallbackAllowed,
                                               bool pmpChannelsInSample,
                                               int64_t pmpReadBytes,
