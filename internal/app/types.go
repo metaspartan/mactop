@@ -208,6 +208,13 @@ func (w *CPUCoreWidget) UpdateUsage(usage []float64) {
 	}
 }
 
+func fewestCoreColumns(cols, availableHeight, totalCores int) int {
+	for cols > 1 && (totalCores+cols-2)/(cols-1) <= availableHeight {
+		cols--
+	}
+	return cols
+}
+
 func (w *CPUCoreWidget) calculateLayout(availableWidth, availableHeight, totalCores int) (int, int, []int, []int) {
 	cols := 4
 	if totalCores > 16 {
@@ -216,6 +223,9 @@ func (w *CPUCoreWidget) calculateLayout(availableWidth, availableHeight, totalCo
 	minColWidth := 20
 	if (availableWidth / cols) < minColWidth {
 		cols = max(1, availableWidth/minColWidth)
+	}
+	if currentConfig.DefaultLayout == LayoutAlternativeCPU {
+		cols = fewestCoreColumns(cols, availableHeight, totalCores)
 	}
 	rows := (totalCores + cols - 1) / cols
 	if rows > availableHeight {
