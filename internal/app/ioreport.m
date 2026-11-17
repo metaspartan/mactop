@@ -2510,6 +2510,17 @@ void dumpAllSMCTemps(void) {
   dumpSMCFanCandidates();
 }
 
+// fanModeKey writes the fan's mode key into key (5 bytes). Apple Silicon
+// (verified M5 Pro, M6) names it "F<n>md"; older Macs use "F<n>Md". SMC keys
+// are case-sensitive, so probe the lowercase form first.
+static void fanModeKey(int fanIndex, char key[5]) {
+  SMCKeyData_keyInfo_t info;
+  snprintf(key, 5, "F%dmd", fanIndex);
+  if (g_smcConn && SMCGetKeyInfo(g_smcConn, key, &info) == kIOReturnSuccess)
+    return;
+  snprintf(key, 5, "F%dMd", fanIndex);
+}
+
 // Read fan data from SMC
 static int readFanInfo(fan_info_t *fans, int maxFans) {
   if (!g_smcConn)
@@ -2555,8 +2566,8 @@ static int readFanInfo(fan_info_t *fans, int maxFans) {
     if (fans[i].actualRPM <= 0 && fans[i].minRPM > 0)
       fans[i].tachReadable = 0;
 
-    // Read mode: F%dMd (0=auto, 1=forced; data type varies by Mac model)
-    snprintf(key, sizeof(key), "F%dMd", i);
+    // Read mode (0=auto, 1=forced; data type varies by Mac model)
+    fanModeKey(i, key);
     fans[i].mode = (int)SMCGetFloatValue(g_smcConn, key);
 
     // Fan name — use index-based naming
@@ -2602,7 +2613,7 @@ int setFanMode(int fanIndex, int mode) {
   if (ensureSMCConn() != 0)
     return -1;
   char key[5];
-  snprintf(key, sizeof(key), "F%dMd", fanIndex);
+  fanModeKey(fanIndex, key);
   float val = (float)mode;
   return (SMCSetFloat(g_smcConn, key, val) == kIOReturnSuccess) ? 0 : -1;
 }
