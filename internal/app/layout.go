@@ -11,6 +11,7 @@ const (
 	LayoutDefault         = "default"
 	LayoutAlternative     = "alternative"
 	LayoutAlternativeFull = "alternative_full"
+	LayoutAlternativeCPU  = "alternative_cpu"
 	LayoutVertical        = "vertical"
 	LayoutCompact         = "compact"
 	LayoutDashboard       = "dashboard"
@@ -34,7 +35,7 @@ const (
 	LayoutMemory          = "memory"          // Memory pressure, swap, DRAM bandwidth focused
 )
 
-var layoutOrder = []string{LayoutDefault, LayoutAlternative, LayoutAlternativeFull, LayoutVertical, LayoutCompact, LayoutDashboard, LayoutGaugesOnly, LayoutGPUFocus, LayoutCPUFocus, LayoutGPUMemory, LayoutMemory, LayoutNetworkIO, LayoutSmall, LayoutTiny, LayoutMicro, LayoutNano, LayoutPico, LayoutHistory, LayoutHistoryFull, LayoutHistorySoC, LayoutHistorySoCMem, LayoutFan, LayoutPorts}
+var layoutOrder = []string{LayoutDefault, LayoutAlternative, LayoutAlternativeCPU, LayoutAlternativeFull, LayoutVertical, LayoutCompact, LayoutDashboard, LayoutGaugesOnly, LayoutGPUFocus, LayoutCPUFocus, LayoutGPUMemory, LayoutMemory, LayoutNetworkIO, LayoutSmall, LayoutTiny, LayoutMicro, LayoutNano, LayoutPico, LayoutHistory, LayoutHistoryFull, LayoutHistorySoC, LayoutHistorySoCMem, LayoutFan, LayoutPorts}
 
 // isHistorySoCLayout reports the history_soc family. Both draw CPU, GPU, ANE,
 // and SoC power on the top rows, plus memory throughput and memory in use on
@@ -167,6 +168,7 @@ var namedLayoutSetters = map[string]func(){
 	LayoutHistorySoCMem:   setHistorySoCMemLayoutGrid,
 	LayoutAlternative:     setAlternativeLayoutGrid,
 	LayoutAlternativeFull: setAlternativeFullLayoutGrid,
+	LayoutAlternativeCPU:  setAlternativeCPULayoutGrid,
 	LayoutVertical:        setVerticalLayoutGrid,
 	LayoutCompact:         setCompactMainLayoutGrid,
 	LayoutDashboard:       setDashboardLayoutGrid,
@@ -203,6 +205,30 @@ func setAlternativeLayoutGrid() {
 			ui.NewCol(1.0/2,
 				ui.NewRow(1.0/2, gpuGauge),
 				ui.NewCol(1.0, ui.NewRow(1.0, memoryGauge)),
+			),
+		),
+		ui.NewRow(1.0/4,
+			ui.NewCol(1.0/6, modelText),
+			ui.NewCol(1.0/3, NetworkInfo),
+			ui.NewCol(1.0/4, PowerChart),
+			ui.NewCol(1.0/4, sparklineGroup),
+		),
+		ui.NewRow(1.0/4,
+			ui.NewCol(1.0, processList),
+		),
+	)
+}
+
+func setAlternativeCPULayoutGrid() {
+	grid.Set(
+		ui.NewRow(1.0/2,
+			ui.NewCol(1.0/2,
+				ui.NewRow(1.0/2, cpuCoreWidget),
+				ui.NewRow(1.0/2, cpuGauge),
+			),
+			ui.NewCol(1.0/2,
+				ui.NewRow(1.0/2, gpuGauge),
+				ui.NewRow(1.0/2, memoryGauge),
 			),
 		),
 		ui.NewRow(1.0/4,

@@ -15,8 +15,8 @@ func TestHistorySoCMemFollowsHistorySoC(t *testing.T) {
 	if mem != soc+1 {
 		t.Fatalf("history_soc_mem index %d, want %d (immediately after history_soc)", mem, soc+1)
 	}
-	if len(layoutOrder) != 23 {
-		t.Fatalf("layout count %d, want 23", len(layoutOrder))
+	if len(layoutOrder) != 24 {
+		t.Fatalf("layout count %d, want 24", len(layoutOrder))
 	}
 }
 

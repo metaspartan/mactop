@@ -1369,7 +1369,7 @@ func updateCPUGaugeTitles(totalUsage float64, cpuMetrics CPUMetrics) {
 	coreSummary := FormatCoreSummary(cpuCoreWidget.eCoreCount, cpuCoreWidget.pCoreCount, cpuCoreWidget.sCoreCount)
 	totalCPUCores := cpuCoreWidget.eCoreCount + cpuCoreWidget.pCoreCount + cpuCoreWidget.sCoreCount
 	cpuFreqStr := formatCPUFreq(cpuMetrics)
-	if isCompactLayout() {
+	if isCompactLayout() || currentConfig.DefaultLayout == LayoutAlternativeCPU {
 		cpuGauge.Title = fmt.Sprintf(i18n.T("Metrics_CPUGaugeCompact"), totalUsage, formatTemp(cpuMetrics.CPUTemp))
 	} else {
 		cpuGauge.Title = fmt.Sprintf(i18n.T("Metrics_CPUGauge"),
