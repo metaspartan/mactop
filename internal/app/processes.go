@@ -547,7 +547,7 @@ func updateProcessList() {
 	themeColorStr, selectedHeaderFg := resolveProcessThemeColor()
 
 	termWidth, _ := GetCachedTerminalDimensions()
-	availableWidth := termWidth - 2
+	availableWidth := processDetailsTableWidth(termWidth)
 	if availableWidth < 1 {
 		availableWidth = 1
 	}

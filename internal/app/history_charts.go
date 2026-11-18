@@ -113,7 +113,7 @@ func seriesMax(series []float64) float64 {
 // %, so plotting the IORegistry power-state duty here would diverge — return
 // false to fall through to the gauge-consistent single-series path.
 func renderDualANEClusterChart(cpuMetrics CPUMetrics, visibleWidth int, maxVal, cluster0, cluster1 float64) bool {
-	if currentConfig.DefaultLayout != LayoutHistorySoC || !shouldRenderDualANEClusters(cpuMetrics) || len(aneCluster0History) == 0 {
+	if !isHistorySoCLayout() || !shouldRenderDualANEClusters(cpuMetrics) || len(aneCluster0History) == 0 {
 		return false
 	}
 	visibleC0 := aneCluster0History[len(aneCluster0History)-visibleWidth:]
@@ -161,12 +161,12 @@ func renderPowerStateANEChart(cpuMetrics CPUMetrics, anePct, aneWatts, aneBW flo
 		state = aneOnOffLabel(anePct)
 	}
 	aneColor := ui.ColorRed
-	if currentConfig.DefaultLayout != LayoutHistorySoC {
+	if !isHistorySoCLayout() {
 		aneColor = ui.ColorMagenta
 	}
 	aneHistoryChart.LineColors = []ui.Color{historyLineColor(func(t *CustomThemeConfig) string { return t.ANE }, aneColor)}
 	aneHistoryChart.DataLabels = []string{state}
-	aneHistoryChart.Title = aneChartTitle(cpuMetrics, anePct, 0, aneWatts, aneBW, bwMode, currentConfig.DefaultLayout == LayoutHistorySoC)
+	aneHistoryChart.Title = aneChartTitle(cpuMetrics, anePct, 0, aneWatts, aneBW, bwMode, isHistorySoCLayout())
 	aneHistoryChart.MaxVal = scaleMax
 	return true
 }
@@ -210,7 +210,7 @@ func renderANEHistoryChart(cpuMetrics CPUMetrics, anePct, aneWatts, aneBW float6
 		return
 	}
 	aneHistoryChart.DataLabels = []string{fmt.Sprintf("%.1f%%", anePct)}
-	if currentConfig.DefaultLayout == LayoutHistorySoC {
+	if isHistorySoCLayout() {
 		// Peak: in bandwidth mode use the max of the visible window — ANE
 		// load is typically flat at saturation, so the decaying tracker
 		// collapses to the current value within two ticks and the label
@@ -292,10 +292,10 @@ func renderBandwidthHistoryChart(readGBs, writeGBs, aneReadGBs, aneWriteGBs floa
 	{
 		termWidth, _ := GetCachedTerminalDimensions()
 		visibleWidth := (termWidth / 2) - 4
-		if currentConfig.DefaultLayout == LayoutHistorySoC {
-			// One-third-width column in the bottom row — match the adjacent
-			// memory and SSD charts' time window.
-			visibleWidth = (termWidth / 3) - 4
+		if cols := historySoCBottomColumns(); cols > 0 {
+			// Match the bottom-row column count (3 on history_soc, 2 on
+			// history_soc_mem) so the time window lines up with the panel.
+			visibleWidth = (termWidth / cols) - 4
 		}
 		if visibleWidth <= 0 || visibleWidth > len(dramReadHistory) {
 			visibleWidth = len(dramReadHistory)
@@ -316,7 +316,7 @@ func renderBandwidthHistoryChart(readGBs, writeGBs, aneReadGBs, aneWriteGBs floa
 		// participate in scaling or it clips against the chart top whenever
 		// read and write are both high in the same sample.
 		var visibleTotal []float64
-		if currentConfig.DefaultLayout == LayoutHistorySoC {
+		if isHistorySoCLayout() {
 			visibleTotal = make([]float64, len(visibleRead))
 			for i := range visibleRead {
 				visibleTotal[i] = visibleRead[i] + visibleWrite[i]
@@ -327,11 +327,11 @@ func renderBandwidthHistoryChart(readGBs, writeGBs, aneReadGBs, aneWriteGBs floa
 
 		// In history_soc layout, force a minimum visible scale so the graph
 		// doesn't look completely dead when bandwidth is low (common even with high GPU/ANE load)
-		if currentConfig.DefaultLayout == LayoutHistorySoC && scaleMax < 8.0 {
+		if isHistorySoCLayout() && scaleMax < 8.0 {
 			scaleMax = 8.0
 		}
 
-		if currentConfig.DefaultLayout == LayoutHistorySoC {
+		if isHistorySoCLayout() {
 			currentPeak := 0.0
 			if len(visiblePeak) > 0 {
 				currentPeak = visiblePeak[len(visiblePeak)-1]
@@ -385,7 +385,7 @@ func updateSoCPowerHistory(cpuMetrics CPUMetrics) {
 	if socPowerHistoryChart != nil {
 		termWidth, _ := GetCachedTerminalDimensions()
 		visibleWidth := termWidth - 4
-		if currentConfig.DefaultLayout == LayoutHistorySoC {
+		if isHistorySoCLayout() {
 			// Half-width column (row 2, beside the ANE chart) — match the
 			// neighboring CPU/GPU/ANE charts' time window.
 			visibleWidth = (termWidth / 2) - 4

@@ -164,10 +164,17 @@ func TestAmccDcsBwChannel(t *testing.T) {
 		{"DCS BW", "AMCC RD+WR", true}, // M4 Pro/Max: preferred combined source
 		{"DCS BW", "AMCC RD", true},
 		{"DCS BW", "AMCC WR", true},
+		{"DCS BW", "AMCC0 RD+WR", true}, // M3 Ultra die 0
+		{"DCS BW", "AMCC1 RD", true},    // M3 Ultra die 1
+		{"DCS BW", "AMCC1 WR", true},
 		{"DCS BW", "PACC0 RD", false}, // agent histogram, not the aggregate
 		{"DCS BW", "EACC0 WR", false},
 		{"DCS BW", "AGX RD+WR", false},
 		{"DCS BW", "AMCC", false}, // needs the trailing space + direction
+		{"DCS BW", "AMCC0", false},
+		{"AFC BW", "AMCC0 RD+WR", false}, // fabric, not DRAM
+		{"AFI BW", "AMCC1 RD", false},
+		{"AFR BW", "AMCC1 WR", false},
 		{"DCS Floor", "AMCC RD", false},
 		{"DRAM BW", "AMCC RD", false},
 		{"", "", false},
@@ -176,6 +183,47 @@ func TestAmccDcsBwChannel(t *testing.T) {
 		if got := pmpIsAmccDcsBwChannel(c.sub, c.chn); got != c.want {
 			t.Errorf("isAmccDcsBwChannel(%q, %q) = %v, want %v", c.sub, c.chn, got, c.want)
 		}
+	}
+}
+
+func TestAmccDcsBwDirection(t *testing.T) {
+	const rd, wr, comb = 1, 2, 3
+	cases := map[string]int{
+		"AMCC RD+WR":   comb, // M4 Pro/Max
+		"AMCC RD":      rd,
+		"AMCC WR":      wr,
+		"AMCC0 RD+WR":  comb, // M3 Ultra die 0
+		"AMCC0 RD":     rd,
+		"AMCC1 WR":     wr,
+		"AMCC1 RD+WR":  comb,
+		"AMCC":         0,
+		"AMCC0":        0,
+		"PACC0 RD":     0,
+		"AMCC0 RD+WRX": 0,
+	}
+	for chn, want := range cases {
+		if got := pmpAmccDcsBwDirection(chn); got != want {
+			t.Errorf("amccDcsBwDirection(%q) = %d, want %d", chn, got, want)
+		}
+	}
+}
+
+// M3 Ultra publishes one AMCC histogram per die. Distinct dies sum. A
+// channel listed twice by a merged subscription keeps the max, so it is
+// not counted twice. RD+WR stays a separate kind from RD and WR.
+func TestM3UltraAmccDiesSum(t *testing.T) {
+	const rd, wr, comb = 1, 2, 3
+	sums := pmpKeyedSums([]pmpRecord{
+		{"PMP0", "AMCC0 RD+WR", 300, comb},
+		{"PMP1", "AMCC1 RD+WR", 260, comb},
+		{"PMP0", "AMCC0 RD+WR", 100, comb},
+		{"PMP0", "AMCC0 RD", 180, rd},
+		{"PMP1", "AMCC1 RD", 150, rd},
+		{"PMP0", "AMCC0 WR", 120, wr},
+		{"PMP1", "AMCC1 WR", 110, wr},
+	}, 4)
+	if sums[comb] != 560 || sums[rd] != 330 || sums[wr] != 230 {
+		t.Errorf("ultra dies = %v, want combined 560, read 330, write 230", sums)
 	}
 }
 

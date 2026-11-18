@@ -426,6 +426,7 @@ func updateHelpText() {
 		updateInterval,
 	)
 
+	fullText += "\n  d: Toggle process details (wide: docked; small: popup). Tab: list/details focus\n"
 	lines := strings.Split(fullText, "\n")
 	_, termHeight := GetCachedTerminalDimensions()
 
@@ -532,12 +533,7 @@ func togglePartyMode() {
 				renderMutex.Lock()
 				updateProcessList()
 				width, height := ui.TerminalDimensions()
-				ui.Clear()
-				if width > 2 && height > 2 {
-					ui.Render(mainBlock, grid)
-				} else {
-					ui.Render(mainBlock)
-				}
+				drawScreen(width, height)
 				renderMutex.Unlock()
 			}
 		}()
@@ -550,6 +546,9 @@ func renderUI() {
 	renderMutex.Lock()
 	defer renderMutex.Unlock()
 	w, h := ui.TerminalDimensions()
+	if renderProcessDetails(w, h) {
+		return
+	}
 	if w > 2 && h > 2 {
 		if killPending {
 			ui.Render(mainBlock, grid, confirmModal) // Render on top
@@ -845,7 +844,7 @@ func Run() {
 
 	if prometheusPort != "" {
 		startPrometheusServer(prometheusPort)
-		stderrLogger.Printf("Prometheus metrics available at http://localhost:%s/metrics\n", prometheusPort)
+		stderrLogger.Printf("Prometheus metrics available at %s\n", prometheusURL(prometheusPort))
 	}
 	setupUI()
 	initializeTheme(colorName, setColor, interval, setInterval)
@@ -1065,7 +1064,7 @@ func updateCPUHistory(totalUsage float64) {
 			}
 
 			// In history_soc: single current value line + peak number in title only
-			if currentConfig.DefaultLayout == LayoutHistorySoC {
+			if isHistorySoCLayout() {
 				currentPeak := 0.0
 				if len(visiblePeak) > 0 {
 					currentPeak = visiblePeak[len(visiblePeak)-1]
@@ -1101,8 +1100,8 @@ func updateMemoryHistory(memoryMetrics MemoryMetrics) {
 	if memoryHistoryChart != nil {
 		termWidth, _ := GetCachedTerminalDimensions()
 		visibleWidth := (termWidth / 2) - 4 // Half width, account for borders
-		if currentConfig.DefaultLayout == LayoutHistorySoC {
-			visibleWidth = (termWidth / 3) - 4
+		if cols := historySoCBottomColumns(); cols > 0 {
+			visibleWidth = (termWidth / cols) - 4
 		}
 		if visibleWidth <= 0 || visibleWidth > len(memoryUsedHistory) {
 			visibleWidth = len(memoryUsedHistory)
@@ -1602,7 +1601,7 @@ func renderGPUHistoryChart(gpuMetrics GPUMetrics, avgGPU, effectiveNow float64) 
 	}
 	termWidth, _ := GetCachedTerminalDimensions()
 	visibleWidth := termWidth - 4
-	if currentConfig.DefaultLayout == LayoutHistoryFull || currentConfig.DefaultLayout == LayoutHistorySoC {
+	if currentConfig.DefaultLayout == LayoutHistoryFull || isHistorySoCLayout() {
 		visibleWidth = (termWidth / 2) - 4
 	}
 	if visibleWidth <= 0 || visibleWidth > len(gpuValues) {
@@ -1613,7 +1612,7 @@ func renderGPUHistoryChart(gpuMetrics GPUMetrics, avgGPU, effectiveNow float64) 
 	visibleEffective := gpuEffectiveHistory[len(gpuEffectiveHistory)-visibleWidth:]
 	visiblePeak := gpuPeakHistory[len(gpuPeakHistory)-visibleWidth:]
 
-	if currentConfig.DefaultLayout == LayoutHistorySoC {
+	if isHistorySoCLayout() {
 		currentPeak := 0.0
 		if len(visiblePeak) > 0 {
 			currentPeak = visiblePeak[len(visiblePeak)-1]
@@ -1701,7 +1700,7 @@ func updateNetDiskUI(netdiskMetrics NetDiskMetrics) {
 	if ssdReadHistoryChart != nil {
 		termWidth, _ := GetCachedTerminalDimensions()
 		visibleWidth := termWidth - 4
-		if currentConfig.DefaultLayout == LayoutHistorySoC {
+		if historySoCBottomColumns() == 3 {
 			visibleWidth = (termWidth / 3) - 4
 		}
 		if visibleWidth <= 0 || visibleWidth > len(ssdReadHistory) {
@@ -1836,8 +1835,8 @@ func updateTBNetUI(tbStats []ThunderboltNetStats) {
 }
 
 func parseCommandLineFlags() {
-	flag.StringVar(&prometheusPort, "prometheus", "", "Port to run Prometheus metrics server on (e.g. :9090)")
-	flag.StringVar(&prometheusPort, "p", "", "Port to run Prometheus metrics server on (e.g. :9090)")
+	flag.StringVar(&prometheusPort, "prometheus", "", "Port or host:port to run Prometheus metrics server on (e.g. 9090, or 127.0.0.1:9090 for localhost only)")
+	flag.StringVar(&prometheusPort, "p", "", "Port or host:port to run Prometheus metrics server on (e.g. 9090, or 127.0.0.1:9090 for localhost only)")
 	flag.BoolVar(&headless, "headless", false, "Run in headless mode (no TUI, output JSON to stdout)")
 	flag.BoolVar(&headlessPretty, "pretty", false, "Pretty print output in headless mode")
 	flag.IntVar(&headlessCount, "count", 0, "Number of samples to collect in headless mode (0 = infinite)")
