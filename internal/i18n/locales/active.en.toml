@@ -185,7 +185,7 @@ Update Interval: %dms
 - c / Shift + C: Cycle UI color themes forward / backward
 - b / Shift + B: Cycle UI background colors forward / backward
 - p: Toggle party mode (color cycling)
-- l / Shift + L: Cycle through the 22 available layouts forward / backward
+- l / Shift + L: Cycle through the 23 available layouts forward / backward
 - a: Jump to the ANE/BW history layout (press again to go back)
 - o: Jump to the ports layout (listening TCP/UDP ports; press again to go back)
 - m: Jump to the memory pressure layout (press again to go back)

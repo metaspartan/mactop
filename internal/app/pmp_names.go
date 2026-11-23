@@ -37,6 +37,12 @@ func pmpIsAmccDcsBwChannel(sub, chn string) bool {
 	return withCStrings(sub, chn, func(a, b *C.char) C.bool { return C.isAmccDcsBwChannel(a, b) })
 }
 
+func pmpAmccDcsBwDirection(chn string) int {
+	c := C.CString(chn)
+	defer C.free(unsafe.Pointer(c))
+	return int(C.amccDcsBwDirection(c))
+}
+
 func pmpAneBwKind(chn string) int {
 	c := C.CString(chn)
 	defer C.free(unsafe.Pointer(c))
