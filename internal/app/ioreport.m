@@ -3223,10 +3223,19 @@ PowerMetrics samplePowerMetrics(int durationMs) {
     int slices = durationMs / 50; // ~50ms cadence (20 samples over a 1s window)
     if (slices < 1) slices = 1;
     useconds_t sliceUs = (useconds_t)((long)durationMs * 1000 / slices);
+    // Bound the window by wall-clock time, not by the slice count. Each slice
+    // is a usleep plus the ANE power-state reads; under Background QoS / App
+    // Nap the kernel coalesces timers and a 50 ms usleep can take several
+    // times longer, which stretched a 1 s window to 3-5 s. The rates stay
+    // correct (they are divided by actualDurationNs), but the sample period
+    // silently drifted far from --interval.
+    uint64_t windowTicks =
+        s_tb.numer ? (uint64_t)durationMs * 1000000ull * s_tb.denom / s_tb.numer : 0;
+    uint64_t deadline = t1 + windowTicks;
     int samples = 0, powered = 0;
     int perSamples[MAX_ANE_SERVICES] = {0};
     int perPowered[MAX_ANE_SERVICES] = {0};
-    for (int si = 0; si < slices; si++) {
+    for (;;) {
       if (aneSvcCount > 0) {
         int st = readAnyAnePowered(aneSvcs, aneSvcCount);
         if (st >= 0) {
@@ -3241,7 +3250,10 @@ PowerMetrics samplePowerMetrics(int durationMs) {
           }
         }
       }
-      usleep(sliceUs);
+      uint64_t now = mach_absolute_time();
+      if (now >= deadline) break;
+      uint64_t remainingUs = (deadline - now) * s_tb.numer / s_tb.denom / 1000;
+      usleep(remainingUs < sliceUs ? (useconds_t)remainingUs : sliceUs);
     }
     metrics.aneClusterCount = aneSvcCount;
     for (int ci = 0; ci < MAX_ANE_SERVICES; ci++) {
