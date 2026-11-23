@@ -5,6 +5,7 @@ import (
 	"math"
 	"net"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -119,7 +120,7 @@ func initializePrometheusSeries(sysInfo SystemInfo) {
 		tbNetworkSpeed.With(prometheus.Labels{"direction": direction}).Set(0)
 	}
 	for i := 0; i < sysInfo.CoreCount; i++ {
-		cpuCoreUsage.With(prometheus.Labels{"core": fmt.Sprintf("%d", i), "type": coreTypeForIndex(i, sysInfo)}).Set(0)
+		cpuCoreUsage.WithLabelValues(strconv.Itoa(i), coreTypeForIndex(i, sysInfo)).Set(0)
 	}
 }
 
@@ -437,7 +438,7 @@ func publishPrometheusMetrics(snapshot prometheusMetricsSnapshot) {
 	memoryPressureApproxGauge.Set(snapshot.Memory.PressureApprox)
 
 	for i, usage := range cpuMetrics.CoreUsages {
-		cpuCoreUsage.With(prometheus.Labels{"core": fmt.Sprintf("%d", i), "type": coreTypeForIndex(i, snapshot.SystemInfo)}).Set(usage)
+		cpuCoreUsage.WithLabelValues(strconv.Itoa(i), coreTypeForIndex(i, snapshot.SystemInfo)).Set(usage)
 	}
 
 	gpuUsage.Set(snapshot.GPUMetrics.ActivePercent)
@@ -729,8 +730,20 @@ func collectMetrics(done chan struct{}, cpumetricsChan chan CPUMetrics, gpumetri
 	}
 }
 
+// tempSensorChild caches a per-sensor child gauge so a tick does not build a
+// prometheus.Labels map and re-hash the label values for every sensor (281
+// sensors on an M5 Max Mac Studio). seen is the last generation the sensor was
+// reported in; children not seen in the current one are deleted.
+type tempSensorChild struct {
+	gauge prometheus.Gauge
+	seen  uint64
+}
+
 // Updated by the single metrics sampling loop; GaugeVec itself is concurrent-safe.
-var previousTempSensors = map[string]prometheus.Labels{}
+var (
+	tempSensorChildren   = map[[2]string]*tempSensorChild{}
+	tempSensorGeneration uint64
+)
 
 func updatePrometheusSensors(fans []FanInfo, sensors []TempSensor) {
 	for _, fan := range fans {
@@ -740,19 +753,23 @@ func updatePrometheusSensors(fans []FanInfo, sensors []TempSensor) {
 			fanRPM.With(prometheus.Labels{"fan_id": fmt.Sprintf("%d", fan.ID), "fan_name": fan.Name}).Set(-1)
 		}
 	}
-	current := make(map[string]prometheus.Labels, len(sensors))
+	tempSensorGeneration++
 	for _, sensor := range sensors {
-		labels := prometheus.Labels{"key": sensor.Key, "name": sensor.Name}
-		identity := sensor.Key + "\x00" + sensor.Name
-		current[identity] = labels
-		tempSensorGauge.With(labels).Set(sensor.Value)
+		id := [2]string{sensor.Key, sensor.Name}
+		child := tempSensorChildren[id]
+		if child == nil {
+			child = &tempSensorChild{gauge: tempSensorGauge.WithLabelValues(sensor.Key, sensor.Name)}
+			tempSensorChildren[id] = child
+		}
+		child.gauge.Set(sensor.Value)
+		child.seen = tempSensorGeneration
 	}
-	for identity, labels := range previousTempSensors {
-		if _, exists := current[identity]; !exists {
-			tempSensorGauge.Delete(labels)
+	for id, child := range tempSensorChildren {
+		if child.seen != tempSensorGeneration {
+			tempSensorGauge.DeleteLabelValues(id[0], id[1])
+			delete(tempSensorChildren, id)
 		}
 	}
-	previousTempSensors = current
 }
 
 func shouldCollectPorts() bool {

@@ -1,6 +1,7 @@
 package app
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 
@@ -9,8 +10,8 @@ import (
 
 func TestPrometheusTemperatureLifecycle(t *testing.T) {
 	tempSensorGauge.Reset()
-	previousTempSensors = map[string]prometheus.Labels{}
-	t.Cleanup(func() { tempSensorGauge.Reset(); previousTempSensors = map[string]prometheus.Labels{} })
+	tempSensorChildren = map[[2]string]*tempSensorChild{}
+	t.Cleanup(func() { tempSensorGauge.Reset(); tempSensorChildren = map[[2]string]*tempSensorChild{} })
 	registry := prometheus.NewRegistry()
 	registry.MustRegister(tempSensorGauge)
 	tests := []struct {
@@ -48,5 +49,19 @@ func TestPrometheusTemperatureLifecycle(t *testing.T) {
 				t.Fatalf("temperatures = %#v, want %#v", got, want)
 			}
 		})
+	}
+}
+
+func BenchmarkUpdatePrometheusSensors(b *testing.B) {
+	sensors := make([]TempSensor, 281) // 281 sensors on an M5 Max Mac Studio
+	for i := range sensors {
+		sensors[i] = TempSensor{Key: fmt.Sprintf("Tp%02x", i), Name: fmt.Sprintf("Sensor %d", i), Value: 40 + float64(i)}
+	}
+	tempSensorGauge.Reset()
+	tempSensorChildren = map[[2]string]*tempSensorChild{}
+	b.Cleanup(func() { tempSensorGauge.Reset(); tempSensorChildren = map[[2]string]*tempSensorChild{} })
+	b.ReportAllocs()
+	for b.Loop() {
+		updatePrometheusSensors(nil, sensors)
 	}
 }
