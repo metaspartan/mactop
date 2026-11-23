@@ -77,18 +77,25 @@ var prevProcessTimesMutex sync.Mutex
 var timebaseInfo C.mach_timebase_info_data_t
 var timebaseOnce sync.Once
 
+// procSysctlBuf is the KERN_PROC_ALL buffer, reused across calls (guarded
+// by prevProcessTimesMutex) instead of a ~0.5 MB allocation every tick.
+var procSysctlBuf []byte
+
+// procTaskInfoScratch avoids a heap-escaping proc_taskinfo per process.
+var procTaskInfoScratch C.struct_proc_taskinfo
+
 func getTimebase() {
 	C.mach_timebase_info(&timebaseInfo)
 }
 
-func processOsProc(kp C.struct_kinfo_proc, now time.Time, prevProcessTimes map[int]ProcessTimeState, totalMem uint64, numer, denom uint64) (ProcessMetrics, int, ProcessTimeState, bool) {
+func processOsProc(kp *C.struct_kinfo_proc, now time.Time, prevProcessTimes map[int]ProcessTimeState, totalMem uint64, numer, denom uint64) (ProcessMetrics, int, ProcessTimeState, bool) {
 	pid := int(kp.kp_proc.p_pid)
 	if pid == 0 {
 		return ProcessMetrics{}, 0, ProcessTimeState{}, false
 	}
 
 	comm := C.GoString(&kp.kp_proc.p_comm[0])
-	createSec := int64(C.get_proc_starttime(&kp))
+	createSec := int64(C.get_proc_starttime(kp))
 
 	// Fast path: reuse full command name to avoid heavy proc_pidpath syscall on every tick.
 	// p_comm is a 16-byte truncation of the full name, so check if cached command starts with it.
@@ -106,8 +113,9 @@ func processOsProc(kp C.struct_kinfo_proc, now time.Time, prevProcessTimes map[i
 	vszBytes := int64(0)
 	totalTimeNs := uint64(0)
 
-	var taskInfo C.struct_proc_taskinfo
-	ret := C.proc_pidinfo(C.int(pid), C.PROC_PIDTASKINFO, 0, unsafe.Pointer(&taskInfo), C.int(C.sizeof_struct_proc_taskinfo))
+	taskInfo := &procTaskInfoScratch // caller holds prevProcessTimesMutex
+	*taskInfo = C.struct_proc_taskinfo{}
+	ret := C.proc_pidinfo(C.int(pid), C.PROC_PIDTASKINFO, 0, unsafe.Pointer(taskInfo), C.int(C.sizeof_struct_proc_taskinfo))
 	if ret == C.int(C.sizeof_struct_proc_taskinfo) {
 		rssBytes = int64(taskInfo.pti_resident_size)
 		vszBytes = int64(taskInfo.pti_virtual_size)
@@ -192,6 +200,10 @@ func getProcessList(systemGpuPercent float64) ([]ProcessMetrics, error) {
 	}
 	var size C.size_t
 
+	// The mutex also guards procSysctlBuf, reused across ticks.
+	prevProcessTimesMutex.Lock()
+	defer prevProcessTimesMutex.Unlock()
+
 	if _, err := C.sysctl(&mib[0], mibLen, nil, &size, nil, 0); err != nil {
 		return nil, fmt.Errorf("sysctl size check failed: %v", err)
 	}
@@ -201,7 +213,14 @@ func getProcessList(systemGpuPercent float64) ([]ProcessMetrics, error) {
 		return nil, nil
 	}
 
-	buf := make([]byte, size)
+	// Over-allocate by 1/8 and hand sysctl the whole capacity: processes
+	// spawned between the size query and the fetch then still fit instead of
+	// failing the tick with ENOMEM.
+	if uintptr(cap(procSysctlBuf)) < uintptr(size+size/8) {
+		procSysctlBuf = make([]byte, size+size/8)
+	}
+	buf := procSysctlBuf[:cap(procSysctlBuf)]
+	size = C.size_t(len(buf))
 	if _, err := C.sysctl(&mib[0], mibLen, unsafe.Pointer(&buf[0]), &size, nil, 0); err != nil {
 		return nil, fmt.Errorf("sysctl fetch failed: %v", err)
 	}
@@ -209,13 +228,10 @@ func getProcessList(systemGpuPercent float64) ([]ProcessMetrics, error) {
 	count := int(size) / int(C.sizeof_struct_kinfo_proc)
 	kprocs := (*[1 << 30]C.struct_kinfo_proc)(unsafe.Pointer(&buf[0]))[:count:count]
 
-	var processes []ProcessMetrics
+	processes := make([]ProcessMetrics, 0, count)
 	now := time.Now()
 
-	prevProcessTimesMutex.Lock()
-	defer prevProcessTimesMutex.Unlock()
-
-	nextProcessTimes := make(map[int]ProcessTimeState)
+	nextProcessTimes := make(map[int]ProcessTimeState, len(prevProcessTimes))
 
 	mibMem := []C.int{6, 24}
 	var memSize C.uint64_t
@@ -232,8 +248,8 @@ func getProcessList(systemGpuPercent float64) ([]ProcessMetrics, error) {
 		denom = 1
 	}
 
-	for _, kp := range kprocs {
-		pm, pid, ns, ok := processOsProc(kp, now, prevProcessTimes, totalMem, numer, denom)
+	for i := range kprocs {
+		pm, pid, ns, ok := processOsProc(&kprocs[i], now, prevProcessTimes, totalMem, numer, denom)
 		if ok {
 			processes = append(processes, pm)
 			nextProcessTimes[pid] = ns
