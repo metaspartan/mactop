@@ -175,3 +175,43 @@ func placeholdersFor(msg string) []string {
 	}
 	return placeholders
 }
+
+func TestInitLoadsOnlyRequestedCatalogs(t *testing.T) {
+	cases := []struct {
+		lang string
+		want []string
+	}{
+		{"en", []string{"en"}},
+		{"ru", []string{"en", "ru"}},
+		{"ru_RU.UTF-8", []string{"en", "ru"}},
+		{"zh-TW", []string{"en", "zh", "zh-Hant"}},
+		{"xx", []string{"en"}},
+	}
+	for _, tc := range cases {
+		Init(tc.lang)
+		var got []string
+		for _, tag := range bundle.LanguageTags() {
+			got = append(got, tag.String())
+		}
+		slices.Sort(got)
+		if !slices.Equal(got, tc.want) {
+			t.Errorf("Init(%q) loaded %v, want %v", tc.lang, got, tc.want)
+		}
+	}
+}
+
+func TestInitStillTranslates(t *testing.T) {
+	const id = "Headless_ErrorInitMetrics"
+	Init("en")
+	en := T(id)
+	for _, lang := range []string{"ru", "zh-TW", "ja-JP"} {
+		Init(lang)
+		if got := T(id); got == en || got == id {
+			t.Errorf("Init(%q): T(%q) = %q, want a translation different from en %q", lang, id, got, en)
+		}
+	}
+	Init("xx")
+	if got := T(id); got != en {
+		t.Errorf("unknown language should fall back to en: got %q, want %q", got, en)
+	}
+}
