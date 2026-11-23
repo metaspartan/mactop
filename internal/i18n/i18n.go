@@ -25,16 +25,6 @@ func Init(langOverride string) {
 	bundle = goi18n.NewBundle(language.English)
 	bundle.RegisterUnmarshalFunc("toml", toml.Unmarshal)
 
-	// Load all translation files from the embedded FS
-	files, err := localeFS.ReadDir("locales")
-	if err == nil {
-		for _, f := range files {
-			if !f.IsDir() && strings.HasSuffix(f.Name(), ".toml") {
-				_, _ = bundle.LoadMessageFileFS(localeFS, "locales/"+f.Name())
-			}
-		}
-	}
-
 	var langs []string
 
 	if langOverride != "" {
@@ -58,7 +48,46 @@ func Init(langOverride string) {
 	// Always fallback to en
 	langs = append(langs, "en")
 
+	loadCatalogs(langs)
+
 	localizer = goi18n.NewLocalizer(bundle, langs...)
+}
+
+// loadCatalogs parses only the embedded catalogs whose primary subtag matches
+// one of the requested languages. Parsing all of them costs ~20 MB of
+// allocations at startup and keeps the unused message templates alive for the
+// whole run (~10 MB of footprint in a long-running --headless/-p process),
+// while only the requested language and the en fallback can ever be selected.
+func loadCatalogs(langs []string) {
+	wanted := make(map[string]bool, len(langs))
+	for _, l := range langs {
+		wanted[primarySubtag(l)] = true
+	}
+	files, err := localeFS.ReadDir("locales")
+	if err != nil {
+		return
+	}
+	for _, f := range files {
+		name := f.Name()
+		if f.IsDir() || !strings.HasSuffix(name, ".toml") {
+			continue
+		}
+		tag := strings.TrimSuffix(strings.TrimPrefix(name, "active."), ".toml")
+		if !wanted[primarySubtag(tag)] {
+			continue
+		}
+		_, _ = bundle.LoadMessageFileFS(localeFS, "locales/"+name)
+	}
+}
+
+// primarySubtag returns the lower-cased primary language subtag of a BCP-47
+// or POSIX locale ("zh-Hant" -> "zh", "pt_BR.UTF-8" -> "pt").
+func primarySubtag(tag string) string {
+	tag = strings.ToLower(strings.ReplaceAll(tag, "_", "-"))
+	if i := strings.IndexAny(tag, "-."); i >= 0 {
+		tag = tag[:i]
+	}
+	return tag
 }
 
 // T returns the localized string for a given Message ID.
